@@ -134,16 +134,21 @@ class CT_Picture(BaseOxmlElement):
         contents required to define a viable picture element, based on the
         values passed as parameters.
         """
-        pic = parse_xml(cls._pic_xml())
+        if filename.endswith(".svg"):
+            pic = parse_xml(cls._pic_xml_svg())
+            pic.blipFill.blip.extLst.ext.svgBlip.embed = rId
+        else:
+            pic = parse_xml(cls._pic_xml())
+            pic.blipFill.blip.embed = rId
+
         pic.nvPicPr.cNvPr.id = pic_id
         pic.nvPicPr.cNvPr.name = filename
-        pic.blipFill.blip.extLst.ext.svgBlip.embed = rId
         pic.spPr.cx = cx
         pic.spPr.cy = cy
         return pic
 
     @classmethod
-    def _pic_xml(cls):
+    def _pic_xml_svg(cls):
         return (
             '<pic:pic %s>\n'
             '  <pic:nvPicPr>\n'
@@ -158,6 +163,30 @@ class CT_Picture(BaseOxmlElement):
             '        </a:ext>\n'
             '      </a:extLst>\n'
             '    </a:blip>\n'
+            '    <a:stretch>\n'
+            '      <a:fillRect/>\n'
+            '    </a:stretch>\n'
+            '  </pic:blipFill>\n'
+            '  <pic:spPr>\n'
+            '    <a:xfrm>\n'
+            '      <a:off x="0" y="0"/>\n'
+            '      <a:ext cx="914400" cy="914400"/>\n'
+            '    </a:xfrm>\n'
+            '    <a:prstGeom prst="rect"/>\n'
+            '  </pic:spPr>\n'
+            '</pic:pic>' % nsdecls('pic', 'a', 'r', 'asvg')
+        )
+
+    @classmethod
+    def _pic_xml(cls):
+        return (
+            '<pic:pic %s>\n'
+            '  <pic:nvPicPr>\n'
+            '    <pic:cNvPr id="666" name="unnamed"/>\n'
+            '    <pic:cNvPicPr/>\n'
+            '  </pic:nvPicPr>\n'
+            '  <pic:blipFill>\n'
+            '    <a:blip/>\n'
             '    <a:stretch>\n'
             '      <a:fillRect/>\n'
             '    </a:stretch>\n'
