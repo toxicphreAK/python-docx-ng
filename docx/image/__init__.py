@@ -27,5 +27,5 @@ SIGNATURES = (
     (Tiff, 0, b'MM\x00*'),  # big-endian (Motorola) TIFF
     (Tiff, 0, b'II*\x00'),  # little-endian (Intel) TIFF
     (Bmp,  0, b'BM'),
-    (Svg,  0, b'<svg '),
+    (Svg,  0, b'<?xml version='),
 )
