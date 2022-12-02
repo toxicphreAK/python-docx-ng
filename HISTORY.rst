@@ -3,6 +3,11 @@
 Release History
 ---------------
 
+0.9.1 (2022-12-02)
++++++++++++++++++++
+
+- Merged pull requests from original repository which are < 2 years old.
+
 0.8.11 (2021-05-15)
 +++++++++++++++++++
 
