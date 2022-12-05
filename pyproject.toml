@@ -5,7 +5,7 @@ description = "python-docx-ng is a Python library for creating and updating Micr
 authors = ["toxicphreAK <pentesting.laboratories@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-packages = [{include = "python_docx_ng"}]
+packages = [{include = "docx"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
