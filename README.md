@@ -27,6 +27,7 @@ More information is available in the [python-docx-ng Documentation](https://pyth
   + `Heading 1` key error due to style capitalization (e.g. in LibreOffice) ([#12](https://github.com/toxicphreAK/python-docx-ng/pull/12))
   + Fix XPath for sectPr in document ([#15](https://github.com/toxicphreAK/python-docx-ng/pull/15))
   + Reproducible documents ([#17](https://github.com/toxicphreAK/python-docx-ng/pull/17)) - same binary output with same data
+  + AttValue too long in etree xml parser ([#24](https://github.com/toxicphreAK/python-docx-ng/pull/24))
 
 ## Roadmap
 
