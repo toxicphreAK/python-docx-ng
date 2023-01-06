@@ -5,7 +5,8 @@ It was originally designed and developed by [scanny](https://github.com/scanny) 
 As he is not actively developing his repo and there are soo many useful pull requests, bringing together a more powerful tool.
 This repo should merge a lot of those things and create a more powerful version, hopefully bearing the original structure of scanny in mind.
 
-More information is available in the [python-docx-ng Documentation](https://python-docx.readthedocs.org/en/latest/).
+Older information is available in the [python-docx Documentation](https://python-docx.readthedocs.org/en/latest/).
+A new documentation section will be build up soon based on Markdown in the [docs](docs/) section.
 
 ## Features
 
@@ -32,5 +33,6 @@ More information is available in the [python-docx-ng Documentation](https://pyth
 ## Roadmap
 
 + [ ] Document all functionallities building a new sample document with *all* (most) features included
-+ [ ] Setup new docs
++ [ ] Remove code references to original repo of python-docx
++ [ ] Setup new docs (markdown based)
 + [ ] Add missing tests
