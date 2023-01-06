@@ -24,18 +24,18 @@ def text_of(relpath):
 version = re.search(r'__version__ = "([^"]+)"', text_of("docx/__init__.py")).group(1)
 
 
-NAME = "python-docx"
+NAME = "python-docx-ng"
 VERSION = version
-DESCRIPTION = "Create and update Microsoft Word .docx files."
+DESCRIPTION = "Create and modify Word documents with Python (next-gen)."
 KEYWORDS = "docx office openxml word"
-AUTHOR = "Steve Canny"
-AUTHOR_EMAIL = "python-docx@googlegroups.com"
-URL = "https://github.com/python-openxml/python-docx"
+AUTHOR = "toxicphreAK"
+AUTHOR_EMAIL = "pentesting.laboratories@gmail.com"
+URL = "https://github.com/toxicphreAK/python-docx-ng"
 LICENSE = text_of("LICENSE")
 PACKAGES = find_packages(exclude=["tests", "tests.*"])
 PACKAGE_DATA = {"docx": ["templates/*.xml", "templates/*.docx"]}
 
-INSTALL_REQUIRES = ["lxml>=2.3.2"]
+INSTALL_REQUIRES = ["lxml>=4.9.1"]
 TEST_SUITE = "tests"
 TESTS_REQUIRE = ["behave", "mock", "pyparsing", "pytest"]
 
@@ -46,12 +46,11 @@ CLASSIFIERS = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 2.6",
-    "Programming Language :: Python :: 2.7",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.3",
-    "Programming Language :: Python :: 3.4",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Topic :: Office/Business :: Office Suites",
     "Topic :: Software Development :: Libraries",
 ]
