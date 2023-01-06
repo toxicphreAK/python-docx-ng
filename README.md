@@ -5,8 +5,17 @@ It was originally designed and developed by [scanny](https://github.com/scanny) 
 As he is not actively developing his repo and there are soo many useful pull requests, bringing together a more powerful tool.
 This repo should merge a lot of those things and create a more powerful version, hopefully bearing the original structure of scanny in mind.
 
+A new documentation section will be build up soon based on Markdown in the [docs](docs) section.
+Examples can be found here: [examples](docs/examples)
 Older information is available in the [python-docx Documentation](https://python-docx.readthedocs.org/en/latest/).
-A new documentation section will be build up soon based on Markdown in the [docs](docs/) section.
+
+## Installation
+
+```commandline
+pip install python-docx-ng
+```
+
+> Hint: The library is called `docx` in python scripts, so use imports like `import docx`. 
 
 ## Features
 
