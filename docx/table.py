@@ -81,16 +81,20 @@ class Table(Parented):
         Return |_Cell| instance correponding to table cell at *row_idx*,
         *col_idx* intersection, where (0, 0) is the top, left-most cell.
         """
-        cell_idx = col_idx + (row_idx * self._column_count)
-        return self._cells[cell_idx]
+        # LEGACY: leave here to see original code
+        # cell_idx = col_idx + (row_idx * self._column_count)
+        # return self._cells[cell_idx]
+        return self._cells[row_idx][col_idx]
 
     def column_cells(self, column_idx):
         """
         Sequence of cells in the column at *column_idx* in this table.
         """
         cells = self._cells
-        idxs = range(column_idx, len(cells), self._column_count)
-        return [cells[idx] for idx in idxs]
+        # LEGACY: leave here to see original code
+        # idxs = range(column_idx, len(cells), self._column_count)
+        # return [cells[idx] for idx in idxs]
+        return [cells[row_idx][column_idx] for row_idx in range(0, len(cells))]
 
     @lazyproperty
     def columns(self):
@@ -104,10 +108,12 @@ class Table(Parented):
         """
         Sequence of cells in the row at *row_idx* in this table.
         """
-        column_count = self._column_count
-        start = row_idx * column_count
-        end = start + column_count
-        return self._cells[start:end]
+        # LEGACY: leave here to see original code
+        # column_count = self._column_count
+        # start = row_idx * column_count
+        # end = start + column_count
+        # return self._cells[start:end]
+        return self._cells[row_idx]
 
     @lazyproperty
     def rows(self):
@@ -165,25 +171,37 @@ class Table(Parented):
     @property
     def _cells(self):
         """
-        A sequence of |_Cell| objects, one for each cell of the layout grid.
+        A matrix of |_Cell| objects, one for each cell of the layout grid.
         If the table contains a span, one or more |_Cell| object references
         are repeated.
         """
         if not self._update_cache:
             return self._cached_cells
-        col_count = self._column_count
+        # LEGACY: leave here to see original code
+        # col_count = self._column_count
         cells = []
-        for tc in self._tbl.iter_tcs():
-            for grid_span_idx in range(tc.grid_span):
-                if tc.vMerge == ST_Merge.CONTINUE:
-                    cells.append(cells[-col_count])
-                elif grid_span_idx > 0:
-                    cells.append(cells[-1])
-                else:
-                    cells.append(_Cell(tc, self))
-        self._cached_cells = cells
-        self._update_cache = False
+        # for tc in self._tbl.iter_tcs():
+        #     for grid_span_idx in range(tc.grid_span):
+        #         if tc.vMerge == ST_Merge.CONTINUE:
+        #             cells.append(cells[-col_count])
+        #         elif grid_span_idx > 0:
+        #             cells.append(cells[-1])
+        #         else:
+        #             cells.append(_Cell(tc, self))
+        # self._cached_cells = cells
+        # self._update_cache = False
+        for row_idx, tr in enumerate(self._tbl.tr_lst):
+            cells.append([])
+            for col_idx, tc in enumerate(tr.tc_lst):
+                for grid_span_idx in range(tc.grid_span):
+                    if tc.vMerge == ST_Merge.CONTINUE:
+                        cells[row_idx].append(cells[row_idx - 1][col_idx])
+                    elif grid_span_idx > 0:
+                        cells[row_idx].append(cells[row_idx][col_idx])
+                    else:
+                        cells[row_idx].append(_Cell(tc, self))
         return cells
+
 
     @property
     def _column_count(self):
