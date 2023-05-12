@@ -19,6 +19,7 @@ pip install python-docx-ng
 
 ## Features
 
++ [x] Extended Properties support [python-docx #1206](https://github.com/python-openxml/python-docx/pull/1206)
 + [x] Word 16 (Office 2019) Template ([54a1269](https://github.com/toxicphreAK/python-docx-ng/commit/54a1269a3608239adfef079840f69389235c88b8))
 + [x] Faster & improved tables ([#1](https://github.com/toxicphreAK/python-docx-ng/pull/1))
 + [x] SVG support ([#4](https://github.com/toxicphreAK/python-docx-ng/pull/4))
@@ -42,6 +43,8 @@ pip install python-docx-ng
 ## Roadmap
 
 + [ ] Document all functionallities building a new sample document with *all* (most) features included
+  + [ ] Go through *all* Issues of python-docx repo
+  + [ ] Search on stackoverflow and document solutions
 + [ ] Remove code references to original repo of python-docx
 + [ ] Setup new docs (markdown based)
 + [ ] Add missing tests
