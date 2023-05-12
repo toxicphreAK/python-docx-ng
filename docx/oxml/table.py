@@ -542,9 +542,11 @@ class CT_Tc(BaseOxmlElement):
             return ST_Merge.RESTART
 
         top_tc = self if top_tc is None else top_tc
-        self._span_to_width(width, top_tc, vMerge_val(top_tc))
-        if height > 1:
-            self._tc_below._grow_to(width, height-1, top_tc)
+        for sigle_height in range(height):
+            self._span_to_width(width, top_tc, vMerge_val(top_tc))
+        # LEGACY
+        #if height > 1:
+        #    self._tc_below._grow_to(width, height-1, top_tc)
 
     def _insert_tcPr(self, tcPr):
         """
