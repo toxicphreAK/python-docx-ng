@@ -23,7 +23,7 @@ class CT_ExtendedProperties(BaseOxmlElement):
     template = ZeroOrOne('Template', successors=())
 
     _extendedProperties_tmpl = (
-            '<Properties %s/>\n' % nsdecls('xmlns', 'vt')
+            '<Properties %s/>\n' % nsdecls('vt')
     )
 
     @classmethod
