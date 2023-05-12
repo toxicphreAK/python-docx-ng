@@ -34,6 +34,7 @@ pip install python-docx-ng
   + Paragraph.text ([#3}(https://github.com/toxicphreAK/python-docx-ng/pull/3)
   + Cache for table cells ([#8](https://github.com/toxicphreAK/python-docx-ng/pull/8))
 + [x] Fixes
+  + Fix table issue [python-docx#1196](https://github.com/python-openxml/python-docx/pull/1196) - as table columns were not assigned correctly, see [python-docx#1193](https://github.com/python-openxml/python-docx/issues/1193)
   + add_picture ([#10](https://github.com/toxicphreAK/python-docx-ng/pull/10)) - fix next_id to support multiple pictures
   + `Heading 1` key error due to style capitalization (e.g. in LibreOffice) ([#12](https://github.com/toxicphreAK/python-docx-ng/pull/12))
   + Fix XPath for sectPr in document ([#15](https://github.com/toxicphreAK/python-docx-ng/pull/15))
