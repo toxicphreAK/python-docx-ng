@@ -24,6 +24,7 @@ pip install python-docx-ng
 + [x] Faster & improved tables ([#1](https://github.com/toxicphreAK/python-docx-ng/pull/1))
 + [x] SVG support ([#4](https://github.com/toxicphreAK/python-docx-ng/pull/4))
 + [x] EMF support ([85a30f1](https://github.com/toxicphreAK/python-docx-ng/commit/85a30f16a1f49767e331525346d8220926ecde39))
++ [x] WMF support ([9288ec9](https://github.com/toxicphreAK/python-docx-ng/commit/9288ec96db4faed53e46221e61100106e82934d8))
 + [x] Font scaling ([#6](https://github.com/toxicphreAK/python-docx-ng/pull/6))
 + [x] Outline level ([#7](https://github.com/toxicphreAK/python-docx-ng/pull/7)) - shows outline in navigation (e.g. Word or PDF application - not affecting the document itself)
 + [x] RGB color font highlighting ([#14](https://github.com/toxicphreAK/python-docx-ng/pull/14))
@@ -33,6 +34,7 @@ pip install python-docx-ng
 + [x] Custom namespaces ([#21](https://github.com/toxicphreAK/python-docx-ng/pull/21))
 + [x] Comment support ([85a30f1](https://github.com/toxicphreAK/python-docx-ng/commit/85a30f16a1f49767e331525346d8220926ecde39))
 + [x] Footnote support ([85a30f1](https://github.com/toxicphreAK/python-docx-ng/commit/85a30f16a1f49767e331525346d8220926ecde39))
++ [x] Shading support ([9288ec9](https://github.com/toxicphreAK/python-docx-ng/commit/9288ec96db4faed53e46221e61100106e82934d8))
 + [x] Performance improvements
   + Paragraph.text ([#3}(https://github.com/toxicphreAK/python-docx-ng/pull/3)
   + Cache for table cells ([#8](https://github.com/toxicphreAK/python-docx-ng/pull/8))
