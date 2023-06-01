@@ -11,6 +11,8 @@ from docx.parts.numbering import NumberingPart
 from docx.parts.settings import SettingsPart
 from docx.parts.story import BaseStoryPart
 from docx.parts.styles import StylesPart
+from docx.parts.comment import CommentPart
+from docx.parts.footnotes import FootnotesPart
 from docx.shape import InlineShapes
 from docx.shared import lazyproperty
 

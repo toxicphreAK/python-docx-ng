@@ -102,6 +102,7 @@ class MIME_TYPE(object):
     JPEG = 'image/jpeg'
     PNG = 'image/png'
     TIFF = 'image/tiff'
+    EMF = 'image/emf'
     SVG = 'image/svg+xml'
 
 

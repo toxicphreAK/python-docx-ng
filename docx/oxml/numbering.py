@@ -94,6 +94,7 @@ class CT_Numbering(BaseOxmlElement):
     ``<w:numbering>`` element, the root element of a numbering part, i.e.
     numbering.xml
     """
+    abstractNum = ZeroOrMore('w:abstractNum', successors=('w:num',))
     num = ZeroOrMore('w:num', successors=('w:numIdMacAtCleanup',))
 
     def add_num(self, abstractNum_id):
@@ -133,8 +134,10 @@ class CT_Numbering(BaseOxmlElement):
 
 class CT_AbstractNum(BaseOxmlElement):
     """
-    ``<w:abstractNum>`` element, which represents a concrete list definition
+    ``<w:abstractNum>`` element, which represents an abstract numbering
+        definition that defines most of the formatting details.
     """
+    # abstractNumId = RequiredAttribute('w:abstractNumId', ST_DecimalNumber)
     abstractNumId = OneAndOnlyOne('w:abstractNumId')
     lvl = ZeroOrOne('w:lvl')
 

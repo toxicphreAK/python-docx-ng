@@ -5,12 +5,18 @@ Run-related proxy objects for python-docx, Run in particular.
 """
 
 from __future__ import absolute_import, print_function, unicode_literals
+from datetime import datetime
+
+from docx.oxml.ns import qn
+from docx.opc.part import PackURI, Part
 
 from ..enum.style import WD_STYLE_TYPE
 from ..enum.text import WD_BREAK
 from .font import Font
 from ..shape import InlineShape
 from ..shared import Parented
+
+from .comment import Comment
 
 
 class Run(Parented):
@@ -79,6 +85,14 @@ class Run(Parented):
         """
         t = self._r.add_t(text)
         return _Text(t)
+
+    def add_comment(self, text, author='python-docx', initials='pd', dtime=None):
+        comment_part = self.part._comments_part.element
+        if dtime is None:
+            dtime = str(datetime.now()).replace(' ', 'T')
+        comment = self._r.add_comm(author, comment_part, initials, dtime, text)
+
+        return comment
 
     @property
     def bold(self):
@@ -180,6 +194,91 @@ class Run(Parented):
     @underline.setter
     def underline(self, value):
         self.font.underline = value
+
+    @property
+    def footnote(self):
+        _id = self._r.footnote_id
+
+        if _id is not None:
+            footnotes_part = self._parent._parent.part._footnotes_part.element
+            footnote = footnotes_part.get_footnote_by_id(_id)
+            return footnote.paragraph.text
+        else:
+            return None
+
+    @property
+    def is_hyperlink(self):
+        '''
+        checks if the run is nested inside a hyperlink element
+        '''
+        return self.element.getparent().tag.split('}')[1] == 'hyperlink'
+
+    def get_hyperlink(self):
+        """
+        returns the text of the hyperlink of the run in case of the run has a hyperlink
+        """
+        document = self._parent._parent.document
+        parent = self.element.getparent()
+        linkText = ''
+        if self.is_hyperlink:
+            if parent.attrib.__contains__(qn('r:id')):
+                rId = parent.get(qn('r:id'))
+                linkText = document._part._rels[rId].target_ref
+                return linkText, True
+            elif parent.attrib.__contains__(qn('w:anchor')):
+                linkText = parent.get(qn('w:anchor'))
+                return linkText, False
+            else:
+                # TBD: review... no prints!
+                print('No link in hyperlink!')
+                print(self.text)
+                return '', False
+        else:
+            return ''
+
+    @property
+    def comments(self):
+        comment_part = self._parent._parent.part._comments_part.element
+        comment_refs = self._element.findall(qn('w:commentReference'))
+        ids = [int(ref.get(qn('w:id'))) for ref in comment_refs]
+        coms = [com for com in comment_part if com._id in ids]
+        return [Comment(com, comment_part) for com in coms]
+
+    def add_ole_object_to_run(self, ole_object_path):
+        """
+        Add saved OLE Object in the disk to an run and retun the newly created relationship ID
+        Note: OLE Objects must be stored in the disc as `.bin` file
+        """
+        reltype: str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/oleObject"
+        pack_path: str = "/word/embeddings/" + ole_object_path.split("\\")[-1]
+        partname = PackURI(pack_path)
+        content_type: str = "application/vnd.openxmlformats-officedocument.oleObject"
+
+        with open(ole_object_path, "rb") as f:
+            blob = f.read()
+        target_part = Part(partname=partname, content_type=content_type, blob=blob)
+        rel_id: str = self.part.rels._next_rId
+        self.part.rels.add_relationship(reltype=reltype, target=target_part, rId=rel_id)
+        return rel_id
+
+    def add_fldChar(self, fldCharType, fldLock: bool = False, dirty: bool = False):
+
+        fldChar = self._r.add_fldChar(fldCharType, fldLock, dirty)
+        return fldChar
+
+    @property
+    def instr_text(self):
+        return self._r.instr_text
+
+    @instr_text.setter
+    def instr_text(self, instr_text_val):
+        self._r.instr_text = instr_text_val
+
+    def remove_instr_text(self):
+        if self.instr_text is None:
+            return None
+        else:
+            self._r._remove_instr_text()
 
 
 class _Text(object):

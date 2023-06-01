@@ -7,13 +7,14 @@ from __future__ import (
 )
 
 from . import parse_xml
+from . import OxmlElement
 from ..enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_ROW_HEIGHT_RULE
 from ..exceptions import InvalidSpanError
-from .ns import nsdecls, qn
+from .ns import nsdecls, qn, nsmap
 from ..shared import Emu, Twips
 from .simpletypes import (
     ST_Merge, ST_TblLayoutType, ST_TblWidth, ST_TwipsMeasure, XsdInt, ST_Border,
-    ST_HexColor, ST_EighthPointMeasure, ST_PointMeasure
+    ST_HexColor, ST_EighthPointMeasure, ST_PointMeasure, ST_String
 )
 from .xmlchemy import (
     BaseOxmlElement, OneAndOnlyOne, OneOrMore, OptionalAttribute,
@@ -234,6 +235,20 @@ class CT_Tbl(BaseOxmlElement):
             ) % col_width.twips
         return xml
 
+    @property
+    def _section(self):
+        body = self.getparent()
+        sections = body.findall('.//w:sectPr', {'w':nsmap['w']})
+        if len(sections) == 1:
+            return sections[0]
+        else:
+            tbl_index = body.index(self)
+            for i,sect in enumerate(sections):
+                if i == len(sections) - 1 :
+                    return sect
+                else:
+                    if body.index(sect.getparent().getparent()) > tbl_index:
+                        return sect
 
 class CT_TblGrid(BaseOxmlElement):
     """
@@ -277,10 +292,12 @@ class CT_TblPr(BaseOxmlElement):
         'w:tblStyleRowBandSize', 'w:tblStyleColBandSize', 'w:tblW', 'w:jc',
         'w:tblCellSpacing', 'w:tblInd', 'w:tblBorders', 'w:shd',
         'w:tblLayout', 'w:tblCellMar', 'w:tblLook', 'w:tblCaption',
-        'w:tblDescription', 'w:tblPrChange'
+        'w:tblDescription', 'w:tblPrChange', 'w:tblPr'
     )
     tblStyle = ZeroOrOne('w:tblStyle', successors=_tag_seq[1:])
     bidiVisual = ZeroOrOne('w:bidiVisual', successors=_tag_seq[4:])
+    tblW = ZeroOrOne ('w:tblW', successors=_tag_seq[19:])
+    tblCellMar = ZeroOrOne('w:tblCellMar', successors=_tag_seq[19:])
     jc = ZeroOrOne('w:jc', successors=_tag_seq[8:])
     tblBorders = ZeroOrOne('w:tblBorders', successors=_tag_seq[11:])
     tblLayout = ZeroOrOne('w:tblLayout', successors=_tag_seq[13:])
@@ -966,10 +983,15 @@ class CT_TcBorders(BaseOxmlElement):
                 element.color = color
             return element
 
+    def add_bottom_border(self, val, sz):
+        bottom = CT_Bottom.new(val, sz)
+        return self._insert_bottom(bottom)
+
     def remove_border(self, name):
         remove_method = getattr(self, '_remove_%s' % name, None)
         if remove_method:
             remove_method()
+
 
 class CT_TblBorders(BaseOxmlElement):
     _tag_seq = ('w:top', 'w:start', 'w:bottom', 'w:end', 'w:insideH', 'w:insideV')
@@ -1010,3 +1032,31 @@ class CT_TblBorders(BaseOxmlElement):
         remove_method = getattr(self, '_remove_%s' % name, None)
         if remove_method:
             remove_method()
+
+
+class CT_TblMar(BaseOxmlElement):
+    """
+    ``<w:tblCellMar>`` element
+    """
+    left = ZeroOrOne('w:left', successors=('w:tblCellMar',))
+    right = ZeroOrOne('w:write', successors=('w:tblCellMar',))
+
+
+class CT_Bottom(BaseOxmlElement):
+    """
+    <w:bottom> element
+    """
+    val= OptionalAttribute('w:val', ST_String)
+    sz= OptionalAttribute('w:sz', ST_String)
+    space = OptionalAttribute('w:space', ST_String)
+    color = OptionalAttribute('w:color', ST_String)
+
+    @classmethod
+    def new(cls, val, sz):
+        bottom = OxmlElement('w:bottom')
+        bottom.val = val
+        bottom.sz = sz
+        bottom.space = "0"
+        bottom.color = "auto"
+
+        return bottom

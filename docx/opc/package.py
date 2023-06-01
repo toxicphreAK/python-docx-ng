@@ -11,6 +11,8 @@ from docx.opc.parts.coreprops import CorePropertiesPart
 from docx.opc.parts.extendedprops import ExtendedPropertiesPart
 from docx.opc.pkgreader import PackageReader
 from docx.opc.pkgwriter import PackageWriter
+from docx.parts.comment import CommentPart
+from docx.parts.footnote import FootnotePart
 from docx.opc.rel import Relationships
 from docx.opc.shared import lazyproperty
 
@@ -205,6 +207,32 @@ class OpcPackage(object):
             extended_properties_part = ExtendedPropertiesPart.default(self)
             self.relate_to(extended_properties_part, RT.EXTENDED_PROPERTIES)
             return extended_properties_part
+
+    @property
+    def _comments_part(self):
+        """
+        |CommentsPart| object related to this package. Creates
+        a default Comments part if one is not present.
+        """
+        try:
+            return self.part_related_by(RT.COMMENTS)
+        except KeyError:
+            comments_part = CommentsPart.default(self)
+            self.relate_to(comments_part, RT.COMMENTS)
+            return comments_part
+
+    @property
+    def _footnotes_part(self):
+        """
+        |FootnotesPart| object related to this package. Creates
+        a default Comments part if one is not present.
+        """
+        try:
+            return self.part_related_by(RT.FOOTNOTES)
+        except KeyError:
+            footnotes_part = FootnotesPart.default(self)
+            self.relate_to(footnotes_part, RT.FOOTNOTES)
+            return footnotes_part
 
 
 class Unmarshaller(object):

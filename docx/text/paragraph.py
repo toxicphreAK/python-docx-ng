@@ -13,6 +13,9 @@ from .parfmt import ParagraphFormat
 from .run import Run
 from ..shared import Parented
 
+from datetime import datetime
+import re
+
 
 class Paragraph(Parented):
     """
@@ -38,6 +41,32 @@ class Paragraph(Parented):
         if style:
             run.style = style
         return run
+
+    def add_comment(self, text, author='python-docx', initials='pd', dtime=None ,rangeStart=0, rangeEnd=0, comment_part=None):
+        if comment_part is None:
+            comment_part = self.part._comments_part.element
+        if dtime is None:
+            dtime = str(datetime.now()).replace(' ', 'T')
+        comment =  self._p.add_comm(author, comment_part, initials, dtime, text, rangeStart, rangeEnd)
+
+        return comment
+
+    def add_footnote(self, text):
+        footnotes_part = self.part._footnotes_part.element
+        footnote = self._p.add_fn(text, footnotes_part)
+
+        return footnote
+
+    def merge_paragraph(self, otherParagraph):
+        r_lst = otherParagraph.runs
+        self.append_runs(r_lst)
+
+    def append_runs(self, runs):
+        # TBD: needed?
+        # r = self._p.add_r()
+        for run in runs:
+            self._p.append(run._r)
+
 
     @property
     def alignment(self):
@@ -93,6 +122,10 @@ class Paragraph(Parented):
         return [Run(r, self) for r in self._p.r_lst]
 
     @property
+    def all_runs(self):
+        return [Run(r, self) for r in self._p.xpath('.//w:r[not(ancestor::w:r)]')]
+
+    @property
     def style(self):
         """
         Read/Write. |_ParagraphStyle| object representing the style assigned
@@ -129,6 +162,71 @@ class Paragraph(Parented):
         if not self.runs:
             return ''
         return ''.join([run.text for run in self.runs])
+
+    @property
+    def header_level(self):
+        '''
+        input Paragraph Object
+        output Paragraph level in case of header or returns None
+        '''
+        # TBD: review! not nice!
+        headerPattern = re.compile(".*Heading (\d+)$")
+        level = 0
+        if headerPattern.match(self.style.name):
+            level = int(self.style.name.lower().split('heading')[-1].strip())
+        return level
+
+    @property
+    def NumId(self):
+        '''
+        returns NumId val in case of paragraph has numbering
+        else: return None
+        '''
+        try:
+            return self._p.pPr.numPr.numId.val
+        except:
+            return None
+
+    @property
+    def list_lvl(self):
+        '''
+        returns ilvl val in case of paragraph has a numbering level
+        else: return None
+        '''
+        try:
+            return self._p.pPr.numPr.ilvl.val
+        except:
+            return None
+
+    @property
+    def list_info(self):
+        '''
+        returns tuple (has numbering info, numId value, ilvl value)
+        '''
+        if self.NumId and self.list_lvl:
+            return True, self.NumId, self.list_lvl
+        else:
+            return False, 0, 0
+
+    @property
+    def is_heading(self):
+        return True if self.header_level else False
+
+    @property
+    def full_text(self):
+        return u"".join([r.text for r in self.all_runs])
+
+    @property
+    def footnotes(self):
+        if self._p.footnote_ids is not None:
+            return True
+        else:
+            return False
+
+    @property
+    def comments(self):
+        runs_comments = [run.comments for run in self.runs]
+        return [comment for comments in runs_comments for comment in comments]
 
     @text.setter
     def text(self, text):

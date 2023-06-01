@@ -58,6 +58,7 @@ class CT_PPr(BaseOxmlElement):
     ind = ZeroOrOne('w:ind', successors=_tag_seq[23:])
     jc = ZeroOrOne('w:jc', successors=_tag_seq[27:])
     outlineLvl = ZeroOrOne('w:outlineLvl', successors=_tag_seq[31:])
+    rPr = ZeroOrOne('w:rPr', successors=_tag_seq[34:])
     sectPr = ZeroOrOne('w:sectPr', successors=_tag_seq[36:])
     del _tag_seq
 

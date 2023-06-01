@@ -61,12 +61,13 @@ class BaseStoryPart(XmlPart):
     @property
     def next_id(self):
         """
-        The next available positive integer id value in this document. Gaps
+        The next available positive integer id value in this document.
+        The value is determined by incrementing the maximum existing id value. Gaps
         in id sequence are filled. The id attribute value is unique in the
         document, without regard to the element type it appears on.
         """
         id_str_lst = self._element.xpath('//@id')
-        used_ids = [int(id_str) for id_str in id_str_lst if id_str.isdigit() and int(id_str)>100000]
+        used_ids = [int(id_str) for id_str in id_str_lst if id_str.isdigit() and int(id_str) > 100000]
         for n in range(100001, len(used_ids)+100002):
             if n not in used_ids:
                 return n
