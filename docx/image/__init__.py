@@ -16,6 +16,7 @@ from docx.image.png import Png
 from docx.image.tiff import Tiff
 from docx.image.emf import Emf
 from docx.image.svg import Svg
+from docx.image.wmf import Wmf
 
 
 SIGNATURES = (
@@ -30,4 +31,5 @@ SIGNATURES = (
     (Bmp,  0, b'BM'),
     (Emf,  40, b' EMF'),
     (Svg,  0, b'<?xml version='),
+    (Wmf, 0, b'\xd7\xcd\xc6\x9a\x00\x00'),  # require wmf with Aldus Placeable Metafiles header
 )
