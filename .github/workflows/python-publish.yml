@@ -9,11 +9,12 @@
 name: Upload Python Package
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - '*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   deploy:
@@ -32,6 +33,13 @@ jobs:
         pip install build
     - name: Build package
       run: python -m build
+    - name: Upload binaries to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: dist/*
+        tag: ${{ github.ref }}
+        file_glob: true
     - name: Publish package
       uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
       with:
