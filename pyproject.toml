@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "python-docx-ng"
-version = "0.9.4-dev"
+version = "0.9.4"
 description = "python-docx-ng is a Python library for creating and updating Microsoft Word (.docx) files."
 authors = ["toxicphreAK <pentesting.laboratories@gmail.com>"]
 license = "MIT"
@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "docx"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.9"
 behave = "^1.2.6"
 lxml = "^4.9.1"
 

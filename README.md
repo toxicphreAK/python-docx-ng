@@ -1,5 +1,7 @@
 # python-docx-ng
 
+[![Python Packaging](https://github.com/toxicphreAK/python-docx-ng/actions/workflows/python-publish.yml/badge.svg)](https://github.com/toxicphreAK/python-docx-ng/actions/workflows/python-publish.yml)
+
 *python-docx-ng* is a Python library for creating and updating Microsoft Word (.docx) files.
 It was originally designed and developed by [scanny](https://github.com/scanny) as [python-docx](https://github.com/python-openxml/python-docx).
 As he is not actively developing his repo and there are soo many useful pull requests, bringing together a more powerful tool.
