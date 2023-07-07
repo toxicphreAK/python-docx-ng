@@ -8,8 +8,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 from datetime import datetime
 
 from docx.oxml.ns import qn
-from docx.opc.packuri import PackURI
-from docx.opc.part import Part
+# see TODO below
+#from docx.opc.packuri import PackURI
+#from docx.opc.part import Part
 
 from ..enum.style import WD_STYLE_TYPE
 from ..enum.text import WD_BREAK
@@ -245,6 +246,8 @@ class Run(Parented):
         coms = [com for com in comment_part if com._id in ids]
         return [Comment(com, comment_part) for com in coms]
 
+    # TODO: source out part components as it breaks flow and should not be here...
+    '''
     def add_ole_object_to_run(self, ole_object_path):
         """
         Add saved OLE Object in the disk to an run and retun the newly created relationship ID
@@ -261,6 +264,7 @@ class Run(Parented):
         rel_id: str = self.part.rels._next_rId
         self.part.rels.add_relationship(reltype=reltype, target=target_part, rId=rel_id)
         return rel_id
+    '''
 
     def add_fldChar(self, fldCharType, fldLock: bool = False, dirty: bool = False):
 

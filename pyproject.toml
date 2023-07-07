@@ -11,6 +11,8 @@ packages = [{include = "docx"}]
 homepage = "https://github.com/toxicphreAK/python-docx-ng"
 documentation = "https://github.com/toxicphreAK/python-docx-ng/tree/master/docs"
 changelog = "https://github.com/toxicphreAK/python-docx-ng"
+"Homepage" = "https://github.com/toxicphreAK/python-docx-ng"
+"Bug Tracker" = "https://github.com/toxicphreAK/python-docx-ng/issues"
 
 [tool.poetry.dependencies]
 python = "^3.9"
