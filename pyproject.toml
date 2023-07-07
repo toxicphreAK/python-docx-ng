@@ -7,6 +7,11 @@ license = "MIT"
 readme = "README.md"
 packages = [{include = "docx"}]
 
+[project.urls]
+homepage = "https://github.com/toxicphreAK/python-docx-ng"
+documentation = "https://github.com/toxicphreAK/python-docx-ng/tree/master/docs"
+changelog = "https://github.com/toxicphreAK/python-docx-ng"
+
 [tool.poetry.dependencies]
 python = "^3.9"
 behave = "^1.2.6"
