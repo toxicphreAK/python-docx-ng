@@ -153,4 +153,4 @@ class _ZipPkgWriter(PhysPkgWriter):
         *pack_uri*.
         """
         zinfo = ZipInfo(filename=pack_uri.membername, date_time=(1980, 1, 1, 0, 0, 0))
-        self._zipf.writestr(zinfo, blob)
+        self._zipf.writestr(zinfo, blob, ZIP_DEFLATED)
