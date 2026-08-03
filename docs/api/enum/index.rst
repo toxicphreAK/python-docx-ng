@@ -14,6 +14,7 @@ can be found here:
    WdBuiltinStyle
    WdCellVerticalAlignment
    WdColorIndex
+   WdFormFieldType
    WdLineSpacing
    WdLineStyle
    WdOrientation
@@ -24,4 +25,5 @@ can be found here:
    WdTabAlignment
    WdTabLeader
    WdTableDirection
+   WdTextFormFieldType
    WdUnderline

@@ -239,6 +239,26 @@ class WD_FONT_HINT(BaseXmlEnum):
     """Use the complex-script typeface for ambiguous characters."""
 
 
+class WD_FORM_FIELD_TYPE(BaseEnum):
+    """Specifies the kind of a legacy form field.
+
+    The kind is determined by which child of `w:ffData` is present, not by an attribute
+    value, so these members have no XML value mapping.
+
+    * MS API name: `WdFieldType` (the form-field subset)
+    * URL: https://learn.microsoft.com/en-us/office/vba/api/word.wdfieldtype
+    """
+
+    TEXT = (70, "A text input, which Word calls FORMTEXT.")
+    """A text input, which Word calls FORMTEXT."""
+
+    CHECK_BOX = (71, "A check box, which Word calls FORMCHECKBOX.")
+    """A check box, which Word calls FORMCHECKBOX."""
+
+    DROP_DOWN = (83, "A drop-down list, which Word calls FORMDROPDOWN.")
+    """A drop-down list, which Word calls FORMDROPDOWN."""
+
+
 class WD_LINE_SPACING(BaseXmlEnum):
     """Specifies a line spacing format to be applied to a paragraph.
 
@@ -352,6 +372,38 @@ class WD_TAB_LEADER(BaseXmlEnum):
 
     MIDDLE_DOT = (5, "middleDot", "A vertically-centered dot.")
     """A vertically-centered dot."""
+
+
+class WD_TEXT_FORM_FIELD_TYPE(BaseXmlEnum):
+    """Specifies what a text form field accepts.
+
+    Example::
+
+        from docx.enum.text import WD_TEXT_FORM_FIELD_TYPE
+
+        form_field.text_type = WD_TEXT_FORM_FIELD_TYPE.NUMBER_TEXT
+
+    * MS API name: `WdTextFormFieldType`
+    * URL: https://learn.microsoft.com/en-us/office/vba/api/word.wdtextformfieldtype
+    """
+
+    REGULAR_TEXT = (0, "regular", "Any text.")
+    """Any text."""
+
+    NUMBER_TEXT = (1, "number", "A number.")
+    """A number."""
+
+    DATE_TEXT = (2, "date", "A date.")
+    """A date."""
+
+    CURRENT_DATE_TEXT = (3, "currentDate", "The current date, filled in by Word.")
+    """The current date, filled in by Word."""
+
+    CURRENT_TIME_TEXT = (4, "currentTime", "The current time, filled in by Word.")
+    """The current time, filled in by Word."""
+
+    CALCULATION_TEXT = (5, "calculated", "The result of an expression, computed by Word.")
+    """The result of an expression, computed by Word."""
 
 
 class WD_UNDERLINE(BaseXmlEnum):

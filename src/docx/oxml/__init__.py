@@ -26,6 +26,14 @@ from docx.oxml.shape import (
     CT_Transform2D,
 )
 from docx.oxml.shared import CT_DecimalNumber, CT_OnOff, CT_String
+from docx.oxml.text.form import (
+    CT_FFCheckBox,
+    CT_FFData,
+    CT_FFDDList,
+    CT_FFTextInput,
+    CT_FldChar,
+    CT_SimpleField,
+)
 from docx.oxml.text.hyperlink import CT_Hyperlink
 from docx.oxml.text.pagebreak import CT_LastRenderedPageBreak
 from docx.oxml.text.run import (
@@ -67,6 +75,22 @@ register_element_cls("wp:inline", CT_Inline)
 # hyperlink-related elements
 
 register_element_cls("w:hyperlink", CT_Hyperlink)
+
+# ---------------------------------------------------------------------------
+# form-field-related elements
+#
+# The leaf children of `w:ffData` — `w:name`, `w:default`, `w:checked`, `w:result`,
+# `w:listEntry` and the rest — deliberately get no element class. Their tag names are
+# reused elsewhere in the schema with other types and lxml resolves an element class by
+# tag name alone, so registering them would silently retype unrelated elements.
+
+register_element_cls("w:checkBox", CT_FFCheckBox)
+register_element_cls("w:ddList", CT_FFDDList)
+register_element_cls("w:ffData", CT_FFData)
+register_element_cls("w:fldChar", CT_FldChar)
+register_element_cls("w:fldSimple", CT_SimpleField)
+register_element_cls("w:instrText", CT_Text)
+register_element_cls("w:textInput", CT_FFTextInput)
 
 # ---------------------------------------------------------------------------
 # text-related elements

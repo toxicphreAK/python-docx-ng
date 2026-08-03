@@ -12,6 +12,7 @@ from docx.blkcntnr import BlockItemContainer
 from docx.bookmark import Bookmarks
 from docx.enum.section import WD_SECTION
 from docx.enum.text import WD_BREAK
+from docx.formfield import FormField, iter_form_fields
 from docx.opc.constants import CONTENT_TYPE as CT
 from docx.section import Section, Sections
 from docx.shared import ElementProxy, Emu, Inches, Length, lazyproperty
@@ -244,6 +245,16 @@ class Document(ElementProxy):
         """An |ExtendedProperties| object providing the application-specific properties
         of the document, such as word count and producing application."""
         return self._part.package.extended_properties
+
+    @property
+    def form_fields(self) -> List[FormField]:
+        """A |FormField| instance for each legacy form field in the document body.
+
+        Fields appear in document order, including those inside tables. Fields in a
+        header or footer are not in the document part and so are not included; reach
+        those through the paragraphs of the header or footer.
+        """
+        return list(iter_form_fields(self._element, self._part))
 
     @property
     def inline_shapes(self):

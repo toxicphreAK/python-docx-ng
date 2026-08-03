@@ -303,6 +303,16 @@ class ST_PointMeasure(XsdUnsignedLong):
         return str(int(round(Emu(value).pt)))
 
 
+class ST_FldCharType(XsdStringEnumeration):
+    """Valid values for the `w:fldChar/@w:fldCharType` attribute."""
+
+    BEGIN = "begin"
+    SEPARATE = "separate"
+    END = "end"
+
+    _members = (BEGIN, SEPARATE, END)
+
+
 class ST_HexColor(BaseStringType):
     @classmethod
     def convert_from_xml(  # pyright: ignore[reportIncompatibleMethodOverride]

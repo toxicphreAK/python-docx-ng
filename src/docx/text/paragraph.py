@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterator, List, cast
 
 from docx.enum.style import WD_STYLE_TYPE
+from docx.formfield import FormField, iter_form_fields
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml.deletion import delete_element
 from docx.oxml.text.run import CT_R
@@ -198,6 +199,15 @@ class Paragraph(StoryChild):
         from docx.sdt import ContentControl
 
         return [ContentControl(sdt, self) for sdt in self._p.xpath("./w:sdt")]
+
+    @property
+    def form_fields(self) -> List[FormField]:
+        """A |FormField| instance for each legacy form field in this paragraph.
+
+        A form field is a complex field, so it may begin in one paragraph and end in
+        another; it is listed with the paragraph its "begin" field-character is in.
+        """
+        return list(iter_form_fields(self._p, self))
 
     @property
     def hyperlinks(self) -> List[Hyperlink]:
