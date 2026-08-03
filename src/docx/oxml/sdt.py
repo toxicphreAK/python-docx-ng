@@ -44,6 +44,14 @@ _CONTROL_TYPE_TAGS = (
 )
 
 
+# -- run-level wrappers whose children are part of the text as the document now reads:
+# -- a field's cached result, and an insertion --
+_LOOK_THROUGH_TAGS = (qn("w:fldSimple"), qn("w:ins"), qn("w:moveTo"))
+
+# -- and one whose children are not: deleted text --
+_SKIP_TAGS = (qn("w:del"), qn("w:moveFrom"))
+
+
 def iter_block_content(element: BaseOxmlElement) -> Iterator[CT_P | CT_Tbl]:
     """Generate each `w:p` and `w:tbl` child of `element`, in document order.
 
@@ -63,15 +71,24 @@ def iter_block_content(element: BaseOxmlElement) -> Iterator[CT_P | CT_Tbl]:
 def iter_run_content(element: BaseOxmlElement) -> Iterator[CT_R | CT_Hyperlink]:
     """Generate each `w:r` and `w:hyperlink` child of `element`, in document order.
 
+    This is the document as it now reads, which for a document carrying tracked changes
+    means with every revision accepted.
+
     As with :func:`iter_block_content`, a run-level `w:sdt` is looked through. So is a
     `w:fldSimple`, whose runs hold the result text the field displays; skipping it would
-    drop a page number or a cross-reference from the paragraph's text.
+    drop a page number or a cross-reference from the paragraph's text. So is an
+    insertion (`w:ins`, `w:moveTo`), whose runs are part of the text. A deletion
+    (`w:del`, `w:moveFrom`) is skipped: its text is no longer part of the document, and
+    it is held in `w:delText` rather than `w:t` for exactly that reason. Use
+    :func:`docx.oxml.revision.iter_original_run_content` for the other reading.
     """
     for child in element.iterchildren():
         if child.tag in (qn("w:r"), qn("w:hyperlink")):
             yield cast("CT_R | CT_Hyperlink", child)
-        elif child.tag == qn("w:fldSimple"):
+        elif child.tag in _LOOK_THROUGH_TAGS:
             yield from iter_run_content(cast("BaseOxmlElement", child))
+        elif child.tag in _SKIP_TAGS:
+            continue
         elif child.tag == qn("w:sdt"):
             sdtContent = child.find(qn("w:sdtContent"))
             if sdtContent is not None:

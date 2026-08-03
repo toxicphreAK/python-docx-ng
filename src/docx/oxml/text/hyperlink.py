@@ -40,6 +40,11 @@ class CT_Hyperlink(BaseOxmlElement):
     def text(self) -> str:  # pyright: ignore[reportIncompatibleMethodOverride]
         """The textual content of this hyperlink.
 
-        `CT_Hyperlink` stores the hyperlink-text as one or more `w:r` children.
+        `CT_Hyperlink` stores the hyperlink-text as one or more `w:r` children, which
+        may be wrapped in a content control or a revision mark; those are looked through
+        the same way they are in a paragraph, so link text that Word marked as inserted
+        is not silently dropped.
         """
-        return "".join(r.text for r in self.xpath("w:r"))
+        from docx.oxml.sdt import iter_run_content
+
+        return "".join(e.text for e in iter_run_content(self))

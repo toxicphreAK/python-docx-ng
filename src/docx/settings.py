@@ -35,6 +35,20 @@ class Settings(ElementProxy):
         self._settings.evenAndOddHeaders_val = value
 
     @property
+    def track_revisions(self) -> bool:
+        """True when Word records changes made to this document as tracked changes.
+
+        Read/write. This is the "Track Changes" toggle. Setting it does not mark
+        anything already in the document as a revision; it asks Word to record what
+        happens from now on.
+        """
+        return self._settings.trackRevisions_val
+
+    @track_revisions.setter
+    def track_revisions(self, value: bool):
+        self._settings.trackRevisions_val = value
+
+    @property
     def update_fields_on_open(self) -> bool:
         """True when Word should recalculate every field when it opens this document.
 

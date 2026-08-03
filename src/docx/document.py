@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from docx.opc.customprops import CustomProperties
     from docx.oxml.document import CT_Body, CT_Document
     from docx.parts.document import DocumentPart
+    from docx.revisions import Revision
     from docx.sdt import ContentControl
     from docx.settings import Settings
     from docx.styles.style import ParagraphStyle, _TableStyle
@@ -355,8 +356,11 @@ class Document(ElementProxy):
         """The |Paragraph| instances in the document, in document order.
 
         A paragraph wrapped in a `w:sdt` (content control) appears in this list, in the
-        position of its wrapper. Note that paragraphs within revision marks such as
-        ``<w:ins>`` or ``<w:del>`` do not appear.
+        position of its wrapper.
+
+        A revision mark such as `w:ins` or `w:del` wraps runs rather than paragraphs, so
+        it does not affect which paragraphs appear here; it affects their text. See
+        :attr:`.Paragraph.text` and :attr:`.Paragraph.original_text`.
         """
         return self._body.paragraphs
 
@@ -467,6 +471,40 @@ class Document(ElementProxy):
         self._part.save(path_or_stream)
 
     @property
+    def revisions(self) -> List[Revision]:
+        """A |Revision| for each tracked change in the document body, in document order.
+
+        Empty for a document that has not been through review. Revisions in a header,
+        footer or footnote are not in the document part and so are not included; reach
+        those through the paragraphs of the story concerned.
+        """
+        from docx.revisions import iter_revisions
+
+        return list(iter_revisions(self._element, self._part))
+
+    def accept_all_revisions(self) -> int:
+        """Accept every tracked change in the document body; return how many.
+
+        Insertions become ordinary text, deletions go, formatting-change records are
+        dropped leaving the current formatting, and a deleted paragraph mark merges its
+        paragraph with the one after it. The result is the document as
+        :attr:`.Paragraph.text` already reads it.
+        """
+        from docx.revisions import apply_all
+
+        return apply_all(self._element, self._part, accept=True)
+
+    def reject_all_revisions(self) -> int:
+        """Reject every tracked change in the document body; return how many.
+
+        The reverse of :meth:`accept_all_revisions`: the result is the document as
+        :attr:`.Paragraph.original_text` reads it.
+        """
+        from docx.revisions import apply_all
+
+        return apply_all(self._element, self._part, accept=False)
+
+    @property
     def sections(self) -> Sections:
         """|Sections| object providing access to each section in this document."""
         return Sections(self._element, self._part)
@@ -574,8 +612,8 @@ class Document(ElementProxy):
 
         Note that only tables appearing at the top level of the document appear in this
         list; a table nested inside a table cell does not appear. A table wrapped in a
-        `w:sdt` (content control) does appear. A table within revision marks such as
-        ``<w:ins>`` or ``<w:del>`` will not appear in the list.
+        `w:sdt` (content control) does appear. A row marked as inserted or deleted
+        appears as an ordinary row; see :attr:`revisions`.
         """
         return self._body.tables
 

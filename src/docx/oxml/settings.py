@@ -17,6 +17,8 @@ class CT_Settings(BaseOxmlElement):
     _remove_evenAndOddHeaders: Callable[[], None]
     get_or_add_updateFields: Callable[[], CT_OnOff]
     _remove_updateFields: Callable[[], None]
+    get_or_add_trackRevisions: Callable[[], CT_OnOff]
+    _remove_trackRevisions: Callable[[], None]
 
     _tag_seq = (
         "w:writeProtection",
@@ -124,7 +126,25 @@ class CT_Settings(BaseOxmlElement):
     updateFields: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:updateFields", successors=_tag_seq[77:]
     )
+    trackRevisions: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:trackRevisions", successors=_tag_seq[32:]
+    )
     del _tag_seq
+
+    @property
+    def trackRevisions_val(self) -> bool:
+        """Value of `w:trackRevisions/@w:val`, |False| when the element is absent."""
+        trackRevisions = self.trackRevisions
+        if trackRevisions is None:
+            return False
+        return trackRevisions.val
+
+    @trackRevisions_val.setter
+    def trackRevisions_val(self, value: bool | None):
+        if not value:
+            self._remove_trackRevisions()
+            return
+        self.get_or_add_trackRevisions().val = value
 
     @property
     def updateFields_val(self) -> bool:

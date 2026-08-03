@@ -8,6 +8,7 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.formfield import FormField, iter_form_fields
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml.deletion import delete_element
+from docx.oxml.ns import qn
 from docx.oxml.parser import OxmlElement
 from docx.oxml.text.run import CT_R
 from docx.shared import StoryChild
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
     from docx.numbering import ParagraphNumbering
     from docx.oxml.text.form import CT_FldChar, CT_SimpleField
     from docx.oxml.text.paragraph import CT_P
+    from docx.revisions import Revision
     from docx.sdt import ContentControl
     from docx.styles.style import CharacterStyle
     from docx.text.hyperlink import Hyperlink
@@ -550,6 +552,54 @@ class Paragraph(StoryChild):
         return replace_in_paragraph(self._p, pattern, new, count, regex)
 
     @property
+    def original_text(self) -> str:
+        """This paragraph's text as it read before its tracked changes.
+
+        Deleted text is included and inserted text is not — the reverse of :attr:`text`,
+        which is the document as it now reads. Identical to :attr:`text` for a paragraph
+        carrying no revisions.
+
+        Neither is "the text with markup shown": Word displays deletions struck through
+        alongside insertions, which is a rendering rather than a string. These two are
+        the two readings that are actually well defined.
+        """
+        from docx.oxml.revision import iter_original_run_content, run_original_text
+
+        return "".join(
+            run_original_text(e) if e.tag == qn("w:r") else _original_text_of(e)
+            for e in iter_original_run_content(self._p)
+        )
+
+    @property
+    def revisions(self) -> List[Revision]:
+        """A |Revision| for each tracked change in this paragraph, in document order.
+
+        Includes a revision of the paragraph mark itself, which records that the
+        paragraph was split off from, or merged with, the one after it.
+        """
+        from docx.revisions import iter_revisions
+
+        return list(iter_revisions(self._p, self))
+
+    def accept_all_revisions(self) -> int:
+        """Accept every tracked change in this paragraph; return how many were applied.
+
+        See :meth:`.Revision.accept`.
+        """
+        from docx.revisions import apply_all
+
+        return apply_all(self._p, self, accept=True)
+
+    def reject_all_revisions(self) -> int:
+        """Reject every tracked change in this paragraph; return how many were applied.
+
+        See :meth:`.Revision.reject`.
+        """
+        from docx.revisions import apply_all
+
+        return apply_all(self._p, self, accept=False)
+
+    @property
     def rendered_page_breaks(self) -> List[RenderedPageBreak]:
         """All rendered page-breaks in this paragraph.
 
@@ -595,6 +645,10 @@ class Paragraph(StoryChild):
         Tabs and line breaks in the XML are mapped to ``\\t`` and ``\\n`` characters
         respectively.
 
+        For a paragraph carrying tracked changes this is the text as the document now
+        reads — with every revision accepted, so inserted text is included and deleted
+        text is not. :attr:`original_text` is the reading from before the changes.
+
         Assigning text to this property causes all existing paragraph content to be
         replaced with a single run containing the assigned text. A ``\\t`` character in
         the text is mapped to a ``<w:tab/>`` element and each ``\\n`` or ``\\r``
@@ -612,3 +666,13 @@ class Paragraph(StoryChild):
         """Return a newly created paragraph, inserted directly before this paragraph."""
         p = self._p.add_p_before()
         return Paragraph(p, self._parent)
+
+
+def _original_text_of(element) -> str:
+    """The pre-revision text of a `w:hyperlink`, which holds runs of its own."""
+    from docx.oxml.revision import iter_original_run_content, run_original_text
+
+    return "".join(
+        run_original_text(e) if e.tag == qn("w:r") else _original_text_of(e)
+        for e in iter_original_run_content(element)
+    )

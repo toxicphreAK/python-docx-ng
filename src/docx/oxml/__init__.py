@@ -197,7 +197,27 @@ register_element_cls("w:type", CT_SectType)
 from .settings import CT_Settings
 
 register_element_cls("w:settings", CT_Settings)
+register_element_cls("w:trackRevisions", CT_OnOff)
 register_element_cls("w:updateFields", CT_OnOff)
+
+from .revision import CT_TrackChange
+
+# -- One class serves every position these tags appear in, as lxml dispatches on tag
+# -- name alone. `w:ins` and `w:del` wrap content in a paragraph, mark a paragraph mark
+# -- in `w:pPr/w:rPr`, and mark a row in `w:trPr`; all three carry the same attributes.
+# -- `w:delText` is CT_Text so its text reads the same way `w:t` does. --
+register_element_cls("w:del", CT_TrackChange)
+register_element_cls("w:delText", CT_Text)
+register_element_cls("w:ins", CT_TrackChange)
+register_element_cls("w:moveFrom", CT_TrackChange)
+register_element_cls("w:moveTo", CT_TrackChange)
+register_element_cls("w:pPrChange", CT_TrackChange)
+register_element_cls("w:rPrChange", CT_TrackChange)
+register_element_cls("w:sectPrChange", CT_TrackChange)
+register_element_cls("w:tblGridChange", CT_TrackChange)
+register_element_cls("w:tblPrChange", CT_TrackChange)
+register_element_cls("w:tcPrChange", CT_TrackChange)
+register_element_cls("w:trPrChange", CT_TrackChange)
 
 from .styles import CT_LatentStyles, CT_LsdException, CT_Style, CT_Styles
 

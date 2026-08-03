@@ -102,6 +102,41 @@ to its square. ``Table.row_cells()`` is deprecated in favour of ``table.rows[i].
 Behaviour changes
 -----------------
 
+``Paragraph.text`` with tracked changes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In 0.9.x — and in upstream — revision markup was not modelled at all. Runs inside a
+``w:ins`` were skipped, so inserted text was missing, and deleted text was missing too
+because it lives in ``w:delText`` rather than ``w:t``. The result was neither the
+original nor the final version of the document but a third thing matching no view Word
+offers, and it was wrong silently.
+
+``Paragraph.text`` is now the document **as it now reads** — every revision accepted:
+
+.. code-block:: python
+
+    paragraph.text            # -- insertions in, deletions out --
+    paragraph.original_text   # -- deletions in, insertions out --
+
+``Paragraph.runs`` follows the same reading, so a run inside a ``w:ins`` now appears in
+it and a run inside a ``w:del`` does not.
+
+If you were relying on the old behaviour to strip insertions, use ``original_text``. If
+you want the revision markup gone from the file altogether, call
+``document.accept_all_revisions()`` or ``document.reject_all_revisions()``. See
+:attr:`.Document.revisions` for reading the individual changes.
+
+
+``Paragraph.text`` with simple fields
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The cached result of a ``w:fldSimple`` — the page number a ``PAGE`` field displays, the
+text a cross-reference resolves to — is now part of ``Paragraph.text``. It was
+previously skipped, so such text went missing. This is displayed text and belongs there;
+a field *instruction* (``w:instrText``) is still never reported as text, because it is
+not.
+
+
 ``Font.highlight_color``
 ~~~~~~~~~~~~~~~~~~~~~~~~
 

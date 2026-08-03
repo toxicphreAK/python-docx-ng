@@ -38,10 +38,35 @@ Breaking changes
 - Footnotes are ``Document.footnotes`` and ``Run.add_footnote_reference()`` rather than
   ``Paragraph.add_footnote()``.
 - Python 3.8 is no longer supported. Supported versions are 3.9+.
+- ``Paragraph.text`` now has defined semantics for a document carrying tracked changes:
+  it is the text as the document *now* reads, with insertions included and deletions
+  excluded. Previously both were dropped, so the result matched neither the original nor
+  the final version of the document. ``Paragraph.original_text`` is the other reading.
+  ``Paragraph.runs`` likewise now includes runs inside a ``w:ins``.
+- ``Paragraph.text`` also now includes the cached result of a ``w:fldSimple`` — a page
+  number or cross-reference displayed by such a field was previously missing from it.
 
 Added
 ~~~~~
 
+- Tracked changes — ``Document.revisions``, ``Paragraph.revisions``,
+  ``Revision.accept()`` / ``.reject()``, ``Document.accept_all_revisions()`` /
+  ``.reject_all_revisions()``, ``Paragraph.original_text`` and
+  ``Settings.track_revisions``
+- Fields — ``docx.fields``, ``Paragraph.add_field()``, ``Document.fields``,
+  instruction builders for PAGE, NUMPAGES, TOC, REF, PAGEREF, SEQ, DATE, DOCPROPERTY
+  and STYLEREF, and ``Settings.update_fields_on_open``
+- List numbering — ``Paragraph.numbering``, ``Paragraph.list_number``,
+  ``Document.list_numbers``, ``Paragraph.set_numbering()`` /
+  ``.remove_numbering()`` / ``.restart_numbering()``, and ``Document.numbering``
+- Cross-run search and replace — ``replace_text()`` on ``Paragraph``,
+  ``BlockItemContainer`` and ``Document``, built on ``Paragraph.isolate_run()``
+- Floating (anchored) images — ``Run.add_float_picture()``,
+  ``Document.floating_shapes`` and the ``WD_WRAP_TYPE`` enum
+- Watermarks — ``Document.add_text_watermark()`` / ``.add_image_watermark()`` /
+  ``.remove_watermark()``, and the same three on ``Section``
+- Copying a style between documents — ``Styles.copy_style_from()``, resolving the
+  ``w:basedOn`` / ``w:next`` / ``w:link`` closure and carrying numbering across
 - Footnotes — ``Document.footnotes``, ``Footnotes.add_footnote()``,
   ``Run.add_footnote_reference()``
 - Legacy form fields — ``Document.form_fields``, ``Paragraph.form_fields``, and a
