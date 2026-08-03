@@ -7,6 +7,7 @@ from typing import IO, TYPE_CHECKING, Iterator, cast
 from docx.drawing import Drawing
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_BREAK
+from docx.oxml.deletion import delete_element
 from docx.oxml.drawing import CT_Drawing
 from docx.oxml.text.pagebreak import CT_LastRenderedPageBreak
 from docx.shape import InlineShape
@@ -182,6 +183,14 @@ class Run(StoryChild):
                 yield RenderedPageBreak(item, self)
             elif isinstance(item, CT_Drawing):  # pyright: ignore[reportUnnecessaryIsInstance]
                 yield Drawing(item, self)
+
+    def delete(self) -> None:
+        """Remove this run from its paragraph.
+
+        As for `Paragraph.delete()`, a relationship referenced only from this run is
+        dropped and any range marker left unmatched is removed.
+        """
+        delete_element(self._r, self.part)
 
     def mark_bookmark_range(self, last_run: Run, name: str) -> Bookmark:
         """Return a |Bookmark| named `name` spanning this run through `last_run`.

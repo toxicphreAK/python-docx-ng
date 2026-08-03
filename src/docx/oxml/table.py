@@ -87,6 +87,68 @@ class CT_Row(BaseOxmlElement):
             self.grid_before + sum(tc.grid_span for tc in self.tc_lst) + self.grid_after
         )
 
+    def delete_grid_column(self, grid_offset: int, part=None) -> None:
+        """Remove this row's occupancy of layout-grid column `grid_offset`.
+
+        A cell that starts at `grid_offset` and spans no further is removed; one that
+        spans this column and others is narrowed by one, so the rest of its span
+        survives. A row that does not populate the column is left alone, and its
+        `w:gridBefore` or `w:gridAfter` adjusted when the removed column falls inside
+        the unpopulated run.
+        """
+        from docx.oxml.deletion import delete_element
+
+        grid_before = self.grid_before
+        if grid_offset < grid_before:
+            self.trPr.grid_before = grid_before - 1  # pyright: ignore[reportOptionalMemberAccess]
+            return
+
+        try:
+            tc = self.tc_covering_grid_offset(grid_offset)
+        except ValueError:
+            # -- the column falls after this row's last cell, in its `w:gridAfter` run --
+            trPr = self.trPr
+            if trPr is not None and trPr.grid_after > 0:
+                trPr.grid_after = trPr.grid_after - 1
+            return
+
+        if tc.grid_span > 1:
+            tc.grid_span = tc.grid_span - 1
+            return
+        delete_element(tc, part)
+
+    def transfer_vertical_spans_to_row_below(self) -> None:
+        """Make the row below own any vertical span that starts in this row.
+
+        Called before deleting this row: a continuation cell whose origin disappears
+        would otherwise be left referring to nothing. The cell below becomes the origin,
+        keeping the content and the remainder of the span, which is what Word does.
+        """
+        tr_below = self._tr_below
+        if tr_below is None:
+            return
+        for tc in self.tc_lst:
+            if tc.vMerge != ST_Merge.RESTART:
+                continue
+            try:
+                tc_below = tr_below.tc_covering_grid_offset(tc.grid_offset)
+            except ValueError:
+                continue
+            if tc_below.vMerge != ST_Merge.CONTINUE:
+                continue
+            tc._move_content_to(tc_below)
+            # -- the cell below is the origin now; it keeps "restart" only if the span
+            # -- continues past it --
+            tc_below.vMerge = (
+                ST_Merge.RESTART if tc_below.bottom > tc_below._tr_idx + 1 else None
+            )
+
+    @property
+    def _tr_below(self) -> CT_Row | None:
+        """The `w:tr` following this one in its table, or |None| if this is the last."""
+        following = self.xpath("./following-sibling::w:tr")
+        return following[0] if following else None
+
     def tc_covering_grid_offset(self, grid_offset: int) -> CT_Tc:
         """The `w:tc` element in this tr occupying layout-grid column `grid_offset`.
 

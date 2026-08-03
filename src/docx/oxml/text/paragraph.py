@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, List, cast
 
+from docx.oxml.ns import qn
 from docx.oxml.parser import OxmlElement
 from docx.oxml.sdt import iter_run_content
 from docx.oxml.xmlchemy import BaseOxmlElement, ZeroOrMore, ZeroOrOne
@@ -31,6 +32,23 @@ class CT_P(BaseOxmlElement):
     pPr: CT_PPr | None = ZeroOrOne("w:pPr")  # pyright: ignore[reportAssignmentType]
     hyperlink = ZeroOrMore("w:hyperlink")
     r = ZeroOrMore("w:r")
+
+    def assert_deletable(self) -> None:
+        """Raise |ValueError| if removing this paragraph would invalidate the document.
+
+        A `w:tc` must contain at least one block-level element, so the last paragraph of
+        a table cell cannot simply be removed.
+        """
+        parent = self.getparent()
+        if parent is None or parent.tag != qn("w:tc"):
+            return
+        block_items = parent.xpath("./w:p | ./w:tbl | ./w:sdt")
+        if len(block_items) < 2:
+            raise ValueError(
+                "cannot delete the only block-level element in a table cell; a w:tc"
+                " must contain at least one, and Word will not open a document whose"
+                " cell is empty. Assign `cell.text = ''` to clear the cell instead."
+            )
 
     def add_bookmark_around_content(self, id: int, name: str) -> CT_BookmarkStart:
         """Wrap the inner content of this paragraph in a bookmark named `name`.

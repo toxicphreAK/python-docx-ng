@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Iterator, List, cast
 
 from docx.enum.style import WD_STYLE_TYPE
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from docx.oxml.deletion import delete_element
 from docx.oxml.text.run import CT_R
 from docx.shared import StoryChild
 from docx.styles.style import ParagraphStyle
@@ -66,6 +67,20 @@ class Paragraph(StoryChild):
     @alignment.setter
     def alignment(self, value: WD_PARAGRAPH_ALIGNMENT):
         self._p.alignment = value
+
+    def delete(self) -> None:
+        """Remove this paragraph from the document.
+
+        Any hyperlink relationship referenced only from this paragraph is dropped, and
+        the surviving half of any comment range or bookmark that started or ended here
+        is removed, so nothing is left pointing at content that is gone.
+
+        Raises |ValueError| when this is the only paragraph in a table cell: a `w:tc`
+        must contain at least one block-level element and a cell without one produces a
+        document Word refuses to open. Use `_Cell.text = ""` to empty such a cell.
+        """
+        self._p.assert_deletable()
+        delete_element(self._p, self.part)
 
     def clear(self):
         """Return this same paragraph after removing all its content.

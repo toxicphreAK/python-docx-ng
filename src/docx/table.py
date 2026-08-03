@@ -9,6 +9,7 @@ from typing_extensions import TypeAlias
 from docx.blkcntnr import BlockItemContainer
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
+from docx.oxml.deletion import delete_element
 from docx.oxml.table import CT_TblGridCol
 from docx.shared import Inches, Parented, StoryChild, lazyproperty
 
@@ -123,6 +124,14 @@ class Table(StoryChild):
                 yield _Cell(tc.top_tc, self)
 
         return list(iter_column_cells())
+
+    def delete(self) -> None:
+        """Remove this table from the document.
+
+        Relationships referenced only from inside the table are dropped, and any range
+        marker left unmatched is removed, as for `Paragraph.delete()`.
+        """
+        delete_element(self._tbl, self.part)
 
     @lazyproperty
     def columns(self):
@@ -410,6 +419,19 @@ class _Column(Parented):
         """Sequence of |_Cell| instances corresponding to cells in this column."""
         return tuple(self.table.column_cells(self._index))
 
+    def delete(self) -> None:
+        """Remove this column from its table.
+
+        Removes the `w:gridCol` and the cell occupying this layout-grid column in every
+        row. A cell that spans this column and others is narrowed by one rather than
+        removed, so the rest of its span survives.
+        """
+        table = self.table
+        column_idx = self._index
+        for tr in table._tbl.tr_lst:  # pyright: ignore[reportPrivateUsage]
+            tr.delete_grid_column(column_idx, table.part)
+        delete_element(self._gridCol, table.part)
+
     @property
     def table(self) -> Table:
         """Reference to the |Table| object this column belongs to."""
@@ -522,6 +544,16 @@ class _Row(Parented):
                 yield from iter_tc_cells(tc)
 
         return tuple(_iter_row_cells())
+
+    def delete(self) -> None:
+        """Remove this row from its table.
+
+        A vertically merged cell whose span started in this row is not dropped: the row
+        below inherits it, so the merge continues to render, which is what Word does
+        when a row is deleted.
+        """
+        self._tr.transfer_vertical_spans_to_row_below()
+        delete_element(self._tr, self.table.part)
 
     @property
     def grid_cols_after(self) -> int:
