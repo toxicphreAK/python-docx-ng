@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from docx.comments import Comment, Comments
     from docx.oxml.document import CT_Body, CT_Document
     from docx.parts.document import DocumentPart
+    from docx.sdt import ContentControl
     from docx.settings import Settings
     from docx.styles.style import ParagraphStyle, _TableStyle
     from docx.table import Table
@@ -183,6 +184,16 @@ class Document(ElementProxy):
         """
         return self._part.inline_shapes
 
+    @property
+    def content_controls(self) -> List[ContentControl]:
+        """The structured document tags (content controls) in the document body.
+
+        In document order, outermost first. The content of a control appears in
+        `.paragraphs`, `.tables` and `.iter_inner_content()` as though the wrapper were
+        not there; this is how the wrapper itself is reached.
+        """
+        return self._body.content_controls
+
     def iter_inner_content(self) -> Iterator[Paragraph | Table]:
         """Generate each `Paragraph` or `Table` in this document in document order."""
         return self._body.iter_inner_content()
@@ -191,8 +202,9 @@ class Document(ElementProxy):
     def paragraphs(self) -> List[Paragraph]:
         """The |Paragraph| instances in the document, in document order.
 
-        Note that paragraphs within revision marks such as ``<w:ins>`` or ``<w:del>`` do
-        not appear in this list.
+        A paragraph wrapped in a `w:sdt` (content control) appears in this list, in the
+        position of its wrapper. Note that paragraphs within revision marks such as
+        ``<w:ins>`` or ``<w:del>`` do not appear.
         """
         return self._body.paragraphs
 
@@ -229,9 +241,9 @@ class Document(ElementProxy):
         """All |Table| instances in the document, in document order.
 
         Note that only tables appearing at the top level of the document appear in this
-        list; a table nested inside a table cell does not appear. A table within
-        revision marks such as ``<w:ins>`` or ``<w:del>`` will also not appear in the
-        list.
+        list; a table nested inside a table cell does not appear. A table wrapped in a
+        `w:sdt` (content control) does appear. A table within revision marks such as
+        ``<w:ins>`` or ``<w:del>`` will not appear in the list.
         """
         return self._body.tables
 

@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from docx.oxml.document import CT_Body
     from docx.oxml.section import CT_HdrFtr
     from docx.oxml.table import CT_Tc
+    from docx.sdt import ContentControl
     from docx.shared import Length
     from docx.styles.style import ParagraphStyle
     from docx.table import Table
@@ -79,22 +80,42 @@ class BlockItemContainer(StoryChild):
             yield (Paragraph(element, self) if isinstance(element, CT_P) else Table(element, self))
 
     @property
+    def content_controls(self) -> list[ContentControl]:
+        """The structured document tags (content controls) in this container.
+
+        Nested controls are included, in document order, outermost first. The content of
+        a control appears in `.paragraphs` and `.iter_inner_content()` as though the
+        wrapper were not there; this is how the wrapper itself is reached.
+        """
+        from docx.sdt import ContentControl
+
+        return [ContentControl(sdt, self) for sdt in self._element.xpath(".//w:sdt")]
+
+    @property
     def paragraphs(self):
         """A list containing the paragraphs in this container, in document order.
 
-        Read-only.
+        Includes paragraphs wrapped in a `w:sdt` (content control). Read-only.
         """
-        return [Paragraph(p, self) for p in self._element.p_lst]
+        return [
+            Paragraph(p, self)
+            for p in self._element.inner_content_elements
+            if isinstance(p, CT_P)
+        ]
 
     @property
     def tables(self):
         """A list containing the tables in this container, in document order.
 
-        Read-only.
+        Includes tables wrapped in a `w:sdt` (content control). Read-only.
         """
         from docx.table import Table
 
-        return [Table(tbl, self) for tbl in self._element.tbl_lst]
+        return [
+            Table(tbl, self)
+            for tbl in self._element.inner_content_elements
+            if isinstance(tbl, CT_Tbl)
+        ]
 
     def _add_paragraph(self):
         """Return paragraph newly added to the end of the content in this container."""

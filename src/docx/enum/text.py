@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import enum
 
-from docx.enum.base import BaseXmlEnum
+from docx.enum.base import BaseEnum, BaseXmlEnum
 
 
 class WD_PARAGRAPH_ALIGNMENT(BaseXmlEnum):
@@ -167,6 +167,51 @@ class WD_COLOR_INDEX(BaseXmlEnum):
 
 
 WD_COLOR = WD_COLOR_INDEX
+
+
+class WD_CONTENT_CONTROL_TYPE(BaseEnum):
+    """Specifies the kind of a structured document tag (`w:sdt`), aka content control.
+
+    The kind is determined by which child of `w:sdtPr` is present, not by an attribute
+    value, so these members have no XML value mapping.
+
+    * MS API name: `WdContentControlType`
+    * URL: https://learn.microsoft.com/en-us/office/vba/api/word.wdcontentcontroltype
+    """
+
+    RICH_TEXT = (0, "Formatted text, which may contain multiple paragraphs.")
+    """Formatted text, which may contain multiple paragraphs."""
+
+    TEXT = (1, "Plain text, a single run without formatting of its own.")
+    """Plain text, a single run without formatting of its own."""
+
+    PICTURE = (2, "A single picture.")
+    """A single picture."""
+
+    COMBO_BOX = (3, "A list of choices that also accepts typed text.")
+    """A list of choices that also accepts typed text."""
+
+    DROPDOWN_LIST = (4, "A list of choices, one of which must be selected.")
+    """A list of choices, one of which must be selected."""
+
+    BUILDING_BLOCK_GALLERY = (5, "A gallery of building blocks, e.g. a cover page.")
+    """A gallery of building blocks, e.g. a cover page."""
+
+    DATE = (6, "A date, entered through a calendar picker.")
+    """A date, entered through a calendar picker."""
+
+    GROUP = (7, "A grouping of content that is edited as a unit.")
+    """A grouping of content that is edited as a unit."""
+
+    CHECKBOX = (8, "A check box, checked or unchecked.")
+    """A check box, checked or unchecked.
+
+    Written by Word as the `w14:checkbox` extension element, not as part of the ISO
+    schema.
+    """
+
+    REPEATING_SECTION = (9, "A section repeated once per item in a bound collection.")
+    """A section repeated once per item in a bound collection."""
 
 
 class WD_LINE_SPACING(BaseXmlEnum):

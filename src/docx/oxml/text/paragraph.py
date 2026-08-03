@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable, List, cast
 
 from docx.oxml.parser import OxmlElement
+from docx.oxml.sdt import iter_run_content
 from docx.oxml.xmlchemy import BaseOxmlElement, ZeroOrMore, ZeroOrOne
 
 if TYPE_CHECKING:
@@ -56,8 +57,12 @@ class CT_P(BaseOxmlElement):
 
     @property
     def inner_content_elements(self) -> List[CT_R | CT_Hyperlink]:
-        """Run and hyperlink children of the `w:p` element, in document order."""
-        return self.xpath("./w:r | ./w:hyperlink")
+        """Run and hyperlink children of the `w:p` element, in document order.
+
+        A run-level `w:sdt` (content control) is looked through, so the runs it wraps
+        appear here in its place.
+        """
+        return list(iter_run_content(self))
 
     @property
     def lastRenderedPageBreaks(self) -> List[CT_LastRenderedPageBreak]:
@@ -97,9 +102,9 @@ class CT_P(BaseOxmlElement):
         """The textual content of this paragraph.
 
         Inner-content child elements like `w:r` and `w:hyperlink` are translated to
-        their text equivalent.
+        their text equivalent, including those wrapped in a run-level `w:sdt`.
         """
-        return "".join(e.text for e in self.xpath("w:r | w:hyperlink"))
+        return "".join(e.text for e in self.inner_content_elements)
 
     def _insert_pPr(self, pPr: CT_PPr) -> CT_PPr:
         self.insert(0, pPr)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, List
 
+from docx.oxml.sdt import iter_block_content
 from docx.oxml.section import CT_SectPr
 from docx.oxml.xmlchemy import BaseOxmlElement, ZeroOrMore, ZeroOrOne
 
@@ -82,7 +83,8 @@ class CT_Body(BaseOxmlElement):
     def inner_content_elements(self) -> List[CT_P | CT_Tbl]:
         """Generate all `w:p` and `w:tbl` elements in this document-body.
 
-        Elements appear in document order. Elements shaded by nesting in a `w:ins` or
-        other "wrapper" element will not be included.
+        Elements appear in document order. Content inside a `w:sdt` (content control)
+        wrapper is included; content shaded by nesting in a `w:ins` or other wrapper is
+        not.
         """
-        return self.xpath("./w:p | ./w:tbl")
+        return list(iter_block_content(self))

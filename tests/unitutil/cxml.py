@@ -235,7 +235,9 @@ def grammar():
     close_brace = Suppress("}")
 
     # np:tagName ---------------------------------
-    nspfx = Word(alphas)
+    # -- digits are allowed in a prefix so the versioned Microsoft extension
+    # -- namespaces, e.g. "w14" and "w15", can be expressed --
+    nspfx = Word(alphanums)
     local_name = Word(alphanums)
     tagname = Combine(nspfx + colon + local_name)
 

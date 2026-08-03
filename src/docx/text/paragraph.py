@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     import docx.types as t
     from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
     from docx.oxml.text.paragraph import CT_P
+    from docx.sdt import ContentControl
     from docx.styles.style import CharacterStyle
 
 
@@ -72,6 +73,17 @@ class Paragraph(StoryChild):
         return bool(self._p.lastRenderedPageBreaks)
 
     @property
+    def content_controls(self) -> List[ContentControl]:
+        """The run-level content controls in this paragraph, in document order.
+
+        The runs inside them appear in `.runs` as though the wrapper were not there;
+        this is how the wrapper itself is reached.
+        """
+        from docx.sdt import ContentControl
+
+        return [ContentControl(sdt, self) for sdt in self._p.xpath("./w:sdt")]
+
+    @property
     def hyperlinks(self) -> List[Hyperlink]:
         """A |Hyperlink| instance for each hyperlink in this paragraph."""
         return [Hyperlink(hyperlink, self) for hyperlink in self._p.hyperlink_lst]
@@ -124,8 +136,12 @@ class Paragraph(StoryChild):
     @property
     def runs(self) -> List[Run]:
         """Sequence of |Run| instances corresponding to the <w:r> elements in this
-        paragraph."""
-        return [Run(r, self) for r in self._p.r_lst]
+        paragraph.
+
+        Includes runs wrapped in a run-level `w:sdt` (content control); the content of
+        such a control would otherwise be invisible.
+        """
+        return [r for r in self.iter_inner_content() if isinstance(r, Run)]
 
     @property
     def style(self) -> ParagraphStyle | None:

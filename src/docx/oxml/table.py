@@ -9,6 +9,7 @@ from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_ROW_HEIGHT_RULE, WD_T
 from docx.exceptions import InvalidSpanError
 from docx.oxml.ns import nsdecls, qn
 from docx.oxml.parser import OxmlElement, parse_xml
+from docx.oxml.sdt import iter_block_content
 from docx.oxml.shared import CT_DecimalNumber
 from docx.oxml.simpletypes import (
     ST_Merge,
@@ -600,12 +601,13 @@ class CT_Tc(BaseOxmlElement):
 
     @property
     def inner_content_elements(self) -> list[CT_P | CT_Tbl]:
-        """Generate all `w:p` and `w:tbl` elements in this document-body.
+        """Generate all `w:p` and `w:tbl` elements in this table cell.
 
-        Elements appear in document order. Elements shaded by nesting in a `w:ins` or
-        other "wrapper" element will not be included.
+        Elements appear in document order. Content inside a `w:sdt` (content control)
+        wrapper is included; content shaded by nesting in a `w:ins` or other wrapper is
+        not.
         """
-        return self.xpath("./w:p | ./w:tbl")
+        return list(iter_block_content(self))
 
     def iter_block_items(self):
         """Generate a reference to each of the block-level content elements in this

@@ -152,6 +152,14 @@ register_element_cls("w:styles", CT_Styles)
 register_element_cls("w:uiPriority", CT_DecimalNumber)
 register_element_cls("w:unhideWhenUsed", CT_OnOff)
 
+from .sdt import CT_Sdt, CT_SdtContent, CT_SdtPr
+
+register_element_cls("w:alias", CT_String)
+register_element_cls("w:sdt", CT_Sdt)
+register_element_cls("w:sdtContent", CT_SdtContent)
+register_element_cls("w:sdtPr", CT_SdtPr)
+register_element_cls("w:tag", CT_String)
+
 from .table import (
     CT_Height,
     CT_Row,

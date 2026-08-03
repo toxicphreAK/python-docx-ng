@@ -8,7 +8,6 @@ from docx import types as t
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.text.paragraph import CT_P
-from docx.oxml.text.run import CT_R
 from docx.parts.document import DocumentPart
 from docx.text.paragraph import Paragraph
 from docx.text.parfmt import ParagraphFormat
@@ -169,11 +168,24 @@ class DescribeParagraph:
         ParagraphFormat_.assert_called_once_with(paragraph._element)
         assert paragraph_format is paragraph_format_
 
-    def it_provides_access_to_the_runs_it_contains(self, runs_fixture):
-        paragraph, Run_, r_, r_2_, run_, run_2_ = runs_fixture
+    def it_provides_access_to_the_runs_it_contains(self):
+        paragraph = Paragraph(element("w:p/(w:r,w:r)"), None)
+
         runs = paragraph.runs
-        assert Run_.mock_calls == [call(r_, paragraph), call(r_2_, paragraph)]
-        assert runs == [run_, run_2_]
+
+        assert [run._r for run in runs] == paragraph._p.r_lst
+
+    def it_sees_the_runs_inside_a_run_level_content_control(self):
+        """A `w:sdt` inside a `w:p` would otherwise hide its runs entirely."""
+        paragraph = Paragraph(
+            element("w:p/(w:r,w:sdt/w:sdtContent/(w:r,w:r),w:r)"), None
+        )
+
+        runs = paragraph.runs
+
+        # -- in document order, with the wrapped runs in the position of their wrapper --
+        assert len(runs) == 4
+        assert [run._r for run in runs] == paragraph._p.xpath(".//w:r")
 
     def it_can_add_a_run_to_itself(self, add_run_fixture):
         paragraph, text, style, style_prop_, expected_xml = add_run_fixture
@@ -295,12 +307,6 @@ class DescribeParagraph:
         return paragraph, ParagraphFormat_, paragraph_format_
 
     @pytest.fixture
-    def runs_fixture(self, p_, Run_, r_, r_2_, runs_):
-        paragraph = Paragraph(p_, None)
-        run_, run_2_ = runs_
-        return paragraph, Run_, r_, r_2_, run_, run_2_
-
-    @pytest.fixture
     def style_get_fixture(self, part_prop_):
         style_id = "Foobar"
         p_cxml = "w:p/w:pPr/w:pStyle{w:val=%s}" % style_id
@@ -357,10 +363,6 @@ class DescribeParagraph:
         return method_mock(request, Paragraph, "_insert_paragraph_before")
 
     @pytest.fixture
-    def p_(self, request, r_, r_2_):
-        return instance_mock(request, CT_P, r_lst=(r_, r_2_))
-
-    @pytest.fixture
     def ParagraphFormat_(self, request, paragraph_format_):
         return class_mock(
             request,
@@ -377,24 +379,6 @@ class DescribeParagraph:
         return property_mock(request, Paragraph, "part", return_value=document_part_)
 
     @pytest.fixture
-    def Run_(self, request, runs_):
-        run_, run_2_ = runs_
-        return class_mock(request, "docx.text.paragraph.Run", side_effect=[run_, run_2_])
-
-    @pytest.fixture
-    def r_(self, request):
-        return instance_mock(request, CT_R)
-
-    @pytest.fixture
-    def r_2_(self, request):
-        return instance_mock(request, CT_R)
-
-    @pytest.fixture
     def run_style_prop_(self, request):
         return property_mock(request, Run, "style")
 
-    @pytest.fixture
-    def runs_(self, request):
-        run_ = instance_mock(request, Run, name="run_")
-        run_2_ = instance_mock(request, Run, name="run_2_")
-        return run_, run_2_

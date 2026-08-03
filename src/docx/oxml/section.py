@@ -10,6 +10,7 @@ from typing_extensions import TypeAlias
 
 from docx.enum.section import WD_HEADER_FOOTER, WD_ORIENTATION, WD_SECTION_START
 from docx.oxml.ns import nsmap
+from docx.oxml.sdt import iter_block_content
 from docx.oxml.shared import CT_OnOff
 from docx.oxml.simpletypes import ST_SignedTwipsMeasure, ST_TwipsMeasure, XsdString
 from docx.oxml.table import CT_Tbl
@@ -42,10 +43,11 @@ class CT_HdrFtr(BaseOxmlElement):
     def inner_content_elements(self) -> List[CT_P | CT_Tbl]:
         """Generate all `w:p` and `w:tbl` elements in this header or footer.
 
-        Elements appear in document order. Elements shaded by nesting in a `w:ins` or
-        other "wrapper" element will not be included.
+        Elements appear in document order. Content inside a `w:sdt` (content control)
+        wrapper is included; content shaded by nesting in a `w:ins` or other wrapper is
+        not.
         """
-        return self.xpath("./w:p | ./w:tbl")
+        return list(iter_block_content(self))
 
 
 class CT_HdrFtrRef(BaseOxmlElement):

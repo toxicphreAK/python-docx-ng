@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Callable, cast
 
 from docx.oxml.ns import nsdecls
 from docx.oxml.parser import parse_xml
+from docx.oxml.sdt import iter_block_content
 from docx.oxml.simpletypes import ST_DateTime, ST_DecimalNumber, ST_String
 from docx.oxml.xmlchemy import BaseOxmlElement, OptionalAttribute, RequiredAttribute, ZeroOrMore
 
@@ -120,5 +121,8 @@ class CT_Comment(BaseOxmlElement):
 
     @property
     def inner_content_elements(self) -> list[CT_P | CT_Tbl]:
-        """Generate all `w:p` and `w:tbl` elements in this comment."""
-        return self.xpath("./w:p | ./w:tbl")
+        """Generate all `w:p` and `w:tbl` elements in this comment.
+
+        Content inside a `w:sdt` (content control) wrapper is included.
+        """
+        return list(iter_block_content(self))
