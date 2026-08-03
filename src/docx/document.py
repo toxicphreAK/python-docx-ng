@@ -18,6 +18,7 @@ from docx.text.run import Run
 if TYPE_CHECKING:
     import docx.types as t
     from docx.comments import Comment, Comments
+    from docx.opc.customprops import CustomProperties
     from docx.oxml.document import CT_Body, CT_Document
     from docx.parts.document import DocumentPart
     from docx.sdt import ContentControl
@@ -171,6 +172,17 @@ class Document(ElementProxy):
     def comments(self) -> Comments:
         """A |Comments| object providing access to comments added to the document."""
         return self._part.comments
+
+    @property
+    def custom_properties(self) -> CustomProperties:
+        """A |CustomProperties| object providing the arbitrary named values attached to
+        this document.
+
+        Behaves as a mutable mapping of name to value. The part holding them is created
+        the first time this is used, so a document that never touches it gains no
+        `/docProps/custom.xml`.
+        """
+        return self._part.package.custom_properties
 
     @property
     def core_properties(self):

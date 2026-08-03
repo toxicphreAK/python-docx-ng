@@ -8,6 +8,7 @@ from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.opc.packuri import PACKAGE_URI, PackURI
 from docx.opc.part import PartFactory
 from docx.opc.parts.coreprops import CorePropertiesPart
+from docx.opc.parts.customprops import CustomPropertiesPart
 from docx.opc.parts.extendedprops import ExtendedPropertiesPart
 from docx.opc.pkgreader import PackageReader
 from docx.opc.pkgwriter import PackageWriter
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from docx.opc.coreprops import CoreProperties
+    from docx.opc.customprops import CustomProperties
     from docx.opc.extendedprops import ExtendedProperties
     from docx.opc.part import Part
     from docx.opc.rel import _Relationship  # pyright: ignore[reportPrivateUsage]
@@ -44,6 +46,12 @@ class OpcPackage:
         """|CoreProperties| object providing read/write access to the Dublin Core
         properties for this document."""
         return self._core_properties_part.core_properties
+
+    @property
+    def custom_properties(self) -> CustomProperties:
+        """|CustomProperties| object providing read/write access to the arbitrary named
+        values attached to this document."""
+        return self._custom_properties_part.custom_properties
 
     @property
     def extended_properties(self) -> ExtendedProperties:
@@ -185,6 +193,20 @@ class OpcPackage:
             core_properties_part = CorePropertiesPart.default(self)
             self.relate_to(core_properties_part, RT.CORE_PROPERTIES)
             return core_properties_part
+
+    @property
+    def _custom_properties_part(self) -> CustomPropertiesPart:
+        """|CustomPropertiesPart| object related to this package.
+
+        Creates an empty custom properties part if one is not present; most documents
+        have none until something is added.
+        """
+        try:
+            return cast(CustomPropertiesPart, self.part_related_by(RT.CUSTOM_PROPERTIES))
+        except KeyError:
+            custom_properties_part = CustomPropertiesPart.default(self)
+            self.relate_to(custom_properties_part, RT.CUSTOM_PROPERTIES)
+            return custom_properties_part
 
     @property
     def _extended_properties_part(self) -> ExtendedPropertiesPart:

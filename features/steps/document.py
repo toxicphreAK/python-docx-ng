@@ -277,3 +277,25 @@ def then_picture_description_is_the_alt_text(context):
 @then("picture.title is the title I specified")
 def then_picture_title_is_the_title(context):
     assert context.picture.title == "Truth table"
+
+
+@when("I set a custom document property")
+def when_set_a_custom_document_property(context):
+    context.document.custom_properties["Matter number"] = 4242
+
+
+@then("the document reports the custom property I set")
+def then_the_document_reports_the_custom_property(context):
+    assert context.document.custom_properties["Matter number"] == 4242
+
+
+@then("the custom property survives saving and reopening")
+def then_the_custom_property_survives_a_round_trip(context):
+    import io
+
+    from docx import Document
+
+    stream = io.BytesIO()
+    context.document.save(stream)
+    stream.seek(0)
+    assert Document(stream).custom_properties["Matter number"] == 4242
