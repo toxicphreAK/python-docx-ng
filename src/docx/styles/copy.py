@@ -216,7 +216,13 @@ def _copy_numbering(
             # -- a `w:numStyleLink` points at a style, not an id, so it survives the
             # -- copy only if that style came too; leave it and let it dangle rather
             # -- than silently flattening the definition --
-            dest_numbering.append(new_abstract)
+            #
+            # -- inserted rather than appended: `CT_Numbering` is an xsd:sequence and
+            # -- every `w:abstractNum` must precede every `w:num`, or Word refuses to
+            # -- open the document --
+            dest_numbering._insert_abstractNum(  # pyright: ignore[reportPrivateUsage]
+                new_abstract
+            )
             abstract_id_map[source_abstract_id] = new_abstract.abstractNumId
 
         new_num = dest_numbering.add_num(abstract_id_map[source_abstract_id])

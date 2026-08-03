@@ -239,7 +239,10 @@ def apply_all(element: BaseOxmlElement, parent: t.ProvidesStoryPart, accept: boo
         # -- a revision whose container was already removed is no longer in the tree --
         if revision._element.getparent() is None:  # pyright: ignore[reportPrivateUsage]
             continue
-        revision.accept() if accept else revision.reject()
+        if accept:
+            revision.accept()
+        else:
+            revision.reject()
     return len(revisions)
 
 

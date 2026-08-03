@@ -130,8 +130,10 @@ class Watermark:
         if pict is None:
             return
         r = pict.getparent()
-        pict.getparent().remove(pict)  # pyright: ignore[reportOptionalMemberAccess]
-        if r is not None and r.tag == qn("w:r") and len(r.xpath("./*[not(self::w:rPr)]")) == 0:
+        if r is None:
+            return
+        r.remove(pict)
+        if r.tag == qn("w:r") and len(r.xpath("./*[not(self::w:rPr)]")) == 0:
             parent = r.getparent()
             if parent is not None:
                 parent.remove(r)

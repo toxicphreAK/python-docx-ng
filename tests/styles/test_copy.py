@@ -252,6 +252,18 @@ class DescribeCopyStyleNumbering:
         assert len(after_abstract - before_abstract) == 1, "a new abstract definition"
         assert copied._element.numId_val in (after_num - before_num)
 
+    def it_keeps_the_numbering_part_in_schema_order(self):
+        """`CT_Numbering` is an xsd:sequence: every abstractNum precedes every num, and
+        Word refuses to open a document that gets it wrong."""
+        source = _source_with_list_style()
+        destination = docx.Document()
+
+        destination.styles.copy_style_from(source.styles["Roman List"])
+
+        local_names = [c.tag.split("}")[1] for c in destination.numbering._element]
+        first_num = local_names.index("num")
+        assert "abstractNum" not in local_names[first_num:]
+
     def it_numbers_correctly_in_the_destination(self):
         source = _source_with_list_style(fmt="upperRoman", start=3, text="[%1]")
         destination = docx.Document()
