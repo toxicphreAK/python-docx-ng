@@ -265,6 +265,22 @@ class DescribeFormField:
         assert check_box.default is True
         assert drop_down.default == "Blue"
 
+    def and_a_default_that_is_not_one_of_the_entries_raises(self, parent_: Mock):
+        drop_down = self._only_field(DROP_DOWN_FIELD, parent_)
+
+        with pytest.raises(ValueError, match="not one of the entries"):
+            drop_down.default = "Purple"
+
+        # -- and the existing default is left alone rather than silently cleared --
+        assert drop_down.default == "Red"
+
+    def but_None_clears_the_default(self, parent_: Mock):
+        drop_down = self._only_field(DROP_DOWN_FIELD, parent_)
+
+        drop_down.default = None
+
+        assert drop_down.default is None
+
     @pytest.mark.parametrize(
         ("field_xml", "expected_value"),
         [

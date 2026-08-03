@@ -12,7 +12,7 @@ from docx.blkcntnr import BlockItemContainer
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
 from docx.oxml.deletion import delete_element
-from docx.oxml.table import CT_TblGridCol
+from docx.oxml.table import CT_TblBorders, CT_TblGridCol, CT_TcBorders
 from docx.shared import Inches, Parented, RGBColor, StoryChild, lazyproperty
 
 if TYPE_CHECKING:
@@ -202,7 +202,9 @@ class _TableBorders(_Borders):
     """The border edges of a table, `table.borders`."""
 
     def __init__(self, tbl: CT_Tbl):
-        super().__init__(("top", "start", "left", "bottom", "end", "right", "insideH", "insideV"))
+        # -- the edges come from the element class rather than being repeated here, so
+        # -- the mapping cannot drift from the schema sequence the element declares --
+        super().__init__(CT_TblBorders.edges)
         self._tbl = tbl
 
     def clear(self) -> None:
@@ -220,20 +222,7 @@ class _CellBorders(_Borders):
     """The border edges of a table cell, `cell.borders`."""
 
     def __init__(self, tc: CT_Tc):
-        super().__init__(
-            (
-                "top",
-                "start",
-                "left",
-                "bottom",
-                "end",
-                "right",
-                "insideH",
-                "insideV",
-                "tl2br",
-                "tr2bl",
-            )
-        )
+        super().__init__(CT_TcBorders.edges)
         self._tc = tc
 
     def clear(self) -> None:

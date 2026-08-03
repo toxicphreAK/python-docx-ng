@@ -147,6 +147,8 @@ rst_epilog = """
 
 .. |InvalidSpanError| replace:: :class:`.InvalidSpanError`
 
+.. |InvalidXmlError| replace:: :class:`.InvalidXmlError`
+
 .. |int| replace:: :class:`.int`
 
 .. |_LatentStyle| replace:: :class:`._LatentStyle`

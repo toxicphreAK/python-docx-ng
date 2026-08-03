@@ -40,6 +40,11 @@ class FormField(StoryChild):
 
     Legacy form fields are what Word's Developer ribbon calls "Legacy Forms". They are
     distinct from content controls (`w:sdt`), which :class:`.ContentControl` covers.
+
+    The whole field is expected to sit in one paragraph, which is how Word writes a
+    legacy form field — it does not let a paragraph break be typed into one. Reading or
+    writing :attr:`value` on a field whose "end" field-character is in a later paragraph
+    raises |InvalidXmlError| rather than returning a partial value.
     """
 
     def __init__(self, fldChar: CT_FldChar, parent: t.ProvidesStoryPart):
@@ -63,7 +68,9 @@ class FormField(StoryChild):
         """The value this field starts out holding, |None| when it has no default.
 
         A |bool| for a check box, the text for a text input, and the selected entry for
-        a drop-down, matching :attr:`value`.
+        a drop-down, matching :attr:`value`. Assigning an entry a drop-down does not
+        offer raises |ValueError|, as it does for :attr:`value`; assigning |None|
+        removes the default.
         """
         field_type = self.type
         if field_type == WD_FORM_FIELD_TYPE.CHECK_BOX:
@@ -78,7 +85,7 @@ class FormField(StoryChild):
         if field_type == WD_FORM_FIELD_TYPE.CHECK_BOX:
             self._checkBox.default = None if value is None else bool(value)
         elif field_type == WD_FORM_FIELD_TYPE.DROP_DOWN:
-            self._ddList.default = self._entry_index(value)
+            self._ddList.default = None if value is None else self._require_entry_index(value)
         else:
             self._textInput.default = None if value is None else str(value)
 
@@ -213,9 +220,7 @@ class FormField(StoryChild):
             self._checkBox.checked = bool(value)
             return
         if field_type == WD_FORM_FIELD_TYPE.DROP_DOWN:
-            index = self._entry_index(value)
-            if index is None:
-                raise ValueError("'%s' is not one of the entries of this drop-down" % value)
+            index = self._require_entry_index(value)
             self._ddList.result = index
             self._set_result_text(self.items[index])
             return
@@ -249,14 +254,20 @@ class FormField(StoryChild):
         entries = self._ddList.listEntry_vals
         return entries[index] if 0 <= index < len(entries) else None
 
-    def _entry_index(self, value: str | bool | None) -> int | None:
-        """The index of drop-down entry `value`, or |None| when it is not one."""
-        if value is None:
-            return None
+    def _require_entry_index(self, value: str | bool) -> int:
+        """The index of drop-down entry `value`.
+
+        Raises |ValueError| naming the entries on offer rather than silently leaving the
+        field unchanged, since a value the list does not contain is always a mistake.
+        """
+        entries = self._ddList.listEntry_vals
         try:
-            return self._ddList.listEntry_vals.index(str(value))
+            return entries.index(str(value))
         except ValueError:
-            return None
+            raise ValueError(
+                "'%s' is not one of the entries of this drop-down; it offers %s"
+                % (value, ", ".join(repr(e) for e in entries) or "none")
+            ) from None
 
     def _field_runs(self) -> tuple[_Element | None, List[_Element], _Element]:
         """`(separate_r, result_elms, end_r)` for this field.
