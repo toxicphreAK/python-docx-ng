@@ -32,9 +32,12 @@ class PackageWriter:
         """Write a physical package (.pptx file) to `pkg_file` containing `pkg_rels` and
         `parts` and a content types stream based on the content types of the parts."""
         phys_writer = PhysPkgWriter(pkg_file)
-        PackageWriter._write_content_types_stream(phys_writer, parts)
+        # -- parts arrive in graph-traversal order, which varies between runs. Sort
+        # -- them so the same document always serializes to the same bytes. --
+        sorted_parts = sorted(parts, key=lambda part: part.partname)
+        PackageWriter._write_content_types_stream(phys_writer, sorted_parts)
         PackageWriter._write_pkg_rels(phys_writer, pkg_rels)
-        PackageWriter._write_parts(phys_writer, parts)
+        PackageWriter._write_parts(phys_writer, sorted_parts)
         phys_writer.close()
 
     @staticmethod

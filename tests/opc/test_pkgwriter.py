@@ -30,15 +30,20 @@ class DescribePackageWriter:
         # mockery ----------------------
         pkg_file = Mock(name="pkg_file")
         pkg_rels = Mock(name="pkg_rels")
-        parts = Mock(name="parts")
+        parts = [
+            Mock(name="part", partname=PackURI(partname))
+            for partname in ("/word/document.xml", "/docProps/core.xml")
+        ]
         phys_writer = PhysPkgWriter_.return_value
         # exercise ---------------------
         PackageWriter.write(pkg_file, pkg_rels, parts)
         # verify -----------------------
+        # -- parts are written in partname order, not the order supplied --
+        sorted_parts = [parts[1], parts[0]]
         expected_calls = [
-            call._write_content_types_stream(phys_writer, parts),
+            call._write_content_types_stream(phys_writer, sorted_parts),
             call._write_pkg_rels(phys_writer, pkg_rels),
-            call._write_parts(phys_writer, parts),
+            call._write_parts(phys_writer, sorted_parts),
         ]
         PhysPkgWriter_.assert_called_once_with(pkg_file)
         assert _write_methods.mock_calls == expected_calls

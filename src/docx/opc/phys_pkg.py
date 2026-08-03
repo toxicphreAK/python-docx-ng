@@ -1,10 +1,14 @@
 """Provides a general interface to a `physical` OPC package, such as a zip file."""
 
 import os
-from zipfile import ZIP_DEFLATED, ZipFile, is_zipfile
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo, is_zipfile
 
 from docx.opc.exceptions import PackageNotFoundError
 from docx.opc.packuri import CONTENT_TYPES_URI
+
+# -- earliest timestamp representable in a zip archive, used for every member so
+# -- output does not vary with wall-clock time --
+_ZIP_EPOCH = (1980, 1, 1, 0, 0, 0)
 
 
 class PhysPkgReader:
@@ -116,4 +120,9 @@ class _ZipPkgWriter(PhysPkgWriter):
     def write(self, pack_uri, blob):
         """Write `blob` to this zip package with the membername corresponding to
         `pack_uri`."""
-        self._zipf.writestr(pack_uri.membername, blob)
+        # -- a plain writestr() stamps each member with the current time, so saving
+        # -- the same document twice produces different bytes. Use the zip epoch
+        # -- instead; Word does not read these timestamps. --
+        zinfo = ZipInfo(filename=pack_uri.membername, date_time=_ZIP_EPOCH)
+        zinfo.compress_type = ZIP_DEFLATED
+        self._zipf.writestr(zinfo, blob)

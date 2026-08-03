@@ -2,12 +2,26 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, cast
+import re
+from typing import TYPE_CHECKING, Any, Dict, Tuple, cast
 
 from docx.opc.oxml import CT_Relationships
 
 if TYPE_CHECKING:
     from docx.opc.part import Part
+
+_RID_RE = re.compile(r"^rId(\d+)$")
+
+
+def _rId_sort_key(rId: str) -> Tuple[int, int, str]:
+    """Sort key placing rIds in numeric order, so "rId9" precedes "rId10".
+
+    Ids not of the form "rIdN" sort after the numbered ones, alphabetically.
+    """
+    match = _RID_RE.match(rId)
+    if match is None:
+        return (1, 0, rId)
+    return (0, int(match.group(1)), "")
 
 
 class Relationships(Dict[str, "_Relationship"]):
@@ -63,7 +77,11 @@ class Relationships(Dict[str, "_Relationship"]):
         """Serialize this relationship collection into XML suitable for storage as a
         .rels file in an OPC package."""
         rels_elm = CT_Relationships.new()
-        for rel in self.values():
+        # -- emit in rId order rather than insertion order, which depends on how the
+        # -- document was built or the order rels appeared in the file it was loaded
+        # -- from --
+        for rId in sorted(self, key=_rId_sort_key):
+            rel = self[rId]
             rels_elm.add_rel(rel.rId, rel.reltype, rel.target_ref, rel.is_external)
         return rels_elm.xml
 
