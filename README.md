@@ -1,12 +1,25 @@
-# python-docx
+# python-docx-ng
 
-*python-docx* is a Python library for reading, creating, and updating Microsoft Word 2007+ (.docx) files.
+*python-docx-ng* is a Python library for reading, creating, and updating Microsoft Word
+2007+ (.docx) files.
+
+It is a downstream superset of [python-docx](https://github.com/python-openxml/python-docx)
+by [scanny](https://github.com/scanny): everything upstream does, plus features upstream
+has not adopted. As of 2.0.0 this project tracks upstream v1.2.0 directly, so it builds on
+upstream's typed and tested core rather than a 2021 snapshot of it.
+
+Repo: <https://github.com/toxicphreAK/python-docx-ng>
+Releases: <https://github.com/toxicphreAK/python-docx-ng/releases>
+PyPI: <https://pypi.org/project/python-docx-ng/>
 
 ## Installation
 
+```commandline
+pip install python-docx-ng
 ```
-pip install python-docx
-```
+
+> Note: the importable package is `docx`, not `python_docx_ng` — use `import docx`.
+> `python-docx-ng` and `python-docx` therefore cannot be installed side by side.
 
 ## Example
 
@@ -23,4 +36,48 @@ pip install python-docx
 'It was a dark and stormy night.'
 ```
 
-More information is available in the [python-docx documentation](https://python-docx.readthedocs.org/en/latest/)
+The [python-docx documentation](https://python-docx.readthedocs.org/en/latest/) covers the
+shared core. Additions specific to this project are documented in
+[docs](https://github.com/toxicphreAK/python-docx-ng/tree/main/docs).
+
+## What this adds over python-docx
+
+*Being ported onto the v1.2.0 base — see [HISTORY.rst](HISTORY.rst) for current status.*
+
++ Extended document properties (`docProps/app.xml`)
++ Footnote support
++ Form fields and AltChunk support
++ `.docm` (macro-enabled document) support
++ SVG, EMF and WMF image support
++ Outline level — drives the outline shown in navigation panes and PDF bookmarks
++ Font scaling and theme typeface
++ Paragraph and run shading
++ Reproducible documents — the same input produces byte-identical output
++ Custom namespaces in `xpath()` calls
++ Tolerates oversized attribute values the default `lxml` parser rejects
++ Table `section`, table and cell borders, and row `dont_split`
++ Word 16 (Office 2019) default template
+
+## Upgrading from 0.9.x
+
+2.0.0 rebases onto upstream v1.2.0 and contains **breaking changes**. Several 0.9.x
+additions were dropped in favour of upstream implementations of the same features, which
+are better tested and differently shaped — notably comments, hyperlinks, and table cell
+access. Read the migration guide in
+[docs](https://github.com/toxicphreAK/python-docx-ng/tree/main/docs) before upgrading.
+
+## Development
+
+Requires [uv](https://docs.astral.sh/uv/).
+
+```commandline
+uv sync              # create the environment
+uv run pytest        # unit tests
+make accept          # acceptance tests (behave)
+uv run pyright       # type check
+uv run ruff check .  # lint
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE). Originally developed by Steve Canny as *python-docx*.

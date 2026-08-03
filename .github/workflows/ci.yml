@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync environment
+        run: uv sync --python ${{ matrix.python-version }}
+
+      - name: Unit tests
+        run: uv run pytest -q
+
+      - name: Acceptance tests
+        run: uv run behave --format progress --tags=-wip
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync environment
+        run: uv sync --python 3.12
+
+      - name: Ruff
+        run: uv run ruff check .
+
+  typecheck:
+    name: typecheck (informational)
+    runs-on: ubuntu-latest
+    # Non-blocking: the inherited v1.2.0 code does not currently pass pyright
+    # strict against the pinned types-lxml stubs. Reported so the count can be
+    # driven down over time rather than silently growing.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync environment
+        run: uv sync --python 3.12
+
+      - name: Pyright
+        run: uv run pyright

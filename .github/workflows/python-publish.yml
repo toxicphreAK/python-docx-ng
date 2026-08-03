@@ -1,0 +1,55 @@
+# Builds the distribution with uv when a tag is pushed, attaches it to the
+# GitHub release and publishes it to PyPI.
+name: Upload Python Package
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync environment
+        run: uv sync --python 3.12
+
+      - name: Verify tag matches package version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(uv run python -c 'import docx; print(docx.__version__)')"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag '$tag' does not match docx.__version__ '$version'"
+            exit 1
+          fi
+
+      - name: Unit tests
+        run: uv run pytest -q
+
+      - name: Build package
+        run: uv build
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/*
+          tag: ${{ github.ref }}
+          file_glob: true
+
+      - name: Publish package
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
