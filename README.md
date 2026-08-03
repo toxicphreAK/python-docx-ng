@@ -42,29 +42,34 @@ shared core. Additions specific to this project are documented in
 
 ## What this adds over python-docx
 
-*Being ported onto the v1.2.0 base — see [HISTORY.rst](HISTORY.rst) for current status.*
+*Being ported onto the v1.2.0 base — see [HISTORY.rst](HISTORY.rst) for current status
+and the [2.0.0 milestone](https://github.com/toxicphreAK/python-docx-ng/milestone/1) for
+what is still to come.*
 
-+ Extended document properties (`docProps/app.xml`)
-+ Footnote support
-+ Form fields and AltChunk support
-+ `.docm` (macro-enabled document) support
-+ SVG, EMF and WMF image support
++ Footnotes — `Document.footnotes` and `Run.add_footnote_reference()`
++ Legacy form fields — read and fill text inputs, check boxes and drop-downs
++ Table and cell borders — `Table.borders["top"].line = WD_LINE_STYLE.SINGLE`
++ AltChunk — embed HTML, RTF or another `.docx` for Word to import on open
++ Custom and extended document properties (`docProps/custom.xml`, `docProps/app.xml`)
++ Bookmarks, `Paragraph.add_hyperlink()`, and a deletion API
++ `.docm` (macro-enabled) and `.dotx`/`.dotm` (template) support
++ SVG, EMF, WMF and WebP image support
 + Outline level — drives the outline shown in navigation panes and PDF bookmarks
-+ Font scaling and theme typeface
++ Font scaling, theme typefaces, East Asian and complex-script typefaces
 + Paragraph and run shading
++ Multi-column section layout, and row `dont_split`
 + Reproducible documents — the same input produces byte-identical output
 + Custom namespaces in `xpath()` calls
 + Tolerates oversized attribute values the default `lxml` parser rejects
-+ Table `section`, table and cell borders, and row `dont_split`
-+ Word 16 (Office 2019) default template
 
 ## Upgrading from 0.9.x
 
 2.0.0 rebases onto upstream v1.2.0 and contains **breaking changes**. Several 0.9.x
 additions were dropped in favour of upstream implementations of the same features, which
 are better tested and differently shaped — notably comments, hyperlinks, and table cell
-access. Read the migration guide in
-[docs](https://github.com/toxicphreAK/python-docx-ng/tree/main/docs) before upgrading.
+access. Read the
+[migration guide](https://github.com/toxicphreAK/python-docx-ng/blob/main/docs/user/migrating-from-0-9.rst)
+before upgrading.
 
 ## Development
 

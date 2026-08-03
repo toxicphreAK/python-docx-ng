@@ -3,6 +3,78 @@
 Release History
 ---------------
 
+2.0.0 (unreleased)
+++++++++++++++++++
+
+Restarted from upstream python-docx v1.2.0. The 0.9.x line had diverged from upstream
+v0.8.11 in 2021; rather than merge four years of upstream change into that tree, this
+release branches from upstream and re-applies the python-docx-ng features on top.
+
+**This is a breaking release.** See ``docs/user/migrating-from-0-9.rst`` for a migration
+path.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+- Comments are now upstream's ``Document.comments``, ``Document.add_comment()`` and
+  ``Run.mark_comment_range()``. ``Paragraph.add_comment()`` and the ``docx.text.comment``
+  module are gone.
+- Hyperlinks are now upstream's ``Hyperlink``, with ``.address``, ``.fragment``,
+  ``.runs``, ``.text`` and ``.contains_page_break``. ``Paragraph.add_hyperlink()``
+  remains but takes ``address`` and ``fragment`` and returns a ``Hyperlink``.
+- ``Table._cells`` is a flat list rather than a row-major matrix, and ``_Row.cells``
+  returns only the cells actually present. ``_Row.grid_cols_before`` and
+  ``.grid_cols_after`` report the layout-grid positions a row leaves unpopulated.
+  ``Table.row_cells()`` is deprecated in favour of ``table.rows[i].cells``.
+- ``Font.highlight_color`` is strictly a ``WD_COLOR_INDEX`` member and no longer falls
+  back to ``w:shd``; use the new ``Font.shading_fill`` for RGB shading.
+- ``Section.paragraphs`` is removed; use ``Section.iter_inner_content()``.
+- ``Table.section`` is removed. The 0.9.x implementation returned the wrong section in
+  a multi-section document.
+- ``ParagraphFormat.outline_level`` returns ``None`` when unset rather than ``9``;
+  ``9`` now means Word's explicit "Body Text" level.
+- The table and cell borders API is a mapping keyed by edge, with line styles as
+  ``WD_LINE_STYLE`` members and sizes as ``Length`` values.
+- Footnotes are ``Document.footnotes`` and ``Run.add_footnote_reference()`` rather than
+  ``Paragraph.add_footnote()``.
+- Python 3.8 is no longer supported. Supported versions are 3.9+.
+
+Added
+~~~~~
+
+- Footnotes — ``Document.footnotes``, ``Footnotes.add_footnote()``,
+  ``Run.add_footnote_reference()``
+- Legacy form fields — ``Document.form_fields``, ``Paragraph.form_fields``, and a
+  ``FormField`` proxy that reads and writes field values
+- AltChunk — ``Document.add_alt_chunk()`` and ``Document.alt_chunks``
+- Table and cell borders — ``Table.borders`` and ``_Cell.borders``, with the
+  ``WD_LINE_STYLE`` enum
+- Custom document properties (``docProps/custom.xml``)
+- Extended (application) document properties (``docProps/app.xml``)
+- Bookmarks — ``Document.bookmarks`` — and ``Paragraph.add_hyperlink()``
+- A deletion API — ``.delete()`` on paragraphs, runs, tables, rows and columns
+- SVG, EMF, WMF and WebP image support
+- ``.docm`` macro-enabled document support, and ``.dotx``/``.dotm`` template support
+- Content controls — reading text wrapped in a ``w:sdt``
+- East Asian and complex-script typefaces, ``w:szCs``, character scaling, theme fonts
+- Paragraph and run shading, and paragraph outline level
+- Multi-column section layout
+- Alt text on pictures and inline shapes
+- ``_Row.dont_split``, and the merge extent and origin of a table cell
+- Byte-reproducible output — the same document data serializes to identical bytes
+- Custom namespace prefixes in ``xpath()`` calls
+
+Fixed
+~~~~~
+
+- Documents with oversized attribute values, which the default ``lxml`` parser rejects,
+  now parse. Entity resolution stays off.
+- Corrupt packages and dangling relationships no longer raise on load
+- Tables with no ``w:tblGrid`` are readable, and cell access is linear rather than
+  quadratic
+- ``w:highlight w:val="none"`` and fractional half-point font sizes are accepted
+
+
 1.2.0 (2025-06-16)
 ++++++++++++++++++
 

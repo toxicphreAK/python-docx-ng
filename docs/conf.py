@@ -143,6 +143,8 @@ rst_epilog = """
 
 .. |InlineShapes| replace:: :class:`.InlineShapes`
 
+.. |IndexError| replace:: :exc:`IndexError`
+
 .. |InvalidSpanError| replace:: :class:`.InvalidSpanError`
 
 .. |int| replace:: :class:`.int`

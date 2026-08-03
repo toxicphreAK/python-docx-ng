@@ -72,6 +72,7 @@ User Guide
    :maxdepth: 1
 
    user/install
+   user/migrating-from-0-9
    user/quickstart
    user/documents
    user/tables
