@@ -10,13 +10,10 @@ schema.
 from __future__ import annotations
 
 import datetime as dt
-from typing import TYPE_CHECKING, Any, Tuple
+from typing import Any, Tuple
 
 from docx.exceptions import InvalidXmlError
-from docx.shared import Emu, Pt, RGBColor, Twips
-
-if TYPE_CHECKING:
-    from docx.shared import Length
+from docx.shared import Emu, Length, RGBColor, Twips
 
 
 class BaseSimpleType:
@@ -309,18 +306,29 @@ class ST_HexColorAuto(XsdStringEnumeration):
 
 
 class ST_HpsMeasure(XsdUnsignedLong):
-    """Half-point measure, e.g. 24.0 represents 12.0 points."""
+    """Half-point measure, e.g. 24.0 represents 12.0 points.
+
+    The schema type is a union of an unsigned decimal count of half-points and a
+    universal measure like `"12pt"`. A fractional count of half-points such as `"21.5"`
+    is not strictly valid, but Word reads it and several other generators write it, so
+    it is accepted here and rounded to the nearest EMU.
+    """
 
     @classmethod
     def convert_from_xml(cls, str_value: str) -> Length:
         if "m" in str_value or "n" in str_value or "p" in str_value:
             return ST_UniversalMeasure.convert_from_xml(str_value)
-        return Pt(int(str_value) / 2.0)
+        return Emu(round(float(str_value) / 2.0 * Length._EMUS_PER_PT))
 
     @classmethod
     def convert_to_xml(cls, value: int | Length) -> str:
+        """Round to the nearest half-point rather than truncating.
+
+        A half-point count is always written as an integer, since a fractional value is
+        outside the schema type even though it is accepted on read.
+        """
         emu = Emu(value)
-        half_points = int(emu.pt * 2)
+        half_points = int(round(emu.pt * 2))
         return str(half_points)
 
 

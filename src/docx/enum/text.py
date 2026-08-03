@@ -101,6 +101,19 @@ class WD_COLOR_INDEX(BaseXmlEnum):
     INHERITED = (-1, None, "Color is inherited from the style hierarchy.")
     """Color is inherited from the style hierarchy."""
 
+    NO_HIGHLIGHT = (-2, "none", "Explicitly not highlighted.")
+    """Explicitly not highlighted.
+
+    Distinct from |None|, which means no `w:highlight` element is present and the
+    highlight is therefore inherited. `w:highlight` with `w:val="none"` overrides an
+    inherited highlight and is written by Word when highlighting is cleared on a run
+    that sits under a style supplying one.
+
+    The MS API assigns `wdNoHighlight` the value 0, the same value as `wdAuto`. Two
+    members cannot share a value here, so this member takes a distinct negative value
+    in the manner of `INHERITED`.
+    """
+
     AUTO = (0, "default", "Automatic color. Default; usually black.")
     """Automatic color. Default; usually black."""
 

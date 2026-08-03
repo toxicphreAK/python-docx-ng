@@ -12,7 +12,7 @@ from _pytest.fixtures import FixtureRequest
 from docx.dml.color import ColorFormat
 from docx.enum.text import WD_COLOR, WD_COLOR_INDEX, WD_UNDERLINE
 from docx.oxml.text.run import CT_R
-from docx.shared import Length, Pt, RGBColor
+from docx.shared import Emu, Length, Pt, RGBColor
 from docx.text.font import Font
 
 from ..unitutil.cxml import element, xml
@@ -204,12 +204,31 @@ class DescribeFont:
             ("w:r", None),
             ("w:r/w:rPr", None),
             ("w:r/w:rPr/w:sz{w:val=28}", Pt(14)),
+            # -- a fractional half-point count is written by some non-Word generators --
+            ("w:r/w:rPr/w:sz{w:val=21.5}", Emu(136525)),
+            ("w:r/w:rPr/w:sz{w:val=21.3}", Emu(135255)),
         ],
     )
     def it_knows_its_size(self, r_cxml: str, expected_value: Length | None):
         r = cast(CT_R, element(r_cxml))
         font = Font(r)
         assert font.size == expected_value
+
+    def it_rounds_a_fractional_half_point_size_to_the_nearest_half_point_on_write(self):
+        """A half-point count is an integer in the schema, so writing rounds to one."""
+        font = Font(cast(CT_R, element("w:r/w:rPr/w:sz{w:val=21.5}")))
+
+        size = font.size
+        font.size = size
+
+        assert font._element.xml == xml("w:r/w:rPr/w:sz{w:val=22}")
+
+    def it_round_trips_an_integral_half_point_size_unchanged(self):
+        font = Font(cast(CT_R, element("w:r/w:rPr/w:sz{w:val=23}")))
+
+        font.size = font.size
+
+        assert font._element.xml == xml("w:r/w:rPr/w:sz{w:val=23}")
 
     @pytest.mark.parametrize(
         ("r_cxml", "value", "expected_r_cxml"),
@@ -508,6 +527,7 @@ class DescribeFont:
             ("w:r/w:rPr", None),
             ("w:r/w:rPr/w:highlight{w:val=default}", WD_COLOR.AUTO),
             ("w:r/w:rPr/w:highlight{w:val=blue}", WD_COLOR.BLUE),
+            ("w:r/w:rPr/w:highlight{w:val=none}", WD_COLOR.NO_HIGHLIGHT),
         ],
     )
     def it_knows_its_highlight_color(self, r_cxml: str, expected_value: WD_COLOR | None):
@@ -528,6 +548,11 @@ class DescribeFont:
             ("w:r/w:rPr/w:highlight{w:val=yellow}", None, "w:r/w:rPr"),
             ("w:r/w:rPr", None, "w:r/w:rPr"),
             ("w:r", None, "w:r/w:rPr"),
+            (
+                "w:r/w:rPr/w:highlight{w:val=yellow}",
+                WD_COLOR.NO_HIGHLIGHT,
+                "w:r/w:rPr/w:highlight{w:val=none}",
+            ),
         ],
     )
     def it_can_change_its_highlight_color(
@@ -540,6 +565,14 @@ class DescribeFont:
         font.highlight_color = value
 
         assert font._element.xml == expected_xml
+
+    def it_distinguishes_an_explicit_no_highlight_from_an_absent_one(self):
+        """`w:val="none"` overrides an inherited highlight; absence inherits it."""
+        explicit = Font(cast(CT_R, element("w:r/w:rPr/w:highlight{w:val=none}")))
+        absent = Font(cast(CT_R, element("w:r/w:rPr")))
+
+        assert explicit.highlight_color == WD_COLOR.NO_HIGHLIGHT
+        assert absent.highlight_color is None
 
     # -- fixtures ----------------------------------------------------
 
