@@ -555,11 +555,20 @@ class CT_Tc(BaseOxmlElement):
 
         This is one greater than the index of the bottom-most row of the span, similar
         to how a slice of the cell's rows would be specified.
+
+        The span is measured by following continuation cells downward, without requiring
+        this cell to carry `w:vMerge` of "restart". That is what the schema calls for,
+        but a merge whose origin cell simply omits `w:vMerge` is common from other
+        generators and renders as a merge in Word.
         """
-        if self.vMerge is not None:
+        try:
             tc_below = self._tc_below
-            if tc_below is not None and tc_below.vMerge == ST_Merge.CONTINUE:
-                return tc_below.bottom
+        except ValueError:
+            # -- the row below starts late or ends early and has no cell at this grid
+            # -- offset, so the span cannot continue into it --
+            return self._tr_idx + 1
+        if tc_below is not None and tc_below.vMerge == ST_Merge.CONTINUE:
+            return tc_below.bottom
         return self._tr_idx + 1
 
     def clear_content(self):

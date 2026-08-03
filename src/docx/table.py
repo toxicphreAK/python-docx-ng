@@ -254,6 +254,24 @@ class _Cell(BlockItemContainer):
         return table
 
     @property
+    def column_index(self) -> int:
+        """Index of the left-most layout-grid column this cell occupies.
+
+        Together with `.row_index` this gives the origin of the cell, which is what
+        tells a repeat of a merged cell apart from a cell in its own right::
+
+            for row_idx, row in enumerate(table.rows):
+                for col_idx, cell in enumerate(row.cells):
+                    if (cell.row_index, cell.column_index) != (row_idx, col_idx):
+                        continue  # -- already emitted, this is part of a merged cell --
+                    emit(cell.text, rowspan=cell.span_height, colspan=cell.grid_span)
+
+        Note this is a layout-grid column index, so it accounts for the grid positions a
+        row leaves unpopulated at its start; see `_Row.grid_cols_before`.
+        """
+        return self._tc.left
+
+    @property
     def grid_span(self) -> int:
         """Number of layout-grid cells this cell spans horizontally.
 
@@ -261,6 +279,14 @@ class _Cell(BlockItemContainer):
         more.
         """
         return self._tc.grid_span
+
+    @property
+    def is_merged(self) -> bool:
+        """|True| when this cell spans more than one layout-grid cell.
+
+        Horizontally, vertically, or both.
+        """
+        return self.grid_span > 1 or self.span_height > 1
 
     def merge(self, other_cell: _Cell):
         """Return a merged cell created by spanning the rectangular region having this
@@ -280,6 +306,38 @@ class _Cell(BlockItemContainer):
         with a paragraph. By default, a new cell contains a single paragraph. Read-only
         """
         return super(_Cell, self).paragraphs
+
+    @property
+    def row_index(self) -> int:
+        """Index of the top-most row this cell occupies.
+
+        For a vertically merged cell this is the row the merge starts at, not the row
+        the cell was reached through. See `.column_index` for how the pair is used.
+        """
+        return self._tc.top
+
+    @property
+    def span(self) -> tuple[int, int]:
+        """The extent of this cell as `(rows, columns)`.
+
+        `(1, 1)` for an unmerged cell.
+        """
+        return (self.span_height, self.grid_span)
+
+    @property
+    def span_height(self) -> int:
+        """Number of rows this cell spans vertically.
+
+        An unmerged cell has a span-height of 1; a vertically merged cell has 2 or more.
+        This is the read-side counterpart of `.grid_span`, and the two together describe
+        a merge completely, including the combined case of a cell that is merged in both
+        directions.
+
+        A merge is measured by following its continuation cells, so a document whose
+        origin cell omits `w:vMerge` — legal in practice and common from generators
+        other than Word — reports the same extent Word renders.
+        """
+        return self._tc.bottom - self._tc.top
 
     @property
     def tables(self):

@@ -379,6 +379,72 @@ class Describe_Cell:
         assert cell.grid_span == expected_value
 
     @pytest.mark.parametrize(
+        ("row_idx", "col_idx", "expected_origin", "expected_span"),
+        [
+            # -- an unmerged cell is its own origin and spans one grid cell --
+            (3, 3, (3, 3), (1, 1)),
+            # -- horizontal merge of (0, 0) and (0, 1) --
+            (0, 0, (0, 0), (1, 2)),
+            (0, 1, (0, 0), (1, 2)),
+            # -- vertical merge of (1, 0) through (2, 0) --
+            (1, 0, (1, 0), (2, 1)),
+            (2, 0, (1, 0), (2, 1)),
+            # -- merged in both directions, (1, 2) through (2, 3) --
+            (1, 2, (1, 2), (2, 2)),
+            (2, 3, (1, 2), (2, 2)),
+        ],
+    )
+    def it_knows_the_extent_and_origin_of_a_merged_cell(
+        self,
+        row_idx: int,
+        col_idx: int,
+        expected_origin: tuple[int, int],
+        expected_span: tuple[int, int],
+        parent_: Mock,
+    ):
+        table = Table(CT_Tbl.new_tbl(4, 4, Inches(4)), parent_)
+        table.cell(0, 0).merge(table.cell(0, 1))
+        table.cell(1, 0).merge(table.cell(2, 0))
+        table.cell(1, 2).merge(table.cell(2, 3))
+
+        cell = table.cell(row_idx, col_idx)
+
+        assert (cell.row_index, cell.column_index) == expected_origin
+        assert cell.span == expected_span
+        assert (cell.span_height, cell.grid_span) == expected_span
+        assert cell.is_merged is (expected_span != (1, 1))
+
+    def it_measures_a_vertical_merge_whose_origin_omits_w_vMerge(self, parent_: Mock):
+        """Legal in practice and common from generators other than Word."""
+        tbl_cxml = (
+            "w:tbl/(w:tblPr,w:tblGrid/(w:gridCol,w:gridCol),"
+            "w:tr/(w:tc/w:p,w:tc/w:p),"
+            "w:tr/(w:tc/(w:tcPr/w:vMerge,w:p),w:tc/w:p),"
+            "w:tr/(w:tc/(w:tcPr/w:vMerge,w:p),w:tc/w:p))"
+        )
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        assert table.cell(0, 0).span == (3, 1)
+        # -- every row of the span reports the origin, so a repeat is detectable --
+        assert [table.cell(r, 0).row_index for r in range(3)] == [0, 0, 0]
+        assert table.cell(1, 1).span == (1, 1)
+
+    def it_reports_a_grid_column_index_that_accounts_for_a_late_starting_row(
+        self, parent_: Mock
+    ):
+        """A row can leave grid positions unpopulated at its start."""
+        tbl_cxml = (
+            "w:tbl/(w:tblPr,w:tblGrid/(w:gridCol,w:gridCol,w:gridCol),"
+            "w:tr/(w:tc/w:p,w:tc/w:p,w:tc/w:p),"
+            "w:tr/(w:trPr/w:gridBefore{w:val=1},w:tc/w:p,w:tc/w:p))"
+        )
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        assert table.cell(1, 1).column_index == 1
+        assert table.cell(1, 2).column_index == 2
+        assert table.rows[1].grid_cols_before == 1
+
+    @pytest.mark.parametrize(
         ("tc_cxml", "expected_text"),
         [
             ("w:tc", ""),
