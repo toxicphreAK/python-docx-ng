@@ -12,7 +12,6 @@ from docx.enum.revision import WD_REVISION_TYPE
 from docx.oxml.ns import nsdecls, qn
 from docx.oxml.parser import parse_xml
 
-
 _R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
 
