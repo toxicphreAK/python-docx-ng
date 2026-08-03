@@ -91,15 +91,28 @@ class CT_Inline(BaseOxmlElement):
 
     @classmethod
     def new_pic_inline(
-        cls, shape_id: int, rId: str, filename: str, cx: Length, cy: Length
+        cls,
+        shape_id: int,
+        rId: str,
+        filename: str,
+        cx: Length,
+        cy: Length,
+        description: str | None = None,
+        title: str | None = None,
     ) -> CT_Inline:
         """Create `wp:inline` element containing a `pic:pic` element.
 
         The contents of the `pic:pic` element is taken from the argument values.
+        `description` and `title` are the alternative text of the picture and are
+        omitted when |None|.
         """
         pic_id = 0  # Word doesn't seem to use this, but does not omit it
         pic = CT_Picture.new(pic_id, filename, rId, cx, cy)
         inline = cls.new(cx, cy, shape_id, pic)
+        if description is not None:
+            inline.docPr.descr = description
+        if title is not None:
+            inline.docPr.title = title
         return inline
 
     @classmethod
@@ -121,11 +134,19 @@ class CT_Inline(BaseOxmlElement):
 class CT_NonVisualDrawingProps(BaseOxmlElement):
     """Used for ``<wp:docPr>`` element, and perhaps others.
 
-    Specifies the id and name of a DrawingML drawing.
+    Specifies the id and name of a DrawingML drawing, and its alternative text.
     """
 
     id = RequiredAttribute("id", ST_DrawingElementId)
     name = RequiredAttribute("name", XsdString)
+    # -- `descr` is what a screen reader announces; Word's modern "Alt Text" pane
+    # -- writes this one. `title` is the separate caption-like field of older Word. --
+    descr: str | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "descr", XsdString
+    )
+    title: str | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "title", XsdString
+    )
 
 
 class CT_NonVisualPictureProperties(BaseOxmlElement):

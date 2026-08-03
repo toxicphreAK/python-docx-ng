@@ -57,6 +57,22 @@ class InlineShape:
         self._inline = inline
 
     @property
+    def description(self) -> str | None:
+        """Read/write.
+
+        The alternative text of this shape, |None| if not set.
+
+        This is what a screen reader announces in place of the picture, and what an
+        automated accessibility check looks for. Word's "Alt Text" pane writes this
+        field. Assigning |None| removes it.
+        """
+        return self._inline.docPr.descr
+
+    @description.setter
+    def description(self, value: str | None):
+        self._inline.docPr.descr = value
+
+    @property
     def height(self) -> Length:
         """Read/write.
 
@@ -88,6 +104,22 @@ class InlineShape:
         if uri == nsmap["dgm"]:
             return WD_INLINE_SHAPE.SMART_ART
         return WD_INLINE_SHAPE.NOT_IMPLEMENTED
+
+    @property
+    def title(self) -> str | None:
+        """Read/write.
+
+        The title of this shape, |None| if not set.
+
+        Word presents this separately from the alternative text and screen readers do
+        not generally announce it; `.description` is the one accessibility depends on.
+        Assigning |None| removes it.
+        """
+        return self._inline.docPr.title
+
+    @title.setter
+    def title(self, value: str | None):
+        self._inline.docPr.title = value
 
     @property
     def width(self):

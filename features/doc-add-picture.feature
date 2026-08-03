@@ -28,3 +28,10 @@ Feature: Append an inline picture in its own paragraph
     Given a blank document
      When I add a picture specifying a height of 1.5 inches
      Then picture.width is 1.05 inches
+
+
+  Scenario: Add a picture with alt text
+    Given a blank document
+     When I add a picture specifying alt text
+     Then picture.description is the alt text I specified
+      And picture.title is the title I specified

@@ -61,6 +61,8 @@ class Run(StoryChild):
         image_path_or_stream: str | IO[bytes],
         width: int | Length | None = None,
         height: int | Length | None = None,
+        description: str | None = None,
+        title: str | None = None,
     ) -> InlineShape:
         """Return |InlineShape| containing image identified by `image_path_or_stream`.
 
@@ -75,8 +77,15 @@ class Run(StoryChild):
         ratio of the image. The native size of the picture is calculated using the dots-
         per-inch (dpi) value specified in the image file, defaulting to 72 dpi if no
         value is specified, as is often the case.
+
+        `description` is the picture's alternative text, which is what a screen reader
+        announces and what an accessibility check looks for. `title` is the separate,
+        rarely-used caption-like field Word writes alongside it. Both are omitted from
+        the XML when |None|.
         """
-        inline = self.part.new_pic_inline(image_path_or_stream, width, height)
+        inline = self.part.new_pic_inline(
+            image_path_or_stream, width, height, description=description, title=title
+        )
         self._r.add_drawing(inline)
         return InlineShape(inline)
 

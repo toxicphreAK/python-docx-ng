@@ -135,6 +135,16 @@ def when_add_picture_specifying_width(context):
     context.picture = document.add_picture(test_file("monty-truth.png"), width=Inches(1.5))
 
 
+@when("I add a picture specifying alt text")
+def when_add_picture_specifying_alt_text(context):
+    document = context.document
+    context.picture = document.add_picture(
+        test_file("monty-truth.png"),
+        description="A Monty Python truth table",
+        title="Truth table",
+    )
+
+
 @when("I add a picture specifying only the image file")
 def when_add_picture_specifying_only_image_file(context):
     document = context.document
@@ -257,3 +267,13 @@ def then_the_style_of_the_last_paragraph_is_style(context, style_name):
     document = context.document
     paragraph = document.paragraphs[-1]
     assert paragraph.style.name == style_name, "got %s" % paragraph.style.name
+
+
+@then("picture.description is the alt text I specified")
+def then_picture_description_is_the_alt_text(context):
+    assert context.picture.description == "A Monty Python truth table"
+
+
+@then("picture.title is the title I specified")
+def then_picture_title_is_the_title(context):
+    assert context.picture.title == "Truth table"

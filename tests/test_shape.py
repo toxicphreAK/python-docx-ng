@@ -8,6 +8,7 @@ from typing import cast
 
 import pytest
 
+import docx
 from docx.document import Document
 from docx.enum.shape import WD_INLINE_SHAPE
 from docx.oxml.document import CT_Body
@@ -17,6 +18,7 @@ from docx.shape import InlineShape, InlineShapes
 from docx.shared import Emu, Length
 
 from .unitutil.cxml import element, xml
+from .unitutil.file import test_file
 from .unitutil.mock import FixtureRequest, Mock, instance_mock
 
 
@@ -127,3 +129,68 @@ class DescribeInlineShape:
             "wp:inline/(wp:extent{cx=444,cy=888},a:graphic/a:graphicData/pic:pic/pic:spPr/"
             "a:xfrm/a:ext{cx=444,cy=888})"
         )
+
+
+class DescribeInlineShapeAltText:
+    """Unit-test suite for the alternative text of an |InlineShape|."""
+
+    @pytest.mark.parametrize(
+        ("docPr_cxml", "expected_description", "expected_title"),
+        [
+            ("wp:docPr{id=1,name=Picture 1}", None, None),
+            ("wp:docPr{id=1,name=Picture 1,descr=A chart}", "A chart", None),
+            ("wp:docPr{id=1,name=Picture 1,title=Chart}", None, "Chart"),
+            ("wp:docPr{id=1,name=Picture 1,descr=A chart,title=Chart}", "A chart", "Chart"),
+        ],
+    )
+    def it_knows_its_alt_text(
+        self, docPr_cxml: str, expected_description: str | None, expected_title: str | None
+    ):
+        inline_shape = InlineShape(cast(CT_Inline, element("wp:inline/%s" % docPr_cxml)))
+
+        assert inline_shape.description == expected_description
+        assert inline_shape.title == expected_title
+
+    def it_can_change_its_alt_text(self):
+        inline_shape = InlineShape(
+            cast(CT_Inline, element("wp:inline/wp:docPr{id=1,name=Picture 1}"))
+        )
+
+        inline_shape.description = "The Python logo"
+        inline_shape.title = "Logo"
+
+        assert inline_shape._inline.xml == xml(
+            "wp:inline/wp:docPr{id=1,name=Picture 1,descr=The Python logo,title=Logo}"
+        )
+
+    def it_can_remove_its_alt_text(self):
+        inline_shape = InlineShape(
+            cast(
+                CT_Inline,
+                element("wp:inline/wp:docPr{id=1,name=Picture 1,descr=A chart,title=Chart}"),
+            )
+        )
+
+        inline_shape.description = None
+        inline_shape.title = None
+
+        assert inline_shape._inline.xml == xml("wp:inline/wp:docPr{id=1,name=Picture 1}")
+
+    def it_can_be_given_alt_text_at_insertion_time(self):
+        """Requiring a second step to set alt text makes it easy to forget."""
+        document = docx.Document()
+
+        document.add_picture(
+            test_file("python-icon.jpeg"), description="The Python logo", title="Logo"
+        )
+
+        assert document.inline_shapes[0].description == "The Python logo"
+        assert document.inline_shapes[0].title == "Logo"
+
+    def it_can_be_given_alt_text_on_a_run(self):
+        run = docx.Document().add_paragraph().add_run()
+
+        shape = run.add_picture(test_file("python-icon.jpeg"), description="A snake")
+
+        assert shape.description == "A snake"
+        assert shape.title is None
