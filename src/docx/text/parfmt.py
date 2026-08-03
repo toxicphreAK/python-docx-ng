@@ -1,5 +1,7 @@
 """Paragraph-related proxy types."""
 
+from __future__ import annotations
+
 from docx.enum.text import WD_LINE_SPACING
 from docx.shared import ElementProxy, Emu, Length, Pt, Twips, lazyproperty
 from docx.text.tabstops import TabStops

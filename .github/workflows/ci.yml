@@ -55,10 +55,6 @@ jobs:
   typecheck:
     name: typecheck (informational)
     runs-on: ubuntu-latest
-    # Non-blocking: the inherited v1.2.0 code does not currently pass pyright
-    # strict against the pinned types-lxml stubs. Reported so the count can be
-    # driven down over time rather than silently growing.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -70,5 +66,13 @@ jobs:
       - name: Sync environment
         run: uv sync --python 3.12
 
+      # Reports the pyright error count without failing the build. The code
+      # inherited from upstream v1.2.0 does not pass strict mode against the
+      # pinned types-lxml stubs, so this cannot gate merges yet; surfacing the
+      # count in the job summary is meant to keep it visible and shrinking.
       - name: Pyright
-        run: uv run pyright
+        run: |
+          uv run pyright --outputjson > pyright.json || true
+          count=$(python -c "import json;print(json.load(open('pyright.json'))['summary']['errorCount'])")
+          echo "### Pyright: $count errors" >> "$GITHUB_STEP_SUMMARY"
+          echo "Not a gate; see workflow comment for why." >> "$GITHUB_STEP_SUMMARY"
