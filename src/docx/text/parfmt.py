@@ -160,6 +160,46 @@ class ParagraphFormat(ElementProxy):
             pPr.spacing_lineRule = value
 
     @property
+    def outline_level(self) -> int | None:
+        """Outline level of this paragraph, from 0 (top level) to 9.
+
+        The outline level drives the document map that navigation panes and PDF
+        bookmarks are built from. Level 9 is Word's "Body Text", meaning the paragraph
+        is deliberately excluded from the outline; |None| means no level is set here and
+        the effective value is inherited from the style hierarchy.
+
+        Setting this does not change how the paragraph is rendered.
+        """
+        pPr = self._element.pPr
+        if pPr is None:
+            return None
+        return pPr.outlineLvl_val
+
+    @outline_level.setter
+    def outline_level(self, value: int | None) -> None:
+        if value is not None and not 0 <= value <= 9:
+            raise ValueError("outline level must be in range 0 to 9, got %r" % (value,))
+        self._element.get_or_add_pPr().outlineLvl_val = value
+
+    @property
+    def shading_fill(self):
+        """Background shading color applied behind the whole paragraph.
+
+        An |RGBColor| value, the string "auto", or |None| when no shading is applied.
+        Assigning a hex string such as "FF0000" or "#FF0000" is also accepted.
+
+        Use `Font.shading_fill` to shade individual runs instead.
+        """
+        pPr = self._element.pPr
+        if pPr is None:
+            return None
+        return pPr.shd_fill
+
+    @shading_fill.setter
+    def shading_fill(self, value) -> None:
+        self._element.get_or_add_pPr().shd_fill = value
+
+    @property
     def page_break_before(self):
         """|True| if the paragraph should appear at the top of the page following the
         prior paragraph.

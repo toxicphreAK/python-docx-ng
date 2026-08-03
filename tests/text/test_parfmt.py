@@ -3,7 +3,7 @@
 import pytest
 
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
-from docx.shared import Pt
+from docx.shared import Pt, RGBColor
 from docx.text.parfmt import ParagraphFormat
 from docx.text.tabstops import TabStops
 
@@ -12,6 +12,83 @@ from ..unitutil.mock import class_mock, instance_mock
 
 
 class DescribeParagraphFormat:
+    @pytest.mark.parametrize(
+        ("p_cxml", "expected_value"),
+        [
+            ("w:p", None),
+            ("w:p/w:pPr", None),
+            ("w:p/w:pPr/w:outlineLvl{w:val=0}", 0),
+            ("w:p/w:pPr/w:outlineLvl{w:val=5}", 5),
+            ("w:p/w:pPr/w:outlineLvl{w:val=9}", 9),
+        ],
+    )
+    def it_knows_its_outline_level(self, p_cxml, expected_value):
+        paragraph_format = ParagraphFormat(element(p_cxml))
+        assert paragraph_format.outline_level == expected_value
+
+    @pytest.mark.parametrize(
+        ("p_cxml", "value", "expected_p_cxml"),
+        [
+            ("w:p", 0, "w:p/w:pPr/w:outlineLvl{w:val=0}"),
+            ("w:p/w:pPr", 3, "w:p/w:pPr/w:outlineLvl{w:val=3}"),
+            ("w:p/w:pPr/w:outlineLvl{w:val=1}", 4, "w:p/w:pPr/w:outlineLvl{w:val=4}"),
+            ("w:p/w:pPr/w:outlineLvl{w:val=1}", None, "w:p/w:pPr"),
+        ],
+    )
+    def it_can_change_its_outline_level(self, p_cxml, value, expected_p_cxml):
+        paragraph_format = ParagraphFormat(element(p_cxml))
+        expected_xml = xml(expected_p_cxml)
+
+        paragraph_format.outline_level = value
+
+        assert paragraph_format._element.xml == expected_xml
+
+    @pytest.mark.parametrize("value", [-1, 10, 42])
+    def it_rejects_an_outline_level_outside_the_valid_range(self, value):
+        paragraph_format = ParagraphFormat(element("w:p"))
+
+        with pytest.raises(ValueError, match="must be in range 0 to 9"):
+            paragraph_format.outline_level = value
+
+    @pytest.mark.parametrize(
+        ("p_cxml", "expected_value"),
+        [
+            ("w:p", None),
+            ("w:p/w:pPr", None),
+            ("w:p/w:pPr/w:shd{w:fill=C0C0C0}", RGBColor(0xC0, 0xC0, 0xC0)),
+            ("w:p/w:pPr/w:shd{w:fill=auto}", "auto"),
+        ],
+    )
+    def it_knows_its_shading_fill(self, p_cxml, expected_value):
+        paragraph_format = ParagraphFormat(element(p_cxml))
+        assert paragraph_format.shading_fill == expected_value
+
+    @pytest.mark.parametrize(
+        ("p_cxml", "value", "expected_p_cxml"),
+        [
+            ("w:p", RGBColor(0xC0, 0xC0, 0xC0), "w:p/w:pPr/w:shd{w:fill=C0C0C0}"),
+            ("w:p", "#FF0000", "w:p/w:pPr/w:shd{w:fill=FF0000}"),
+            ("w:p/w:pPr/w:shd{w:fill=C0C0C0}", None, "w:p/w:pPr"),
+        ],
+    )
+    def it_can_change_its_shading_fill(self, p_cxml, value, expected_p_cxml):
+        paragraph_format = ParagraphFormat(element(p_cxml))
+        expected_xml = xml(expected_p_cxml)
+
+        paragraph_format.shading_fill = value
+
+        assert paragraph_format._element.xml == expected_xml
+
+    def it_inserts_shading_in_schema_order(self):
+        """`w:shd` must precede `w:spacing`, or Word rejects the document."""
+        paragraph_format = ParagraphFormat(element("w:p/w:pPr/w:spacing{w:after=240}"))
+
+        paragraph_format.shading_fill = "C0C0C0"
+
+        assert paragraph_format._element.xml == xml(
+            "w:p/w:pPr/(w:shd{w:fill=C0C0C0},w:spacing{w:after=240})"
+        )
+
     def it_knows_its_alignment_value(self, alignment_get_fixture):
         paragraph_format, expected_value = alignment_get_fixture
         assert paragraph_format.alignment == expected_value

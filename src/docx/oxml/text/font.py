@@ -14,6 +14,7 @@ from docx.oxml.simpletypes import (
     ST_HexColor,
     ST_HpsMeasure,
     ST_String,
+    ST_TextScalePercent,
     ST_VerticalAlignRun,
 )
 from docx.oxml.xmlchemy import (
@@ -44,12 +45,26 @@ class CT_Fonts(BaseOxmlElement):
 
     ascii: str | None = OptionalAttribute("w:ascii", ST_String)
     hAnsi: str | None = OptionalAttribute("w:hAnsi", ST_String)
+    asciiTheme: str | None = OptionalAttribute("w:asciiTheme", ST_String)
+    hAnsiTheme: str | None = OptionalAttribute("w:hAnsiTheme", ST_String)
 
 
 class CT_Highlight(BaseOxmlElement):
     """`w:highlight` element, specifying font highlighting/background color."""
 
     val: WD_COLOR_INDEX = RequiredAttribute("w:val", WD_COLOR_INDEX)
+
+
+class CT_Shd(BaseOxmlElement):
+    """`w:shd` element, specifying the shading (background fill) behind content."""
+
+    fill: RGBColor | str = RequiredAttribute("w:fill", ST_HexColor)
+
+
+class CT_TextScale(BaseOxmlElement):
+    """`w:w` element, specifying horizontal character scaling as a percentage."""
+
+    val: int = RequiredAttribute("w:val", ST_TextScalePercent)
 
 
 class CT_HpsMeasure(BaseOxmlElement):
@@ -64,17 +79,21 @@ class CT_RPr(BaseOxmlElement):
     get_or_add_color: Callable[[], CT_Color]
     get_or_add_highlight: Callable[[], CT_Highlight]
     get_or_add_rFonts: Callable[[], CT_Fonts]
+    get_or_add_shd: Callable[[], CT_Shd]
     get_or_add_sz: Callable[[], CT_HpsMeasure]
     get_or_add_vertAlign: Callable[[], CT_VerticalAlignRun]
+    get_or_add_w: Callable[[], CT_TextScale]
     _add_rStyle: Callable[..., CT_String]
     _add_u: Callable[[], CT_Underline]
     _remove_color: Callable[[], None]
     _remove_highlight: Callable[[], None]
     _remove_rFonts: Callable[[], None]
     _remove_rStyle: Callable[[], None]
+    _remove_shd: Callable[[], None]
     _remove_sz: Callable[[], None]
     _remove_u: Callable[[], None]
     _remove_vertAlign: Callable[[], None]
+    _remove_w: Callable[[], None]
 
     _tag_seq = (
         "w:rStyle",
@@ -136,9 +155,11 @@ class CT_RPr(BaseOxmlElement):
     vanish = ZeroOrOne("w:vanish", successors=_tag_seq[17:])
     webHidden = ZeroOrOne("w:webHidden", successors=_tag_seq[18:])
     color: CT_Color | None = ZeroOrOne("w:color", successors=_tag_seq[19:])
+    w: CT_TextScale | None = ZeroOrOne("w:w", successors=_tag_seq[21:])
     sz: CT_HpsMeasure | None = ZeroOrOne("w:sz", successors=_tag_seq[24:])
     highlight: CT_Highlight | None = ZeroOrOne("w:highlight", successors=_tag_seq[26:])
     u: CT_Underline | None = ZeroOrOne("w:u", successors=_tag_seq[27:])
+    shd: CT_Shd | None = ZeroOrOne("w:shd", successors=_tag_seq[30:])
     vertAlign: CT_VerticalAlignRun | None = ZeroOrOne("w:vertAlign", successors=_tag_seq[32:])
     rtl = ZeroOrOne("w:rtl", successors=_tag_seq[33:])
     cs = ZeroOrOne("w:cs", successors=_tag_seq[34:])
@@ -204,6 +225,76 @@ class CT_RPr(BaseOxmlElement):
             return
         rFonts = self.get_or_add_rFonts()
         rFonts.hAnsi = value
+
+    @property
+    def rFonts_asciiTheme(self) -> str | None:
+        """The value of `w:rFonts/@w:asciiTheme` or |None| if not present.
+
+        Names a theme typeface slot, like "minorHAnsi", resolved against the theme part
+        rather than naming a font directly.
+        """
+        rFonts = self.rFonts
+        if rFonts is None:
+            return None
+        return rFonts.asciiTheme
+
+    @rFonts_asciiTheme.setter
+    def rFonts_asciiTheme(self, value: str | None):
+        if value is None and self.rFonts is None:
+            return
+        rFonts = self.get_or_add_rFonts()
+        rFonts.asciiTheme = value
+
+    @property
+    def rFonts_hAnsiTheme(self) -> str | None:
+        """The value of `w:rFonts/@w:hAnsiTheme` or |None| if not present."""
+        rFonts = self.rFonts
+        if rFonts is None:
+            return None
+        return rFonts.hAnsiTheme
+
+    @rFonts_hAnsiTheme.setter
+    def rFonts_hAnsiTheme(self, value: str | None):
+        if value is None and self.rFonts is None:
+            return
+        rFonts = self.get_or_add_rFonts()
+        rFonts.hAnsiTheme = value
+
+    @property
+    def shd_fill(self) -> RGBColor | str | None:
+        """Value of `./w:shd/@w:fill`, or |None| when no shading is applied."""
+        shd = self.shd
+        if shd is None:
+            return None
+        return shd.fill
+
+    @shd_fill.setter
+    def shd_fill(self, value: RGBColor | str | None) -> None:
+        if value is None:
+            self._remove_shd()
+            return
+        if isinstance(value, str) and value != "auto":
+            value = RGBColor.from_string(value)
+        shd = self.get_or_add_shd()
+        shd.fill = value
+
+    @property
+    def w_val(self) -> int | None:
+        """Value of `./w:w/@w:val`, the character scale percentage.
+
+        |None| when no explicit scaling is applied and the value is inherited.
+        """
+        w = self.w
+        if w is None:
+            return None
+        return w.val
+
+    @w_val.setter
+    def w_val(self, value: int | None) -> None:
+        if value is None:
+            self._remove_w()
+            return
+        self.get_or_add_w().val = value
 
     @property
     def style(self) -> str | None:

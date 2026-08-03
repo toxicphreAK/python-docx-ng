@@ -10,9 +10,9 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 
 from docx.dml.color import ColorFormat
-from docx.enum.text import WD_COLOR, WD_UNDERLINE
+from docx.enum.text import WD_COLOR, WD_COLOR_INDEX, WD_UNDERLINE
 from docx.oxml.text.run import CT_R
-from docx.shared import Length, Pt
+from docx.shared import Length, Pt, RGBColor
 from docx.text.font import Font
 
 from ..unitutil.cxml import element, xml
@@ -70,6 +70,133 @@ class DescribeFont:
         font.name = value
 
         assert font._element.xml == expected_xml
+
+    @pytest.mark.parametrize(
+        ("r_cxml", "expected_value"),
+        [
+            ("w:r", None),
+            ("w:r/w:rPr", None),
+            ("w:r/w:rPr/w:rFonts", None),
+            ("w:r/w:rPr/w:rFonts{w:asciiTheme=minorHAnsi}", "minorHAnsi"),
+        ],
+    )
+    def it_knows_its_theme_typeface(self, r_cxml: str, expected_value: str | None):
+        font = Font(cast(CT_R, element(r_cxml)))
+        assert font.theme == expected_value
+
+    @pytest.mark.parametrize(
+        ("r_cxml", "value", "expected_r_cxml"),
+        [
+            (
+                "w:r",
+                "majorHAnsi",
+                "w:r/w:rPr/w:rFonts{w:asciiTheme=majorHAnsi,w:hAnsiTheme=majorHAnsi}",
+            ),
+            (
+                "w:r/w:rPr/w:rFonts{w:asciiTheme=minorHAnsi,w:hAnsiTheme=minorHAnsi}",
+                "majorHAnsi",
+                "w:r/w:rPr/w:rFonts{w:asciiTheme=majorHAnsi,w:hAnsiTheme=majorHAnsi}",
+            ),
+        ],
+    )
+    def it_can_change_its_theme_typeface(
+        self, r_cxml: str, value: str, expected_r_cxml: str
+    ):
+        font = Font(cast(CT_R, element(r_cxml)))
+        expected_xml = xml(expected_r_cxml)
+
+        font.theme = value
+
+        assert font._element.xml == expected_xml
+
+    @pytest.mark.parametrize(
+        ("r_cxml", "expected_value"),
+        [
+            ("w:r", None),
+            ("w:r/w:rPr", None),
+            ("w:r/w:rPr/w:w{w:val=100}", 100),
+            ("w:r/w:rPr/w:w{w:val=50}", 50),
+        ],
+    )
+    def it_knows_its_character_scaling(self, r_cxml: str, expected_value: int | None):
+        font = Font(cast(CT_R, element(r_cxml)))
+        assert font.scaling == expected_value
+
+    @pytest.mark.parametrize(
+        ("r_cxml", "value", "expected_r_cxml"),
+        [
+            ("w:r", 200, "w:r/w:rPr/w:w{w:val=200}"),
+            ("w:r/w:rPr", 50, "w:r/w:rPr/w:w{w:val=50}"),
+            ("w:r/w:rPr/w:w{w:val=50}", 150, "w:r/w:rPr/w:w{w:val=150}"),
+            ("w:r/w:rPr/w:w{w:val=50}", None, "w:r/w:rPr"),
+        ],
+    )
+    def it_can_change_its_character_scaling(
+        self, r_cxml: str, value: int | None, expected_r_cxml: str
+    ):
+        font = Font(cast(CT_R, element(r_cxml)))
+        expected_xml = xml(expected_r_cxml)
+
+        font.scaling = value
+
+        assert font._element.xml == expected_xml
+
+    @pytest.mark.parametrize("value", [0, 601, -5])
+    def it_rejects_a_character_scaling_outside_the_valid_range(self, value: int):
+        font = Font(cast(CT_R, element("w:r")))
+
+        with pytest.raises(ValueError, match="must be in range 1 to 600"):
+            font.scaling = value
+
+    def it_inserts_character_scaling_in_schema_order(self):
+        """`w:w` must precede `w:sz`, or Word rejects the document."""
+        font = Font(cast(CT_R, element("w:r/w:rPr/w:sz{w:val=28}")))
+
+        font.scaling = 150
+
+        assert font._element.xml == xml("w:r/w:rPr/(w:w{w:val=150},w:sz{w:val=28})")
+
+    @pytest.mark.parametrize(
+        ("r_cxml", "expected_value"),
+        [
+            ("w:r", None),
+            ("w:r/w:rPr", None),
+            ("w:r/w:rPr/w:shd{w:fill=FF0000}", RGBColor(0xFF, 0x00, 0x00)),
+            ("w:r/w:rPr/w:shd{w:fill=auto}", "auto"),
+        ],
+    )
+    def it_knows_its_shading_fill(self, r_cxml: str, expected_value: object):
+        font = Font(cast(CT_R, element(r_cxml)))
+        assert font.shading_fill == expected_value
+
+    @pytest.mark.parametrize(
+        ("r_cxml", "value", "expected_r_cxml"),
+        [
+            ("w:r", RGBColor(0xFF, 0x00, 0x00), "w:r/w:rPr/w:shd{w:fill=FF0000}"),
+            ("w:r", "00FF00", "w:r/w:rPr/w:shd{w:fill=00FF00}"),
+            ("w:r", "#0000FF", "w:r/w:rPr/w:shd{w:fill=0000FF}"),
+            ("w:r/w:rPr/w:shd{w:fill=FF0000}", None, "w:r/w:rPr"),
+        ],
+    )
+    def it_can_change_its_shading_fill(
+        self, r_cxml: str, value: object, expected_r_cxml: str
+    ):
+        font = Font(cast(CT_R, element(r_cxml)))
+        expected_xml = xml(expected_r_cxml)
+
+        font.shading_fill = value  # pyright: ignore[reportAttributeAccessIssue]
+
+        assert font._element.xml == expected_xml
+
+    def it_keeps_shading_and_highlighting_independent(self):
+        """Both are valid at once; Word draws highlighting over shading."""
+        font = Font(cast(CT_R, element("w:r")))
+
+        font.shading_fill = "FF0000"
+        font.highlight_color = WD_COLOR_INDEX.YELLOW
+
+        assert font.shading_fill == RGBColor(0xFF, 0x00, 0x00)
+        assert font.highlight_color == WD_COLOR_INDEX.YELLOW
 
     @pytest.mark.parametrize(
         ("r_cxml", "expected_value"),

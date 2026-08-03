@@ -191,6 +191,8 @@ from .text.font import (
     CT_Highlight,
     CT_HpsMeasure,
     CT_RPr,
+    CT_Shd,
+    CT_TextScale,
     CT_Underline,
     CT_VerticalAlignRun,
 )
@@ -214,6 +216,7 @@ register_element_cls("w:rPr", CT_RPr)
 register_element_cls("w:rStyle", CT_String)
 register_element_cls("w:rtl", CT_OnOff)
 register_element_cls("w:shadow", CT_OnOff)
+register_element_cls("w:shd", CT_Shd)
 register_element_cls("w:smallCaps", CT_OnOff)
 register_element_cls("w:snapToGrid", CT_OnOff)
 register_element_cls("w:specVanish", CT_OnOff)
@@ -222,6 +225,7 @@ register_element_cls("w:sz", CT_HpsMeasure)
 register_element_cls("w:u", CT_Underline)
 register_element_cls("w:vanish", CT_OnOff)
 register_element_cls("w:vertAlign", CT_VerticalAlignRun)
+register_element_cls("w:w", CT_TextScale)
 register_element_cls("w:webHidden", CT_OnOff)
 
 from .text.paragraph import CT_P

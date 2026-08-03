@@ -11,7 +11,7 @@ from docx.shared import ElementProxy, Emu
 if TYPE_CHECKING:
     from docx.enum.text import WD_COLOR_INDEX
     from docx.oxml.text.run import CT_R
-    from docx.shared import Length
+    from docx.shared import Length, RGBColor
 
 
 class Font(ElementProxy):
@@ -198,6 +198,66 @@ class Font(ElementProxy):
         rPr = self._element.get_or_add_rPr()
         rPr.rFonts_ascii = value
         rPr.rFonts_hAnsi = value
+
+    @property
+    def theme(self) -> str | None:
+        """The theme typeface slot for this |Font|, e.g. "minorHAnsi".
+
+        The named slot is resolved against the document theme, so the text follows the
+        theme font rather than a font named outright. |None| indicates no theme typeface
+        is assigned and the typeface is inherited from the style hierarchy.
+        """
+        rPr = self._element.rPr
+        if rPr is None:
+            return None
+        return rPr.rFonts_asciiTheme
+
+    @theme.setter
+    def theme(self, value: str | None) -> None:
+        rPr = self._element.get_or_add_rPr()
+        rPr.rFonts_asciiTheme = value
+        rPr.rFonts_hAnsiTheme = value
+
+    @property
+    def scaling(self) -> int | None:
+        """Horizontal character scaling, as a whole percentage of normal width.
+
+        100 is normal width, 200 stretches each glyph to double width and 50 condenses
+        it to half. Valid values run from 1 to 600. |None| indicates the value is
+        inherited from the style hierarchy.
+
+        Note this scales glyphs horizontally only; use `.size` to change font height.
+        """
+        rPr = self._element.rPr
+        if rPr is None:
+            return None
+        return rPr.w_val
+
+    @scaling.setter
+    def scaling(self, value: int | None) -> None:
+        rPr = self._element.get_or_add_rPr()
+        rPr.w_val = value
+
+    @property
+    def shading_fill(self) -> RGBColor | str | None:
+        """Background shading color behind the text of this run.
+
+        An |RGBColor| value, the string "auto", or |None| when no shading is applied.
+        Assigning a hex string such as "FF0000" or "#FF0000" is also accepted.
+
+        This is distinct from `.highlight_color`, which takes a |WD_COLOR_INDEX| member
+        and is limited to Word's fixed highlighter palette. Shading accepts any RGB
+        value. Word renders both, with highlighting drawn over shading.
+        """
+        rPr = self._element.rPr
+        if rPr is None:
+            return None
+        return rPr.shd_fill
+
+    @shading_fill.setter
+    def shading_fill(self, value: RGBColor | str | None) -> None:
+        rPr = self._element.get_or_add_rPr()
+        rPr.shd_fill = value
 
     @property
     def no_proof(self) -> bool | None:

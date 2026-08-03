@@ -376,6 +376,19 @@ class ST_String(XsdString):
     pass
 
 
+class ST_TextScalePercent(XsdInt):
+    """Horizontal character scaling, as a whole percentage of normal width.
+
+    ECMA-376 constrains `w:w/@w:val` to 1..600; Word rejects values outside that.
+    """
+
+    @classmethod
+    def validate(cls, value: Any) -> None:
+        cls.validate_int(value)
+        if not 1 <= value <= 600:
+            raise ValueError("value must be in range 1 to 600 (percent), got %d" % value)
+
+
 class ST_TblLayoutType(XsdString):
     @classmethod
     def validate(cls, value: Any) -> None:
