@@ -187,6 +187,7 @@ register_element_cls("w:type", CT_SectType)
 from .settings import CT_Settings
 
 register_element_cls("w:settings", CT_Settings)
+register_element_cls("w:updateFields", CT_OnOff)
 
 from .styles import CT_LatentStyles, CT_LsdException, CT_Style, CT_Styles
 

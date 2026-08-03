@@ -33,3 +33,22 @@ class Settings(ElementProxy):
     @odd_and_even_pages_header_footer.setter
     def odd_and_even_pages_header_footer(self, value: bool):
         self._settings.evenAndOddHeaders_val = value
+
+    @property
+    def update_fields_on_open(self) -> bool:
+        """True when Word should recalculate every field when it opens this document.
+
+        Read/write. This library cannot compute a field result — a table of contents
+        added here is empty, and a `PAGE` field has no page number, because both depend
+        on how Word lays the document out. Setting this asks Word to fill them in as
+        soon as the document is opened, which is the only way to get a populated table
+        of contents out of a generated document.
+
+        Word prompts the reader before updating when the document has a table of
+        contents, so a document saved with this set may show that prompt once.
+        """
+        return self._settings.updateFields_val
+
+    @update_fields_on_open.setter
+    def update_fields_on_open(self, value: bool):
+        self._settings.updateFields_val = value

@@ -15,6 +15,8 @@ class CT_Settings(BaseOxmlElement):
 
     get_or_add_evenAndOddHeaders: Callable[[], CT_OnOff]
     _remove_evenAndOddHeaders: Callable[[], None]
+    get_or_add_updateFields: Callable[[], CT_OnOff]
+    _remove_updateFields: Callable[[], None]
 
     _tag_seq = (
         "w:writeProtection",
@@ -119,7 +121,25 @@ class CT_Settings(BaseOxmlElement):
     evenAndOddHeaders: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:evenAndOddHeaders", successors=_tag_seq[48:]
     )
+    updateFields: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:updateFields", successors=_tag_seq[77:]
+    )
     del _tag_seq
+
+    @property
+    def updateFields_val(self) -> bool:
+        """Value of `w:updateFields/@w:val`, |False| when the element is absent."""
+        updateFields = self.updateFields
+        if updateFields is None:
+            return False
+        return updateFields.val
+
+    @updateFields_val.setter
+    def updateFields_val(self, value: bool | None):
+        if not value:
+            self._remove_updateFields()
+            return
+        self.get_or_add_updateFields().val = value
 
     @property
     def evenAndOddHeaders_val(self) -> bool:

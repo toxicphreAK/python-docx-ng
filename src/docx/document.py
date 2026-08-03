@@ -21,6 +21,7 @@ from docx.text.run import Run
 if TYPE_CHECKING:
     import docx.types as t
     from docx.comments import Comment, Comments
+    from docx.fields import Field
     from docx.footnotes import Footnotes
     from docx.opc.customprops import CustomProperties
     from docx.oxml.document import CT_Body, CT_Document
@@ -255,6 +256,19 @@ class Document(ElementProxy):
         never touches it gains no `/word/footnotes.xml`.
         """
         return self._part.footnotes
+
+    @property
+    def fields(self) -> List[Field]:
+        """A |Field| for each field in the document body, in document order.
+
+        Outermost first, so a `PAGEREF` nested in a table-of-contents entry follows the
+        `TOC` field containing it. Fields in a header or footer are not in the document
+        part and so are not included; reach those through the paragraphs of the header
+        or footer.
+        """
+        from docx.fields import iter_fields
+
+        return list(iter_fields(self._element, self._part))
 
     @property
     def form_fields(self) -> List[FormField]:

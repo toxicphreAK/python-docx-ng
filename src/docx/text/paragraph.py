@@ -8,6 +8,7 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.formfield import FormField, iter_form_fields
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml.deletion import delete_element
+from docx.oxml.parser import OxmlElement
 from docx.oxml.text.run import CT_R
 from docx.shared import StoryChild
 from docx.styles.style import ParagraphStyle
@@ -20,6 +21,8 @@ if TYPE_CHECKING:
     import docx.types as t
     from docx.bookmark import Bookmark
     from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+    from docx.fields import Field
+    from docx.oxml.text.form import CT_FldChar, CT_SimpleField
     from docx.oxml.text.paragraph import CT_P
     from docx.sdt import ContentControl
     from docx.styles.style import CharacterStyle
@@ -199,6 +202,83 @@ class Paragraph(StoryChild):
         from docx.sdt import ContentControl
 
         return [ContentControl(sdt, self) for sdt in self._p.xpath("./w:sdt")]
+
+    def add_field(
+        self,
+        instruction: str,
+        *,
+        dirty: bool = True,
+        simple: bool = False,
+        result: str | None = None,
+    ) -> Field:
+        """Append a field for `instruction` and return it.
+
+        `instruction` is the field code including its switches, for example
+        ``"PAGE"`` or ``r'TOC \\o "1-3" \\h'``. The builders in :mod:`docx.fields` write
+        the ones people usually want::
+
+            from docx import fields
+
+            paragraph.add_field(fields.page_number())
+            paragraph.add_field(fields.table_of_contents(levels=(1, 2)))
+            paragraph.add_field(fields.cross_reference("intro"))
+
+        **The result is not computed here and cannot be.** A `PAGE` field has no page
+        number and a `TOC` is empty until Word opens the document and works them out.
+        `dirty` sets `w:dirty`, asking Word to refresh this field on open; setting
+        :attr:`.Settings.update_fields_on_open` asks it to refresh every field, which is
+        what a generated table of contents needs.
+
+        A complex field is written by default, as Word does. Pass `simple` to write a
+        `w:fldSimple` instead, which is more compact and equally valid but which some
+        other consumers handle less well. `result` supplies a cached result to display
+        until Word refreshes the field; it is only meaningful for a simple field, and
+        passing it for a complex one raises |ValueError|.
+        """
+        from docx.fields import Field, new_complex_field
+
+        instruction = f" {instruction.strip()} "
+
+        if simple:
+            fldSimple = cast("CT_SimpleField", OxmlElement("w:fldSimple"))
+            fldSimple.instr = instruction
+            if dirty:
+                fldSimple.dirty = True
+            if result:
+                Run(fldSimple.add_r(), self).text = result
+            self._p.append(fldSimple)
+            return Field(fldSimple, self, instruction, result or "")
+
+        if result is not None:
+            raise ValueError(
+                "`result` applies only to a simple field; a complex field's cached"
+                " result is the content between its 'separate' and 'end' field"
+                " characters, which Word writes when it computes the result"
+            )
+
+        runs = new_complex_field(instruction, dirty=dirty)
+        for r in runs:
+            self._p.append(r)
+        begin = cast("CT_FldChar", runs[0][0])
+        return Field(begin, self, instruction, "")
+
+    @property
+    def fields(self) -> List[Field]:
+        """A |Field| for each field in this paragraph, in document order.
+
+        Outermost first: a field nested in the result of another — a `PAGEREF` inside a
+        table-of-contents entry — follows the field containing it.
+
+        A complex field can begin in one paragraph and end in a later one, which is what
+        a table of contents does. Such a field does not appear here, in any of the
+        paragraphs it covers, because its extent cannot be determined from one paragraph
+        alone; use :attr:`.Document.fields`, which searches the whole body. The fields
+        wholly inside this paragraph, including those in a table-of-contents entry, do
+        appear.
+        """
+        from docx.fields import iter_fields
+
+        return list(iter_fields(self._p, self))
 
     @property
     def form_fields(self) -> List[FormField]:

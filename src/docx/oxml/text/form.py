@@ -33,11 +33,14 @@ from docx.oxml.xmlchemy import (
     BaseOxmlElement,
     OptionalAttribute,
     RequiredAttribute,
+    ZeroOrMore,
     ZeroOrOne,
 )
 
 if TYPE_CHECKING:
     from lxml.etree import _Element  # pyright: ignore[reportPrivateUsage]
+
+    from docx.oxml.text.run import CT_R
 
 
 def _val(parent: BaseOxmlElement, tag: str) -> str | None:
@@ -82,9 +85,7 @@ def _bool_val(parent: BaseOxmlElement, tag: str) -> bool | None:
     return True if val is None else ST_OnOff.from_xml(val)
 
 
-def _set_bool_val(
-    parent: BaseOxmlElement, tag: str, value: bool | None, tag_seq: tuple[str, ...]
-):
+def _set_bool_val(parent: BaseOxmlElement, tag: str, value: bool | None, tag_seq: tuple[str, ...]):
     _set_val(parent, tag, None if value is None else ST_OnOff.to_xml(value), tag_seq)
 
 
@@ -314,10 +315,15 @@ class CT_FldChar(BaseOxmlElement):
 class CT_SimpleField(BaseOxmlElement):
     """`w:fldSimple` element, a field whose instruction and result are one element.
 
-    Word writes a legacy form field as a complex field rather than a simple one, so
-    this appears here for completeness of the field elements rather than as a carrier
-    of `w:ffData`, which the schema does not allow it.
+    The instruction is an attribute and the cached result is the element's content, so
+    unlike a complex field this is self-contained. Word writes a legacy form field as a
+    complex field rather than a simple one, and `w:ffData` is not allowed here.
     """
+
+    add_r: Callable[[], CT_R]
+    r_lst: List[CT_R]
+
+    r = ZeroOrMore("w:r", successors=())
 
     instr: str = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
         "w:instr", ST_String
@@ -333,3 +339,8 @@ class CT_SimpleField(BaseOxmlElement):
     def result_text(self) -> str:
         """The result text of this field, as Word last rendered it."""
         return "".join(str(t) for t in self.xpath(".//w:t"))
+
+    @property
+    def text(self) -> str:  # pyright: ignore[reportIncompatibleMethodOverride]
+        """The text this field displays, which is its cached result."""
+        return self.result_text

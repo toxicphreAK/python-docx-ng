@@ -63,11 +63,15 @@ def iter_block_content(element: BaseOxmlElement) -> Iterator[CT_P | CT_Tbl]:
 def iter_run_content(element: BaseOxmlElement) -> Iterator[CT_R | CT_Hyperlink]:
     """Generate each `w:r` and `w:hyperlink` child of `element`, in document order.
 
-    As with :func:`iter_block_content`, a run-level `w:sdt` is looked through.
+    As with :func:`iter_block_content`, a run-level `w:sdt` is looked through. So is a
+    `w:fldSimple`, whose runs hold the result text the field displays; skipping it would
+    drop a page number or a cross-reference from the paragraph's text.
     """
     for child in element.iterchildren():
         if child.tag in (qn("w:r"), qn("w:hyperlink")):
             yield cast("CT_R | CT_Hyperlink", child)
+        elif child.tag == qn("w:fldSimple"):
+            yield from iter_run_content(cast("BaseOxmlElement", child))
         elif child.tag == qn("w:sdt"):
             sdtContent = child.find(qn("w:sdtContent"))
             if sdtContent is not None:
