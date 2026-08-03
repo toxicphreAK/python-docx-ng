@@ -77,6 +77,10 @@ rst_epilog = """
 
 .. |_Body| replace:: :class:`._Body`
 
+.. |_Border| replace:: :class:`._Border`
+
+.. |_Borders| replace:: :class:`._Borders`
+
 .. |_Cell| replace:: :class:`._Cell`
 
 .. |_CharacterStyle| replace:: :class:`.CharacterStyle`

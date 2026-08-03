@@ -13,6 +13,7 @@ from docx.document import Document
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.table import (
     WD_ALIGN_VERTICAL,
+    WD_LINE_STYLE,
     WD_ROW_HEIGHT,
     WD_TABLE_ALIGNMENT,
     WD_TABLE_DIRECTION,
@@ -20,7 +21,7 @@ from docx.enum.table import (
 from docx.oxml.parser import parse_xml
 from docx.oxml.table import CT_Row, CT_Tbl, CT_TblGridCol, CT_Tc
 from docx.parts.document import DocumentPart
-from docx.shared import Emu, Inches, Length
+from docx.shared import Emu, Inches, Length, Pt, RGBColor
 from docx.table import Table, _Cell, _Column, _Columns, _Row, _Rows
 from docx.text.paragraph import Paragraph
 
@@ -1061,6 +1062,309 @@ class Describe_Rows:
         rows = _Rows(tbl, table)
 
         assert rows.table is table
+
+    # fixtures -------------------------------------------------------
+
+    @pytest.fixture
+    def parent_(self, request: FixtureRequest):
+        return instance_mock(request, Document)
+
+
+class Describe_Borders:
+    """Unit-test suite for `docx.table._Borders` and `docx.table._Border` objects."""
+
+    def it_provides_access_to_each_table_border_edge(self, parent_: Mock):
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr")), parent_)
+
+        assert list(table.borders) == [
+            "top",
+            "start",
+            "left",
+            "bottom",
+            "end",
+            "right",
+            "insideH",
+            "insideV",
+        ]
+        assert len(table.borders) == 8
+
+    def it_provides_access_to_each_cell_border_edge(self, parent_: Mock):
+        cell = _Cell(cast(CT_Tc, element("w:tc")), parent_)
+
+        assert list(cell.borders) == [
+            "top",
+            "start",
+            "left",
+            "bottom",
+            "end",
+            "right",
+            "insideH",
+            "insideV",
+            "tl2br",
+            "tr2bl",
+        ]
+        assert len(cell.borders) == 10
+
+    def it_raises_on_an_edge_it_does_not_have(self, parent_: Mock):
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr")), parent_)
+
+        with pytest.raises(KeyError, match="no border edge 'tl2br'"):
+            table.borders["tl2br"]
+
+    @pytest.mark.parametrize(
+        ("tbl_cxml", "expected_value"),
+        [
+            ("w:tbl/w:tblPr", None),
+            ("w:tbl/w:tblPr/w:tblBorders", None),
+            ("w:tbl/w:tblPr/w:tblBorders/w:bottom{w:val=single}", None),
+            ("w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}", WD_LINE_STYLE.SINGLE),
+            ("w:tbl/w:tblPr/w:tblBorders/w:top{w:val=dashed}", WD_LINE_STYLE.DASH_LARGE_GAP),
+            ("w:tbl/w:tblPr/w:tblBorders/w:top{w:val=nil}", WD_LINE_STYLE.NIL),
+        ],
+    )
+    def it_knows_the_line_style_of_a_border_edge(
+        self, tbl_cxml: str, expected_value: WD_LINE_STYLE | None, parent_: Mock
+    ):
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        assert table.borders["top"].line == expected_value
+
+    @pytest.mark.parametrize(
+        ("tbl_cxml", "expected_cxml"),
+        [
+            # -- adds `w:tblBorders` in schema sequence, between `w:tblInd` and `w:shd` --
+            (
+                "w:tbl/w:tblPr/(w:tblStyle{w:val=Foo},w:shd)",
+                "w:tbl/w:tblPr/(w:tblStyle{w:val=Foo},w:tblBorders/w:top{w:val=single},w:shd)",
+            ),
+            # -- adds the edge in schema sequence, ahead of an existing later edge --
+            (
+                "w:tbl/w:tblPr/w:tblBorders/w:insideV{w:val=single}",
+                "w:tbl/w:tblPr/w:tblBorders/(w:top{w:val=single},w:insideV{w:val=single})",
+            ),
+            # -- changes the line style of an edge already present --
+            (
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=dashed}",
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}",
+            ),
+        ],
+    )
+    def it_can_change_the_line_style_of_a_table_border_edge(
+        self, tbl_cxml: str, expected_cxml: str, parent_: Mock
+    ):
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        table.borders["top"].line = WD_LINE_STYLE.SINGLE
+
+        assert table._tbl.xml == xml(expected_cxml)
+
+    @pytest.mark.parametrize(
+        ("tc_cxml", "expected_cxml"),
+        [
+            # -- adds `w:tcBorders` in schema sequence, between `w:vMerge` and `w:shd` --
+            (
+                "w:tc/w:tcPr/(w:vMerge,w:shd)",
+                "w:tc/w:tcPr/(w:vMerge,w:tcBorders/w:tl2br{w:val=double},w:shd)",
+            ),
+            # -- adds `w:tcPr` as well when the cell has none --
+            ("w:tc", "w:tc/w:tcPr/w:tcBorders/w:tl2br{w:val=double}"),
+            # -- adds the diagonal after every non-diagonal edge --
+            (
+                "w:tc/w:tcPr/w:tcBorders/w:tr2bl{w:val=single}",
+                "w:tc/w:tcPr/w:tcBorders/(w:tl2br{w:val=double},w:tr2bl{w:val=single})",
+            ),
+        ],
+    )
+    def it_can_change_the_line_style_of_a_cell_border_edge(
+        self, tc_cxml: str, expected_cxml: str, parent_: Mock
+    ):
+        cell = _Cell(cast(CT_Tc, element(tc_cxml)), parent_)
+
+        cell.borders["tl2br"].line = WD_LINE_STYLE.DOUBLE
+
+        assert cell._tc.xml == xml(expected_cxml)
+
+    @pytest.mark.parametrize(
+        ("tbl_cxml", "expected_cxml"),
+        [
+            # -- removing the only edge removes the now-empty `w:tblBorders` too --
+            ("w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}", "w:tbl/w:tblPr"),
+            # -- but not when another edge remains --
+            (
+                "w:tbl/w:tblPr/w:tblBorders/(w:top{w:val=single},w:bottom{w:val=single})",
+                "w:tbl/w:tblPr/w:tblBorders/w:bottom{w:val=single}",
+            ),
+            # -- removing an edge that is not there is a no-op --
+            ("w:tbl/w:tblPr", "w:tbl/w:tblPr"),
+        ],
+    )
+    def it_can_remove_a_border_edge(self, tbl_cxml: str, expected_cxml: str, parent_: Mock):
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        table.borders["top"].line = None
+
+        assert table._tbl.xml == xml(expected_cxml)
+
+    @pytest.mark.parametrize(
+        ("tbl_cxml", "expected_cxml"),
+        [
+            ("w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}", "w:tbl/w:tblPr"),
+            ("w:tbl/w:tblPr", "w:tbl/w:tblPr"),
+        ],
+    )
+    def it_can_remove_every_border_edge_at_once(
+        self, tbl_cxml: str, expected_cxml: str, parent_: Mock
+    ):
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        table.borders.clear()
+
+        assert table._tbl.xml == xml(expected_cxml)
+
+    def it_knows_the_size_and_space_of_a_border_edge(self, parent_: Mock):
+        tbl_cxml = "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single,w:sz=12,w:space=4}"
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        border = table.borders["top"]
+
+        assert border.size == Pt(1.5)
+        assert border.space == Pt(4)
+
+    def but_its_size_and_space_are_None_when_not_specified(self, parent_: Mock):
+        tbl_cxml = "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}"
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        border = table.borders["top"]
+
+        assert border.size is None
+        assert border.space is None
+
+    @pytest.mark.parametrize(
+        ("tbl_cxml", "value", "expected_cxml"),
+        [
+            # -- `w:sz` counts eighths of a point --
+            (
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}",
+                Pt(0.5),
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single,w:sz=4}",
+            ),
+            # -- setting it on an edge that is not there creates a single-line edge --
+            ("w:tbl/w:tblPr", Pt(1), "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single,w:sz=8}"),
+            # -- assigning |None| removes the attribute, leaving the edge --
+            (
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single,w:sz=8}",
+                None,
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}",
+            ),
+        ],
+    )
+    def it_can_change_the_size_of_a_border_edge(
+        self, tbl_cxml: str, value: Length | None, expected_cxml: str, parent_: Mock
+    ):
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        table.borders["top"].size = value
+
+        assert table._tbl.xml == xml(expected_cxml)
+
+    @pytest.mark.parametrize(
+        ("tbl_cxml", "value", "expected_cxml"),
+        [
+            (
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}",
+                Pt(3),
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single,w:space=3}",
+            ),
+            (
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single,w:space=3}",
+                None,
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}",
+            ),
+        ],
+    )
+    def it_can_change_the_space_of_a_border_edge(
+        self, tbl_cxml: str, value: Length | None, expected_cxml: str, parent_: Mock
+    ):
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        table.borders["top"].space = value
+
+        assert table._tbl.xml == xml(expected_cxml)
+
+    @pytest.mark.parametrize(
+        ("tbl_cxml", "expected_value"),
+        [
+            ("w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}", None),
+            # -- the automatic color has no RGB value to report --
+            ("w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single,w:color=auto}", None),
+            (
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single,w:color=FF0000}",
+                RGBColor(0xFF, 0x00, 0x00),
+            ),
+        ],
+    )
+    def it_knows_the_color_of_a_border_edge(
+        self, tbl_cxml: str, expected_value: RGBColor | None, parent_: Mock
+    ):
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        assert table.borders["top"].color == expected_value
+
+    @pytest.mark.parametrize(
+        ("tbl_cxml", "value", "expected_cxml"),
+        [
+            (
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}",
+                RGBColor(0x12, 0x34, 0x56),
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single,w:color=123456}",
+            ),
+            (
+                "w:tbl/w:tblPr",
+                RGBColor(0x12, 0x34, 0x56),
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single,w:color=123456}",
+            ),
+            (
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single,w:color=123456}",
+                None,
+                "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}",
+            ),
+        ],
+    )
+    def it_can_change_the_color_of_a_border_edge(
+        self, tbl_cxml: str, value: RGBColor | None, expected_cxml: str, parent_: Mock
+    ):
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        table.borders["top"].color = value
+
+        assert table._tbl.xml == xml(expected_cxml)
+
+    def it_leaves_the_xml_alone_when_clearing_an_attr_of_an_absent_edge(self, parent_: Mock):
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr")), parent_)
+
+        table.borders["top"].size = None
+        table.borders["top"].space = None
+        table.borders["top"].color = None
+
+        assert table._tbl.xml == xml("w:tbl/w:tblPr")
+
+    def it_supports_the_mapping_protocol(self, parent_: Mock):
+        tbl_cxml = "w:tbl/w:tblPr/w:tblBorders/w:top{w:val=single}"
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        assert "top" in table.borders
+        assert "tl2br" not in table.borders
+        assert set(table.borders.keys()) == {
+            "top",
+            "start",
+            "left",
+            "bottom",
+            "end",
+            "right",
+            "insideH",
+            "insideV",
+        }
+        assert [b.line for b in table.borders.values()].count(WD_LINE_STYLE.SINGLE) == 1
 
     # fixtures -------------------------------------------------------
 

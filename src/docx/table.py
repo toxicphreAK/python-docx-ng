@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from abc import abstractmethod
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Iterator, cast, overload
 
 from typing_extensions import TypeAlias
@@ -11,12 +13,24 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
 from docx.oxml.deletion import delete_element
 from docx.oxml.table import CT_TblGridCol
-from docx.shared import Inches, Parented, StoryChild, lazyproperty
+from docx.shared import Inches, Parented, RGBColor, StoryChild, lazyproperty
 
 if TYPE_CHECKING:
     import docx.types as t
-    from docx.enum.table import WD_ROW_HEIGHT_RULE, WD_TABLE_ALIGNMENT, WD_TABLE_DIRECTION
-    from docx.oxml.table import CT_Row, CT_Tbl, CT_TblPr, CT_Tc
+    from docx.enum.table import (
+        WD_LINE_STYLE,
+        WD_ROW_HEIGHT_RULE,
+        WD_TABLE_ALIGNMENT,
+        WD_TABLE_DIRECTION,
+    )
+    from docx.oxml.table import (
+        CT_Border,
+        CT_Row,
+        CT_Tbl,
+        CT_TblPr,
+        CT_Tc,
+        _CT_BordersBase,  # pyright: ignore[reportPrivateUsage]
+    )
     from docx.shared import Length
     from docx.styles.style import (
         ParagraphStyle,
@@ -24,6 +38,216 @@ if TYPE_CHECKING:
     )
 
 TableParent: TypeAlias = "Table | _Columns | _Rows"
+
+
+class _Border:
+    """One border edge of a table or cell, e.g. `table.borders["top"]`.
+
+    A border edge that is not set has |None| for every property, meaning the effective
+    appearance of that edge is inherited from the table style. Assigning to any property
+    other than :attr:`line` on an edge that is not set creates it with a line style of
+    `WD_LINE_STYLE.SINGLE`, because a border with no line style is not valid XML.
+    Assigning |None| to :attr:`line` removes the edge entirely.
+    """
+
+    def __init__(self, borders: _Borders, edge: str):
+        self._borders = borders
+        self._edge = edge
+
+    @property
+    def color(self) -> RGBColor | None:
+        """|RGBColor| of this border edge, or |None| when it has no explicit color.
+
+        As for |ColorFormat|, a border whose color is the automatic color reads as
+        |None|; Word chooses that color at render time, so there is no RGB value to
+        report.
+        """
+        border = self._element
+        if border is None:
+            return None
+        color = border.color
+        if not isinstance(color, RGBColor):
+            return None
+        return color
+
+    @color.setter
+    def color(self, value: RGBColor | None):
+        if value is None:
+            border = self._element
+            if border is not None:
+                border.color = None
+            return
+        self._get_or_add_element().color = value
+
+    @property
+    def line(self) -> WD_LINE_STYLE | None:
+        """Member of :ref:`WdLineStyle`, or |None| when this edge is not set."""
+        border = self._element
+        return None if border is None else border.val
+
+    @line.setter
+    def line(self, value: WD_LINE_STYLE | None):
+        if value is None:
+            self._borders._remove_edge(self._edge)  # pyright: ignore[reportPrivateUsage]
+            return
+        self._get_or_add_element().val = value
+
+    @property
+    def size(self) -> Length | None:
+        """Width of this border line, or |None| when it has no explicit width.
+
+        The underlying `w:sz` attribute counts eighths of a point, so an assigned value
+        is rounded to the nearest eighth of a point.
+        """
+        border = self._element
+        return None if border is None else border.sz
+
+    @size.setter
+    def size(self, value: Length | None):
+        if value is None:
+            border = self._element
+            if border is not None:
+                border.sz = None
+            return
+        self._get_or_add_element().sz = value
+
+    @property
+    def space(self) -> Length | None:
+        """Offset of this border from the content it surrounds, or |None| when not set.
+
+        The underlying `w:space` attribute counts whole points, so an assigned value is
+        rounded to the nearest point.
+        """
+        border = self._element
+        return None if border is None else border.space
+
+    @space.setter
+    def space(self, value: Length | None):
+        if value is None:
+            border = self._element
+            if border is not None:
+                border.space = None
+            return
+        self._get_or_add_element().space = value
+
+    @property
+    def _element(self) -> CT_Border | None:
+        """The `w:{edge}` element for this edge, or |None| when this edge is not set."""
+        borders = self._borders._element  # pyright: ignore[reportPrivateUsage]
+        return None if borders is None else borders.get_border(self._edge)
+
+    def _get_or_add_element(self) -> CT_Border:
+        """The `w:{edge}` element for this edge, adding it if not already present."""
+        borders = self._borders._get_or_add_element()  # pyright: ignore[reportPrivateUsage]
+        return borders.get_or_add_border(self._edge)
+
+
+class _Borders(Mapping[str, _Border]):
+    """The border edges of a table or cell, keyed by edge name.
+
+    A read-only mapping in the sense that the set of keys is fixed; the |_Border| object
+    each key maps to is what you assign through::
+
+        table.borders["top"].line = WD_LINE_STYLE.SINGLE
+
+    Every edge admitted by the schema is always a key, whether or not it is set, so
+    iterating yields edges with a :attr:`_Border.line` of |None| as well.
+
+    Edge names are the local names used in the XML: `top`, `start`, `left`, `bottom`,
+    `end`, `right`, `insideH` and `insideV`, plus `tl2br` and `tr2bl` for a cell. Word
+    writes `left` and `right` for a left-to-right table and `start` and `end` for a
+    right-to-left one.
+    """
+
+    def __init__(self, edges: tuple[str, ...]):
+        self._edges = edges
+
+    def __getitem__(self, edge: str) -> _Border:
+        if edge not in self._edges:
+            raise KeyError(
+                "no border edge '%s'; must be one of %s" % (edge, ", ".join(self._edges))
+            )
+        return _Border(self, edge)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._edges)
+
+    def __len__(self) -> int:
+        return len(self._edges)
+
+    @abstractmethod
+    def clear(self) -> None:
+        """Remove every border edge, restoring inheritance from the style hierarchy."""
+
+    @property
+    @abstractmethod
+    def _element(self) -> _CT_BordersBase | None:
+        """The `w:tblBorders` or `w:tcBorders` element, or |None| when not present."""
+
+    @abstractmethod
+    def _get_or_add_element(self) -> _CT_BordersBase:
+        """The borders element, adding it and any required ancestor if not present."""
+
+    def _remove_edge(self, edge: str) -> None:
+        """Remove the `w:{edge}` child, and the borders element if that empties it."""
+        borders = self._element
+        if borders is None:
+            return
+        borders.remove_border(edge)
+        if len(borders) == 0:
+            self.clear()
+
+
+class _TableBorders(_Borders):
+    """The border edges of a table, `table.borders`."""
+
+    def __init__(self, tbl: CT_Tbl):
+        super().__init__(("top", "start", "left", "bottom", "end", "right", "insideH", "insideV"))
+        self._tbl = tbl
+
+    def clear(self) -> None:
+        self._tbl.tblPr._remove_tblBorders()  # pyright: ignore[reportPrivateUsage]
+
+    @property
+    def _element(self) -> _CT_BordersBase | None:
+        return self._tbl.tblPr.tblBorders
+
+    def _get_or_add_element(self) -> _CT_BordersBase:
+        return self._tbl.tblPr.get_or_add_tblBorders()
+
+
+class _CellBorders(_Borders):
+    """The border edges of a table cell, `cell.borders`."""
+
+    def __init__(self, tc: CT_Tc):
+        super().__init__(
+            (
+                "top",
+                "start",
+                "left",
+                "bottom",
+                "end",
+                "right",
+                "insideH",
+                "insideV",
+                "tl2br",
+                "tr2bl",
+            )
+        )
+        self._tc = tc
+
+    def clear(self) -> None:
+        tcPr = self._tc.tcPr
+        if tcPr is not None:
+            tcPr._remove_tcBorders()  # pyright: ignore[reportPrivateUsage]
+
+    @property
+    def _element(self) -> _CT_BordersBase | None:
+        tcPr = self._tc.tcPr
+        return None if tcPr is None else tcPr.tcBorders
+
+    def _get_or_add_element(self) -> _CT_BordersBase:
+        return self._tc.get_or_add_tcPr().get_or_add_tcBorders()
 
 
 class Table(StoryChild):
@@ -81,6 +305,20 @@ class Table(StoryChild):
     @autofit.setter
     def autofit(self, value: bool):
         self._tblPr.autofit = value
+
+    @lazyproperty
+    def borders(self) -> _TableBorders:
+        """The border edges of this table, as a mapping keyed by edge name::
+
+            table.borders["top"].line = WD_LINE_STYLE.SINGLE
+            table.borders["top"].size = Pt(1)
+
+        These are the borders applied to the table as a whole; `insideH` and `insideV`
+        set the horizontal and vertical borders between its cells. A border set on an
+        individual cell through `cell.borders` takes precedence over the table border
+        at that edge.
+        """
+        return _TableBorders(self._tbl)
 
     def cell(self, row_idx: int, col_idx: int) -> _Cell:
         """|_Cell| at `row_idx`, `col_idx` intersection.
@@ -261,6 +499,18 @@ class _Cell(BlockItemContainer):
         table = super(_Cell, self).add_table(rows, cols, width)
         self.add_paragraph()
         return table
+
+    @lazyproperty
+    def borders(self) -> _CellBorders:
+        """The border edges of this cell, as a mapping keyed by edge name::
+
+            cell.borders["bottom"].line = WD_LINE_STYLE.DOUBLE
+
+        A cell adds the two diagonal edges `tl2br` and `tr2bl` to the edges a table
+        admits. A border set here takes precedence over the table border at the same
+        edge.
+        """
+        return _CellBorders(self._tc)
 
     @property
     def column_index(self) -> int:

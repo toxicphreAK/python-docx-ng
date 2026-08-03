@@ -53,3 +53,18 @@ Table objects are constructed using the ``add_table()`` method on |Document|.
 
 .. autoclass:: _Columns
    :members:
+
+
+|_Borders| objects
+------------------
+
+.. autoclass:: _Borders
+   :members:
+   :exclude-members: get, items, keys, values
+
+
+|_Border| objects
+-----------------
+
+.. autoclass:: _Border
+   :members:

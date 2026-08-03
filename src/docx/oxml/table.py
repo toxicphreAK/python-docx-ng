@@ -5,14 +5,22 @@ from __future__ import annotations
 from itertools import islice
 from typing import TYPE_CHECKING, Callable, cast
 
-from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_ROW_HEIGHT_RULE, WD_TABLE_DIRECTION
+from docx.enum.table import (
+    WD_CELL_VERTICAL_ALIGNMENT,
+    WD_LINE_STYLE,
+    WD_ROW_HEIGHT_RULE,
+    WD_TABLE_DIRECTION,
+)
 from docx.exceptions import InvalidSpanError
 from docx.oxml.ns import nsdecls, qn
 from docx.oxml.parser import OxmlElement, parse_xml
 from docx.oxml.sdt import iter_block_content
 from docx.oxml.shared import CT_DecimalNumber
 from docx.oxml.simpletypes import (
+    ST_EighthPointMeasure,
+    ST_HexColor,
     ST_Merge,
+    ST_PointMeasure,
     ST_TblLayoutType,
     ST_TblWidth,
     ST_TwipsMeasure,
@@ -28,13 +36,198 @@ from docx.oxml.xmlchemy import (
     ZeroOrMore,
     ZeroOrOne,
 )
-from docx.shared import Emu, Length, Twips
+from docx.shared import Emu, Length, RGBColor, Twips
 
 if TYPE_CHECKING:
     from docx.enum.table import WD_TABLE_ALIGNMENT
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.oxml.shared import CT_OnOff, CT_String
     from docx.oxml.text.parfmt import CT_Jc
+
+
+class CT_Border(BaseOxmlElement):
+    """A single border edge, e.g. `w:tblBorders/w:top`.
+
+    The same complex type serves every edge of `w:tblBorders`, `w:tcBorders` and
+    `w:pBdr`.
+    """
+
+    val: WD_LINE_STYLE = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:val", WD_LINE_STYLE
+    )
+    color: RGBColor | str | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:color", ST_HexColor
+    )
+    sz: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:sz", ST_EighthPointMeasure
+    )
+    space: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:space", ST_PointMeasure
+    )
+
+
+class _CT_BordersBase(BaseOxmlElement):
+    """Common behavior of the `w:tblBorders` and `w:tcBorders` elements.
+
+    Each holds an optional `CT_Border` child per edge and they differ only in which
+    edges they admit; `edges` names those, in schema order.
+    """
+
+    edges: tuple[str, ...]
+
+    def get_border(self, edge: str) -> CT_Border | None:
+        """The `w:{edge}` child element, or |None| when this edge has no border."""
+        return cast("CT_Border | None", getattr(self, edge))
+
+    def get_or_add_border(self, edge: str) -> CT_Border:
+        """The `w:{edge}` child element, newly added in schema order if not present.
+
+        A newly added border is given `w:val="single"`, since `w:val` is required and a
+        border element without a line style is not valid.
+        """
+        border = self.get_border(edge)
+        if border is not None:
+            return border
+        border = cast("CT_Border", getattr(self, "get_or_add_%s" % edge)())
+        border.val = WD_LINE_STYLE.SINGLE
+        return border
+
+    def remove_border(self, edge: str) -> None:
+        """Remove the `w:{edge}` child element; does nothing when it is not present."""
+        cast("Callable[[], None]", getattr(self, "_remove_%s" % edge))()
+
+
+class CT_TblBorders(_CT_BordersBase):
+    """`w:tblBorders` element, the set of border edges of a table."""
+
+    get_or_add_top: Callable[[], CT_Border]
+    get_or_add_start: Callable[[], CT_Border]
+    get_or_add_left: Callable[[], CT_Border]
+    get_or_add_bottom: Callable[[], CT_Border]
+    get_or_add_end: Callable[[], CT_Border]
+    get_or_add_right: Callable[[], CT_Border]
+    get_or_add_insideH: Callable[[], CT_Border]
+    get_or_add_insideV: Callable[[], CT_Border]
+    _remove_top: Callable[[], None]
+    _remove_start: Callable[[], None]
+    _remove_left: Callable[[], None]
+    _remove_bottom: Callable[[], None]
+    _remove_end: Callable[[], None]
+    _remove_right: Callable[[], None]
+    _remove_insideH: Callable[[], None]
+    _remove_insideV: Callable[[], None]
+
+    _tag_seq = (
+        "w:top",
+        "w:start",
+        "w:left",
+        "w:bottom",
+        "w:end",
+        "w:right",
+        "w:insideH",
+        "w:insideV",
+    )
+    top: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:top", successors=_tag_seq[1:]
+    )
+    start: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:start", successors=_tag_seq[2:]
+    )
+    left: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:left", successors=_tag_seq[3:]
+    )
+    bottom: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:bottom", successors=_tag_seq[4:]
+    )
+    end: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:end", successors=_tag_seq[5:]
+    )
+    right: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:right", successors=_tag_seq[6:]
+    )
+    insideH: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:insideH", successors=_tag_seq[7:]
+    )
+    insideV: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:insideV", successors=()
+    )
+
+    edges = tuple(tag[2:] for tag in _tag_seq)
+    del _tag_seq
+
+
+class CT_TcBorders(_CT_BordersBase):
+    """`w:tcBorders` element, the set of border edges of a table cell.
+
+    Adds the two diagonals to the edges a table admits.
+    """
+
+    get_or_add_top: Callable[[], CT_Border]
+    get_or_add_start: Callable[[], CT_Border]
+    get_or_add_left: Callable[[], CT_Border]
+    get_or_add_bottom: Callable[[], CT_Border]
+    get_or_add_end: Callable[[], CT_Border]
+    get_or_add_right: Callable[[], CT_Border]
+    get_or_add_insideH: Callable[[], CT_Border]
+    get_or_add_insideV: Callable[[], CT_Border]
+    get_or_add_tl2br: Callable[[], CT_Border]
+    get_or_add_tr2bl: Callable[[], CT_Border]
+    _remove_top: Callable[[], None]
+    _remove_start: Callable[[], None]
+    _remove_left: Callable[[], None]
+    _remove_bottom: Callable[[], None]
+    _remove_end: Callable[[], None]
+    _remove_right: Callable[[], None]
+    _remove_insideH: Callable[[], None]
+    _remove_insideV: Callable[[], None]
+    _remove_tl2br: Callable[[], None]
+    _remove_tr2bl: Callable[[], None]
+
+    _tag_seq = (
+        "w:top",
+        "w:start",
+        "w:left",
+        "w:bottom",
+        "w:end",
+        "w:right",
+        "w:insideH",
+        "w:insideV",
+        "w:tl2br",
+        "w:tr2bl",
+    )
+    top: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:top", successors=_tag_seq[1:]
+    )
+    start: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:start", successors=_tag_seq[2:]
+    )
+    left: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:left", successors=_tag_seq[3:]
+    )
+    bottom: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:bottom", successors=_tag_seq[4:]
+    )
+    end: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:end", successors=_tag_seq[5:]
+    )
+    right: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:right", successors=_tag_seq[6:]
+    )
+    insideH: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:insideH", successors=_tag_seq[7:]
+    )
+    insideV: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:insideV", successors=_tag_seq[8:]
+    )
+    tl2br: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:tl2br", successors=_tag_seq[9:]
+    )
+    tr2bl: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:tr2bl", successors=()
+    )
+
+    edges = tuple(tag[2:] for tag in _tag_seq)
+    del _tag_seq
 
 
 class CT_Height(BaseOxmlElement):
@@ -478,10 +671,12 @@ class CT_TblPr(BaseOxmlElement):
 
     get_or_add_bidiVisual: Callable[[], CT_OnOff]
     get_or_add_jc: Callable[[], CT_Jc]
+    get_or_add_tblBorders: Callable[[], CT_TblBorders]
     get_or_add_tblLayout: Callable[[], CT_TblLayoutType]
     _add_tblStyle: Callable[[], CT_String]
     _remove_bidiVisual: Callable[[], None]
     _remove_jc: Callable[[], None]
+    _remove_tblBorders: Callable[[], None]
     _remove_tblStyle: Callable[[], None]
 
     _tag_seq = (
@@ -512,6 +707,9 @@ class CT_TblPr(BaseOxmlElement):
     )
     jc: CT_Jc | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:jc", successors=_tag_seq[8:]
+    )
+    tblBorders: CT_TblBorders | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:tblBorders", successors=_tag_seq[11:]
     )
     tblLayout: CT_TblLayoutType | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:tblLayout", successors=_tag_seq[13:]
@@ -985,10 +1183,12 @@ class CT_TcPr(BaseOxmlElement):
     """``<w:tcPr>`` element, defining table cell properties."""
 
     get_or_add_gridSpan: Callable[[], CT_DecimalNumber]
+    get_or_add_tcBorders: Callable[[], CT_TcBorders]
     get_or_add_tcW: Callable[[], CT_TblWidth]
     get_or_add_vAlign: Callable[[], CT_VerticalJc]
     _add_vMerge: Callable[[], CT_VMerge]
     _remove_gridSpan: Callable[[], None]
+    _remove_tcBorders: Callable[[], None]
     _remove_vAlign: Callable[[], None]
     _remove_vMerge: Callable[[], None]
 
@@ -1020,6 +1220,9 @@ class CT_TcPr(BaseOxmlElement):
     )
     vMerge: CT_VMerge | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:vMerge", successors=_tag_seq[5:]
+    )
+    tcBorders: CT_TcBorders | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:tcBorders", successors=_tag_seq[6:]
     )
     vAlign: CT_VerticalJc | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:vAlign", successors=_tag_seq[12:]

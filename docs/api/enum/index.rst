@@ -15,6 +15,7 @@ can be found here:
    WdCellVerticalAlignment
    WdColorIndex
    WdLineSpacing
+   WdLineStyle
    WdOrientation
    WdRowAlignment
    WdRowHeightRule

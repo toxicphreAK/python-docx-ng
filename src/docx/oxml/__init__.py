@@ -178,9 +178,11 @@ register_element_cls("w:sdtPr", CT_SdtPr)
 register_element_cls("w:tag", CT_String)
 
 from .table import (
+    CT_Border,
     CT_Height,
     CT_Row,
     CT_Tbl,
+    CT_TblBorders,
     CT_TblGrid,
     CT_TblGridCol,
     CT_TblLayoutType,
@@ -188,11 +190,30 @@ from .table import (
     CT_TblPrEx,
     CT_TblWidth,
     CT_Tc,
+    CT_TcBorders,
     CT_TcPr,
     CT_TrPr,
     CT_VMerge,
     CT_VerticalJc,
 )
+
+# -- The border edge tags below are also the child tag names of `w:tblCellMar` and
+# -- `w:tcMar`, where the schema gives them type `CT_TblWidth` instead. lxml resolves an
+# -- element class by tag name alone, so only one mapping can win; `CT_Border` is chosen
+# -- because it also covers `w:pBdr` and `w:pgBorders`. Any future cell-margins API must
+# -- therefore read `w:tcMar` children through `.get()` rather than element-class attrs.
+register_element_cls("w:bottom", CT_Border)
+register_element_cls("w:end", CT_Border)
+register_element_cls("w:insideH", CT_Border)
+register_element_cls("w:insideV", CT_Border)
+register_element_cls("w:left", CT_Border)
+register_element_cls("w:right", CT_Border)
+register_element_cls("w:start", CT_Border)
+register_element_cls("w:tblBorders", CT_TblBorders)
+register_element_cls("w:tcBorders", CT_TcBorders)
+register_element_cls("w:tl2br", CT_Border)
+register_element_cls("w:top", CT_Border)
+register_element_cls("w:tr2bl", CT_Border)
 
 register_element_cls("w:bidiVisual", CT_OnOff)
 register_element_cls("w:cantSplit", CT_OnOff)

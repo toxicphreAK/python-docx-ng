@@ -271,6 +271,38 @@ class ST_DrawingElementId(XsdUnsignedInt):
     pass
 
 
+class ST_EighthPointMeasure(XsdUnsignedLong):
+    """Measure in eighths of a point, e.g. `"4"` is half a point.
+
+    Used for border widths (`w:sz` on `w:tblBorders/w:top` and friends). Values are
+    exchanged as |Length| so they compose with `Pt()`, `Inches()` and the rest.
+    """
+
+    @classmethod
+    def convert_from_xml(cls, str_value: str) -> Length:
+        return Emu(int(round(float(str_value) / 8.0 * Length._EMUS_PER_PT)))
+
+    @classmethod
+    def convert_to_xml(cls, value: int | Length) -> str:
+        return str(int(round(Emu(value).pt * 8)))
+
+
+class ST_PointMeasure(XsdUnsignedLong):
+    """Measure in whole points, e.g. `"4"` is four points.
+
+    Used for the offset of a border from the text it surrounds (`w:space`). Values are
+    exchanged as |Length|, as for :class:`ST_EighthPointMeasure`.
+    """
+
+    @classmethod
+    def convert_from_xml(cls, str_value: str) -> Length:
+        return Emu(int(round(float(str_value) * Length._EMUS_PER_PT)))
+
+    @classmethod
+    def convert_to_xml(cls, value: int | Length) -> str:
+        return str(int(round(Emu(value).pt)))
+
+
 class ST_HexColor(BaseStringType):
     @classmethod
     def convert_from_xml(  # pyright: ignore[reportIncompatibleMethodOverride]
