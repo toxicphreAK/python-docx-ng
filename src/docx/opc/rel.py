@@ -13,6 +13,24 @@ if TYPE_CHECKING:
 _RID_RE = re.compile(r"^rId(\d+)$")
 
 
+class _RelatedParts(Dict[str, "Part"]):
+    """Mapping of rId to target part, reporting an unresolvable rId usefully.
+
+    A reference to an rId that has no target part is what a document looks like after a
+    relationship to a missing part has been dropped on load: the `w:drawing` (or other
+    referring element) is still there, but its rId no longer resolves. Subclasses |dict|
+    and raises |KeyError|, so existing handling is unaffected; only the message
+    improves.
+    """
+
+    def __missing__(self, rId: str):
+        raise KeyError(
+            "no related part with rId '%s'; the relationship is external, or its target"
+            " part was missing from the package and was dropped when the document was"
+            " loaded" % rId
+        )
+
+
 def _rId_sort_key(rId: str) -> Tuple[int, int, str]:
     """Sort key placing rIds in numeric order, so "rId9" precedes "rId10".
 
@@ -30,7 +48,7 @@ class Relationships(Dict[str, "_Relationship"]):
     def __init__(self, baseURI: str):
         super(Relationships, self).__init__()
         self._baseURI = baseURI
-        self._target_parts_by_rId: dict[str, Any] = {}
+        self._target_parts_by_rId: dict[str, Any] = _RelatedParts()
 
     def add_relationship(
         self, reltype: str, target: Part | str, rId: str, is_external: bool = False

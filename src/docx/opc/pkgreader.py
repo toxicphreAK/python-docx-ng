@@ -1,6 +1,9 @@
 """Low-level, read-only API to a serialized Open Packaging Convention (OPC) package."""
 
+import warnings
+
 from docx.opc.constants import RELATIONSHIP_TARGET_MODE as RTM
+from docx.opc.exceptions import DanglingRelationshipWarning
 from docx.opc.oxml import parse_xml
 from docx.opc.packuri import PACKAGE_URI, PackURI
 from docx.opc.phys_pkg import PhysPkgReader
@@ -64,13 +67,29 @@ class PackageReader:
     @staticmethod
     def _walk_phys_parts(phys_reader, srels, visited_partnames=None):
         """Generate a 4-tuple `(partname, blob, reltype, srels)` for each of the parts
-        in `phys_reader` by walking the relationship graph rooted at srels."""
+        in `phys_reader` by walking the relationship graph rooted at srels.
+
+        A relationship whose target part is not present in the package is dropped from
+        `srels` with a warning rather than raising, which is how Word treats one.
+        Documents lose parts to incremental save, third-party generators, and gateways
+        that strip embedded media, and such a document is otherwise unopenable.
+        """
         if visited_partnames is None:
             visited_partnames = []
-        for srel in srels:
+        # -- iterate over a copy; a dangling relationship is dropped from `srels` --
+        for srel in list(srels):
             if srel.is_external:
                 continue
             partname = srel.target_partname
+            if not phys_reader.contains(partname):
+                warnings.warn(
+                    "dropping relationship %s: target part '%s' is not present in the"
+                    " package" % (srel.rId, partname),
+                    DanglingRelationshipWarning,
+                    stacklevel=2,
+                )
+                srels.drop(srel)
+                continue
             if partname in visited_partnames:
                 continue
             visited_partnames.append(partname)
@@ -79,8 +98,9 @@ class PackageReader:
             blob = phys_reader.blob_for(partname)
             yield (partname, blob, reltype, part_srels)
             next_walker = PackageReader._walk_phys_parts(phys_reader, part_srels, visited_partnames)
-            for partname, blob, reltype, srels in next_walker:
-                yield (partname, blob, reltype, srels)
+            # -- distinct names; rebinding `srels` here would retarget the drop above --
+            for sub_partname, sub_blob, sub_reltype, sub_srels in next_walker:
+                yield (sub_partname, sub_blob, sub_reltype, sub_srels)
 
 
 class _ContentTypeMap:
@@ -238,6 +258,14 @@ class _SerializedRelationships:
     def __iter__(self):
         """Support iteration, e.g. 'for x in srels:'."""
         return self._srels.__iter__()
+
+    def drop(self, srel):
+        """Remove `srel` from this collection.
+
+        Used to discard a relationship whose target part is missing from the package, so
+        the collection never hands out an rId that cannot be resolved to a part.
+        """
+        self._srels.remove(srel)
 
     @staticmethod
     def load_from_xml(baseURI, rels_item_xml):

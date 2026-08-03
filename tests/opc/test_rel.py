@@ -96,7 +96,9 @@ class DescribeRelationships:
         assert part is known_target_part
 
     def it_raises_on_related_part_not_found(self, rels):
-        with pytest.raises(KeyError):
+        # -- the message must explain the most likely cause: the relationship targeted a
+        # -- part missing from the package and was dropped on load --
+        with pytest.raises(KeyError, match="was dropped when the document was loaded"):
             rels.related_parts["rId666"]
 
     def it_can_find_a_related_part_by_reltype(self, rels_with_target_known_by_reltype):

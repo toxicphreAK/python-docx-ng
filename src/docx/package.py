@@ -42,6 +42,10 @@ class Package(OpcPackage):
                 continue
             if rel.reltype != RT.IMAGE:
                 continue
+            # -- a document can carry an image relationship to a part that is not an
+            # -- image part; including it here breaks the later match-by-sha1 --
+            if not isinstance(rel.target_part, ImagePart):
+                continue
             if rel.target_part in self.image_parts:
                 continue
             self.image_parts.append(cast("ImagePart", rel.target_part))

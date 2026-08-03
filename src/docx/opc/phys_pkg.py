@@ -1,14 +1,58 @@
 """Provides a general interface to a `physical` OPC package, such as a zip file."""
 
 import os
-from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo, is_zipfile
+from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile, ZipInfo, is_zipfile
 
-from docx.opc.exceptions import PackageNotFoundError
+from docx.opc.exceptions import EncryptedPackageError, PackageNotFoundError
 from docx.opc.packuri import CONTENT_TYPES_URI
 
 # -- earliest timestamp representable in a zip archive, used for every member so
 # -- output does not vary with wall-clock time --
 _ZIP_EPOCH = (1980, 1, 1, 0, 0, 0)
+
+# -- an encrypted (password-protected) Office document is an OLE compound file wrapping
+# -- the encrypted package, so it starts with the OLE signature rather than "PK" --
+_OLE_SIGNATURE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+
+
+def _starts_with_ole_signature(pkg_file):
+    """True if `pkg_file` holds an OLE compound file.
+
+    `pkg_file` may be a path or a file-like object; a stream is read from its start and
+    left at the position it was found at.
+    """
+    try:
+        if hasattr(pkg_file, "read"):
+            origin = pkg_file.tell()
+            try:
+                pkg_file.seek(0)
+                header = pkg_file.read(len(_OLE_SIGNATURE))
+            finally:
+                pkg_file.seek(origin)
+        else:
+            with open(pkg_file, "rb") as f:
+                header = f.read(len(_OLE_SIGNATURE))
+    except (OSError, ValueError):
+        return False
+    return header == _OLE_SIGNATURE
+
+
+def _not_a_package_error(pkg_file):
+    """Return the error to raise for `pkg_file`, which is not a readable zip package.
+
+    An encrypted document gets its own error class; telling the caller their file is
+    password-protected is a great deal more useful than "not a zip file".
+    """
+    name = pkg_file if isinstance(pkg_file, str) else getattr(pkg_file, "name", pkg_file)
+    if _starts_with_ole_signature(pkg_file):
+        return EncryptedPackageError(
+            "Package '%s' is an encrypted (password-protected) Office document and"
+            " cannot be read" % (name,)
+        )
+    return PackageNotFoundError(
+        "Package '%s' is not a valid Open XML package; it may be corrupt or truncated"
+        % (name,)
+    )
 
 
 class PhysPkgReader:
@@ -21,8 +65,10 @@ class PhysPkgReader:
                 reader_cls = _DirPkgReader
             elif is_zipfile(pkg_file):
                 reader_cls = _ZipPkgReader
-            else:
+            elif not os.path.exists(pkg_file):
                 raise PackageNotFoundError("Package not found at '%s'" % pkg_file)
+            else:
+                raise _not_a_package_error(pkg_file)
         else:  # assume it's a stream and pass it to Zip reader to sort out
             reader_cls = _ZipPkgReader
 
@@ -52,6 +98,10 @@ class _DirPkgReader(PhysPkgReader):
             blob = f.read()
         return blob
 
+    def contains(self, pack_uri):
+        """True if a member corresponding to `pack_uri` is present in the package."""
+        return os.path.isfile(os.path.join(self._path, pack_uri.membername))
+
     def close(self):
         """Provides interface consistency with |ZipFileSystem|, but does nothing, a
         directory file system doesn't need closing."""
@@ -77,7 +127,21 @@ class _ZipPkgReader(PhysPkgReader):
 
     def __init__(self, pkg_file):
         super(_ZipPkgReader, self).__init__()
-        self._zipf = ZipFile(pkg_file, "r")
+        # -- ZipFile() reads from the stream before it decides the file is not a zip,
+        # -- so note where the caller left it and put it back on the failure path --
+        try:
+            origin = pkg_file.tell() if hasattr(pkg_file, "tell") else None
+        except (OSError, ValueError):
+            origin = None
+        try:
+            self._zipf = ZipFile(pkg_file, "r")
+        except BadZipFile as err:
+            # -- a truncated, garbage or encrypted file lands here; BadZipFile leaks an
+            # -- implementation detail of this layer, so translate it --
+            error = _not_a_package_error(pkg_file)
+            if origin is not None:
+                pkg_file.seek(origin)
+            raise error from err
 
     def blob_for(self, pack_uri):
         """Return blob corresponding to `pack_uri`.
@@ -89,6 +153,17 @@ class _ZipPkgReader(PhysPkgReader):
     def close(self):
         """Close the zip archive, releasing any resources it is using."""
         self._zipf.close()
+
+    def contains(self, pack_uri):
+        """True if a member corresponding to `pack_uri` is present in the archive."""
+        return pack_uri.membername in self._membernames
+
+    @property
+    def _membernames(self):
+        """The set of member names in the archive, computed on first use."""
+        if not hasattr(self, "_membernames_"):
+            self._membernames_ = frozenset(self._zipf.namelist())
+        return self._membernames_
 
     @property
     def content_types_xml(self):

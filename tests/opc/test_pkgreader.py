@@ -1,9 +1,16 @@
 """Unit test suite for docx.opc.pkgreader module."""
 
+import io
+import warnings
+import zipfile
+
 import pytest
 
+import docx
 from docx.opc.constants import CONTENT_TYPE as CT
 from docx.opc.constants import RELATIONSHIP_TARGET_MODE as RTM
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from docx.opc.exceptions import DanglingRelationshipWarning
 from docx.opc.packuri import PackURI
 from docx.opc.phys_pkg import _ZipPkgReader
 from docx.opc.pkgreader import (
@@ -162,6 +169,40 @@ class DescribePackageReader:
             (partname_3, part_3_blob, reltype3, part_3_srels),
         ]
         assert generated_tuples == expected_tuples
+
+    def it_drops_a_relationship_whose_target_part_is_missing(self, _srels_for):
+        """Word opens such a document; refusing to load it is harsher than warranted."""
+        good, bad = Mock(name="good"), Mock(name="bad")
+        good.is_external, good.reltype, good.rId = False, "reltype1", "rId1"
+        good.target_partname = PackURI("/part1.xml")
+        bad.is_external, bad.reltype, bad.rId = False, RT.IMAGE, "rIdBogus"
+        bad.target_partname = PackURI("/word/media/missing.png")
+        srels = _SerializedRelationships()
+        srels._srels.extend([good, bad])
+        phys_reader = Mock(name="phys_reader")
+        phys_reader.contains.side_effect = lambda partname: partname == "/part1.xml"
+        _srels_for.return_value = _SerializedRelationships()
+
+        with pytest.warns(DanglingRelationshipWarning, match="rIdBogus"):
+            generated_tuples = list(PackageReader._walk_phys_parts(phys_reader, srels))
+
+        # -- the good part is still yielded, and the dangling rel is gone from the
+        # -- collection so it is never handed to the unmarshaller --
+        assert [t[0] for t in generated_tuples] == [PackURI("/part1.xml")]
+        assert list(srels) == [good]
+
+    def it_keeps_an_external_relationship_whose_target_is_not_in_the_package(self, _srels_for):
+        ext = Mock(name="ext")
+        ext.is_external, ext.reltype, ext.rId = True, "hyperlink", "rId1"
+        srels = _SerializedRelationships()
+        srels._srels.append(ext)
+        phys_reader = Mock(name="phys_reader")
+        phys_reader.contains.return_value = False
+
+        generated_tuples = list(PackageReader._walk_phys_parts(phys_reader, srels))
+
+        assert generated_tuples == []
+        assert list(srels) == [ext]
 
     def it_can_retrieve_srels_for_a_source_uri(self, _SerializedRelationships_):
         # mockery ----------------------
@@ -483,6 +524,15 @@ class Describe_SerializedRelationships:
             msg = "_SerializedRelationships object is not iterable"
             pytest.fail(msg)
 
+    def it_can_drop_a_relationship(self):
+        srels = _SerializedRelationships()
+        srel_1, srel_2 = Mock(name="srel_1"), Mock(name="srel_2")
+        srels._srels.extend([srel_1, srel_2])
+
+        srels.drop(srel_1)
+
+        assert list(srels) == [srel_2]
+
     # fixtures ---------------------------------------------
 
     @pytest.fixture
@@ -492,3 +542,63 @@ class Describe_SerializedRelationships:
     @pytest.fixture
     def _SerializedRelationship_(self, request):
         return class_mock(request, "docx.opc.pkgreader._SerializedRelationship")
+
+
+class DescribeDanglingRelationshipLoading:
+    """Loading a package that references a part it does not contain."""
+
+    def it_opens_a_document_with_a_dangling_relationship(self, dangling_docx: io.BytesIO):
+        with pytest.warns(DanglingRelationshipWarning, match="rIdBogus"):
+            document = docx.Document(dangling_docx)
+
+        assert "rIdBogus" not in document.part.rels
+
+    def it_leaves_the_other_relationships_intact(self, dangling_docx: io.BytesIO):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DanglingRelationshipWarning)
+            document = docx.Document(dangling_docx)
+
+        # -- an external relationship has no part in the package and must survive --
+        assert document.part.rels["rIdExternal"].is_external is True
+        assert document.part.part_related_by(RT.STYLES) is not None
+
+    def it_saves_a_loadable_document_without_the_bad_relationship(
+        self, dangling_docx: io.BytesIO
+    ):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DanglingRelationshipWarning)
+            document = docx.Document(dangling_docx)
+            saved = io.BytesIO()
+            document.save(saved)
+            saved.seek(0)
+
+            # -- the saved document is clean: reloading it issues no warning --
+            warnings.simplefilter("error", DanglingRelationshipWarning)
+            reloaded = docx.Document(saved)
+
+        assert "rIdBogus" not in reloaded.part.rels
+
+    # fixtures ---------------------------------------------
+
+    @pytest.fixture
+    def dangling_docx(self) -> io.BytesIO:
+        """The default template with a relationship to a part that is not present."""
+        extra_rels = (
+            b'<Relationship Id="rIdBogus" Type="%s" Target="media/missing.png"/>'
+            b'<Relationship Id="rIdExternal" Type="%s" Target="http://example.com/"'
+            b' TargetMode="External"/></Relationships>'
+        ) % (RT.IMAGE.encode(), RT.HYPERLINK.encode())
+
+        template = docx.Document()
+        original = io.BytesIO()
+        template.save(original)
+
+        broken = io.BytesIO()
+        with zipfile.ZipFile(original) as zin, zipfile.ZipFile(broken, "w") as zout:
+            for item in zin.infolist():
+                blob = zin.read(item.filename)
+                if item.filename == "word/_rels/document.xml.rels":
+                    blob = blob.replace(b"</Relationships>", extra_rels)
+                zout.writestr(item, blob)
+        broken.seek(0)
+        return broken

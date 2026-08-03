@@ -2,13 +2,15 @@
 
 import hashlib
 import io
-from zipfile import ZIP_DEFLATED, ZipFile
+import pathlib
+from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile
 
 import pytest
 
-from docx.opc.exceptions import PackageNotFoundError
+from docx.opc.exceptions import EncryptedPackageError, PackageNotFoundError
 from docx.opc.packuri import PACKAGE_URI, PackURI
 from docx.opc.phys_pkg import (
+    _OLE_SIGNATURE,
     PhysPkgReader,
     PhysPkgWriter,
     _DirPkgReader,
@@ -22,6 +24,7 @@ from ..unitutil.mock import Mock, class_mock, loose_mock
 test_docx_path = absjoin(test_file_dir, "test.docx")
 dir_pkg_path = absjoin(test_file_dir, "expanded_docx")
 zip_pkg_path = test_docx_path
+truncated_docx_blob = pathlib.Path(test_docx_path).read_bytes()[:2048]
 
 
 class DescribeDirPkgReader:
@@ -67,6 +70,54 @@ class DescribePhysPkgReader:
     def it_raises_when_pkg_path_is_not_a_package(self):
         with pytest.raises(PackageNotFoundError):
             PhysPkgReader("foobar")
+
+    @pytest.mark.parametrize(
+        "blob",
+        [
+            b"not a zip file at all",
+            # -- a truncated download: the central directory is gone --
+            truncated_docx_blob,
+            b"",
+        ],
+    )
+    def it_raises_PackageNotFoundError_on_a_corrupt_stream(self, blob: bytes):
+        """A caller should never see zipfile.BadZipFile leak out of this layer."""
+        with pytest.raises(PackageNotFoundError) as exc:
+            PhysPkgReader(io.BytesIO(blob))
+
+        assert isinstance(exc.value.__cause__, BadZipFile)
+
+    def it_raises_EncryptedPackageError_on_a_password_protected_document(self):
+        ole_file = io.BytesIO(_OLE_SIGNATURE + b"\x00" * 512)
+
+        with pytest.raises(EncryptedPackageError):
+            PhysPkgReader(ole_file)
+
+    def it_raises_EncryptedPackageError_on_a_password_protected_path(self, tmp_path: pathlib.Path):
+        path = tmp_path / "encrypted.docx"
+        path.write_bytes(_OLE_SIGNATURE + b"\x00" * 512)
+
+        with pytest.raises(EncryptedPackageError):
+            PhysPkgReader(str(path))
+
+    def it_leaves_the_stream_position_undisturbed_when_it_raises(self):
+        """Sniffing the OLE signature must not consume the caller's stream."""
+        stream = io.BytesIO(b"not a zip file at all")
+        stream.seek(4)
+
+        with pytest.raises(PackageNotFoundError):
+            PhysPkgReader(stream)
+
+        assert stream.tell() == 4
+
+    def it_distinguishes_a_missing_path_from_a_corrupt_one(self, tmp_path: pathlib.Path):
+        path = tmp_path / "corrupt.docx"
+        path.write_bytes(b"not a zip file at all")
+
+        with pytest.raises(PackageNotFoundError, match="corrupt or truncated"):
+            PhysPkgReader(str(path))
+        with pytest.raises(PackageNotFoundError, match="not found at"):
+            PhysPkgReader(str(tmp_path / "absent.docx"))
 
 
 class DescribeZipPkgReader:
