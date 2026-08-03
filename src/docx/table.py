@@ -482,6 +482,19 @@ class _Row(Parented):
         self._tr.trHeight_val = value
 
     @property
+    def dont_split(self) -> bool | None:
+        """|True| if this row is kept on a single page rather than broken across pages.
+
+        Corresponds to unchecking "Allow row to break across pages" in Word. |None|
+        indicates no explicit setting, which Word treats as allowing the break.
+        """
+        return self._tr.cantSplit_val
+
+    @dont_split.setter
+    def dont_split(self, value: bool | None) -> None:
+        self._tr.cantSplit_val = value
+
+    @property
     def height_rule(self) -> WD_ROW_HEIGHT_RULE | None:
         """Return the height rule of this cell as a member of the :ref:`WdRowHeightRule`.
 

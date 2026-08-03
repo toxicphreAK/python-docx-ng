@@ -129,6 +129,21 @@ class CT_Row(BaseOxmlElement):
         trPr = self.get_or_add_trPr()
         trPr.trHeight_val = value
 
+    @property
+    def cantSplit_val(self) -> bool | None:
+        """Value of `w:trPr/w:cantSplit@w:val`, or |None| if not present."""
+        trPr = self.trPr
+        if trPr is None:
+            return None
+        return trPr.cantSplit_val
+
+    @cantSplit_val.setter
+    def cantSplit_val(self, value: bool | None) -> None:
+        if value is None and self.trPr is None:
+            return
+        trPr = self.get_or_add_trPr()
+        trPr.cantSplit_val = value
+
     def _insert_tblPrEx(self, tblPrEx: CT_TblPrEx):
         self.insert(0, tblPrEx)
 
@@ -893,6 +908,8 @@ class CT_TrPr(BaseOxmlElement):
     """``<w:trPr>`` element, defining table row properties."""
 
     get_or_add_trHeight: Callable[[], CT_Height]
+    get_or_add_cantSplit: Callable[[], CT_OnOff]
+    _remove_cantSplit: Callable[[], None]
 
     _tag_seq = (
         "w:cnfStyle",
@@ -911,6 +928,9 @@ class CT_TrPr(BaseOxmlElement):
         "w:del",
         "w:trPrChange",
     )
+    cantSplit: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:cantSplit", successors=_tag_seq[7:]
+    )
     gridAfter: CT_DecimalNumber | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:gridAfter", successors=_tag_seq[4:]
     )
@@ -921,6 +941,19 @@ class CT_TrPr(BaseOxmlElement):
         "w:trHeight", successors=_tag_seq[8:]
     )
     del _tag_seq
+
+    @property
+    def cantSplit_val(self) -> bool | None:
+        """Value of `./w:cantSplit/@w:val`, or |None| if the element is absent."""
+        cantSplit = self.cantSplit
+        return None if cantSplit is None else cantSplit.val
+
+    @cantSplit_val.setter
+    def cantSplit_val(self, value: bool | None) -> None:
+        if value is None:
+            self._remove_cantSplit()
+            return
+        self.get_or_add_cantSplit().val = value
 
     @property
     def grid_after(self) -> int:

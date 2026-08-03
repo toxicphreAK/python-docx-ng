@@ -661,6 +661,50 @@ class Describe_Row:
     @pytest.mark.parametrize(
         ("tr_cxml", "expected_value"),
         [
+            ("w:tr", None),
+            ("w:tr/w:trPr", None),
+            ("w:tr/w:trPr/w:cantSplit", True),
+            ("w:tr/w:trPr/w:cantSplit{w:val=1}", True),
+            ("w:tr/w:trPr/w:cantSplit{w:val=0}", False),
+        ],
+    )
+    def it_knows_whether_it_can_break_across_pages(
+        self, tr_cxml: str, expected_value: bool | None, parent_: Mock
+    ):
+        row = _Row(cast(CT_Row, element(tr_cxml)), parent_)
+        assert row.dont_split == expected_value
+
+    @pytest.mark.parametrize(
+        ("tr_cxml", "value", "expected_tr_cxml"),
+        [
+            ("w:tr", True, "w:tr/w:trPr/w:cantSplit"),
+            ("w:tr", False, "w:tr/w:trPr/w:cantSplit{w:val=0}"),
+            ("w:tr/w:trPr/w:cantSplit{w:val=0}", True, "w:tr/w:trPr/w:cantSplit"),
+            ("w:tr/w:trPr/w:cantSplit", None, "w:tr/w:trPr"),
+            ("w:tr", None, "w:tr"),
+        ],
+    )
+    def it_can_change_whether_it_breaks_across_pages(
+        self, tr_cxml: str, value: bool | None, expected_tr_cxml: str, parent_: Mock
+    ):
+        row = _Row(cast(CT_Row, element(tr_cxml)), parent_)
+        expected_xml = xml(expected_tr_cxml)
+
+        row.dont_split = value
+
+        assert row._tr.xml == expected_xml
+
+    def it_inserts_cant_split_in_schema_order(self):
+        """`w:cantSplit` must precede `w:trHeight`, or Word rejects the document."""
+        row = _Row(cast(CT_Row, element("w:tr/w:trPr/w:trHeight{w:val=240}")), Mock())
+
+        row.dont_split = True
+
+        assert row._tr.xml == xml("w:tr/w:trPr/(w:cantSplit,w:trHeight{w:val=240})")
+
+    @pytest.mark.parametrize(
+        ("tr_cxml", "expected_value"),
+        [
             ("w:tr", 0),
             ("w:tr/w:trPr", 0),
             ("w:tr/w:trPr/w:gridAfter{w:val=0}", 0),
