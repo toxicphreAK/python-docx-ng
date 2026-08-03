@@ -15,7 +15,7 @@ from docx.enum.text import WD_BREAK
 from docx.formfield import FormField, iter_form_fields
 from docx.opc.constants import CONTENT_TYPE as CT
 from docx.section import Section, Sections
-from docx.shared import ElementProxy, Emu, Inches, Length, lazyproperty
+from docx.shared import ElementProxy, Emu, Inches, Length, Pt, lazyproperty
 from docx.text.run import Run
 
 if TYPE_CHECKING:
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from docx.styles.style import ParagraphStyle, _TableStyle
     from docx.table import Table
     from docx.text.paragraph import Paragraph
+    from docx.watermark import Watermark
 
 
 class Document(ElementProxy):
@@ -435,6 +436,93 @@ class Document(ElementProxy):
     def sections(self) -> Sections:
         """|Sections| object providing access to each section in this document."""
         return Sections(self._element, self._part)
+
+    def add_text_watermark(
+        self,
+        text: str,
+        *,
+        font: str = "Calibri",
+        font_size: Length | int | None = None,
+        color: str = "C0C0C0",
+        opacity: float | None = None,
+        angle: float = 315,
+        width: Length | int = Pt(468),
+        height: Length | int = Pt(234),
+        bold: bool = False,
+        italic: bool = False,
+    ) -> List[Watermark]:
+        """Add a text watermark to the whole document, returning the watermarks added.
+
+        The faint "DRAFT" or "CONFIDENTIAL" behind the content::
+
+            document.add_text_watermark("DRAFT")
+            document.add_text_watermark("CONFIDENTIAL", color="FF0000", angle=0)
+
+        Every section is covered, and within each the default, first-page and even-page
+        headers alike, so the watermark does not disappear on a page that uses a
+        different header. A header shared between sections is written to once.
+
+        The arguments are as for :meth:`.Section.add_text_watermark`, which is also how
+        a watermark is applied to one section rather than the whole document.
+        """
+        from docx.watermark import add_text_watermark, iter_watermark_headers
+
+        return add_text_watermark(
+            iter_watermark_headers(self.sections),
+            text,
+            font=font,
+            font_size=font_size,
+            color=color,
+            opacity=opacity,
+            angle=angle,
+            width=width,
+            height=height,
+            bold=bold,
+            italic=italic,
+        )
+
+    def add_image_watermark(
+        self,
+        image_path_or_stream: str | IO[bytes],
+        *,
+        width: Length | int | None = None,
+        height: Length | int | None = None,
+        washout: bool = True,
+        scale: float = 1.0,
+    ) -> List[Watermark]:
+        """Add an image watermark to the whole document; see :meth:`add_text_watermark`.
+
+        `washout` applies Word's brightness-and-contrast correction, which is what makes
+        a logo read as a background rather than sitting opaquely over the text.
+        """
+        from docx.watermark import add_image_watermark, iter_watermark_headers
+
+        return add_image_watermark(
+            iter_watermark_headers(self.sections),
+            image_path_or_stream,
+            width=width,
+            height=height,
+            washout=washout,
+            scale=scale,
+        )
+
+    def remove_watermark(self) -> int:
+        """Remove every watermark from the document, returning how many were removed."""
+        from docx.watermark import iter_watermark_headers, remove_watermarks
+
+        return remove_watermarks(iter_watermark_headers(self.sections))
+
+    @property
+    def watermarks(self) -> List[Watermark]:
+        """Every watermark in the document, in section and header order.
+
+        Empty when the document has none. Ordinarily one per header rather than one per
+        document, since a watermark is a shape in a header and each header carries its
+        own.
+        """
+        from docx.watermark import iter_watermark_headers, iter_watermarks
+
+        return [w for hdr in iter_watermark_headers(self.sections) for w in iter_watermarks(hdr)]
 
     @property
     def settings(self) -> Settings:

@@ -265,9 +265,7 @@ class DescribeVectorImageDetection:
 
 def _svg_stream(root_attrs: str) -> io.BytesIO:
     """A one-element SVG document whose root carries `root_attrs`."""
-    return io.BytesIO(
-        ('<svg xmlns="http://www.w3.org/2000/svg" %s/>' % root_attrs).encode("utf-8")
-    )
+    return io.BytesIO(('<svg xmlns="http://www.w3.org/2000/svg" %s/>' % root_attrs).encode("utf-8"))
 
 
 def _emf_blob() -> bytes:

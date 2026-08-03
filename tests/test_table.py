@@ -316,17 +316,13 @@ class DescribeTable:
         assert table.cell(-1, -1).text == "bottom-right"
 
     @pytest.mark.parametrize(("row_idx", "col_idx"), [(3, 0), (0, 3), (-4, 0)])
-    def it_raises_on_a_cell_index_out_of_range(
-        self, row_idx: int, col_idx: int, document_: Mock
-    ):
+    def it_raises_on_a_cell_index_out_of_range(self, row_idx: int, col_idx: int, document_: Mock):
         table = Table(CT_Tbl.new_tbl(3, 3, Inches(3)), document_)
 
         with pytest.raises(IndexError, match="out of range"):
             table.cell(row_idx, col_idx)
 
-    def it_returns_the_span_origin_cell_for_every_grid_position_it_covers(
-        self, document_: Mock
-    ):
+    def it_returns_the_span_origin_cell_for_every_grid_position_it_covers(self, document_: Mock):
         table = Table(CT_Tbl.new_tbl(3, 3, Inches(3)), document_)
         table.cell(0, 0).merge(table.cell(1, 1))
         table.cell(0, 0).text = "merged"
@@ -430,9 +426,7 @@ class Describe_Cell:
         assert [table.cell(r, 0).row_index for r in range(3)] == [0, 0, 0]
         assert table.cell(1, 1).span == (1, 1)
 
-    def it_reports_a_grid_column_index_that_accounts_for_a_late_starting_row(
-        self, parent_: Mock
-    ):
+    def it_reports_a_grid_column_index_that_accounts_for_a_late_starting_row(self, parent_: Mock):
         """A row can leave grid positions unpopulated at its start."""
         tbl_cxml = (
             "w:tbl/(w:tblPr,w:tblGrid/(w:gridCol,w:gridCol,w:gridCol),"

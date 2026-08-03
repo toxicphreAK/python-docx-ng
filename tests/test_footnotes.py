@@ -29,9 +29,7 @@ SEPARATORS = "w:footnote{w:type=separator,w:id=-1},w:footnote{w:type=continuatio
 
 def _footnotes(cxml: str, package_: Mock) -> Footnotes:
     footnotes_elm = cast(CT_Footnotes, element(cxml))
-    part = FootnotesPart(
-        PackURI("/word/footnotes.xml"), CT.WML_FOOTNOTES, footnotes_elm, package_
-    )
+    part = FootnotesPart(PackURI("/word/footnotes.xml"), CT.WML_FOOTNOTES, footnotes_elm, package_)
     return Footnotes(footnotes_elm, part)
 
 
@@ -49,9 +47,7 @@ class DescribeFootnotes:
             ("w:footnotes/w:footnote{w:id=1,w:type=normal}", 1),
         ],
     )
-    def it_counts_only_the_footnotes_an_author_wrote(
-        self, cxml: str, count: int, package_: Mock
-    ):
+    def it_counts_only_the_footnotes_an_author_wrote(self, cxml: str, count: int, package_: Mock):
         assert len(_footnotes(cxml, package_)) == count
 
     def it_is_iterable_over_the_footnotes_it_contains(self, package_: Mock):

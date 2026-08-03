@@ -36,9 +36,7 @@ class DescribeBlockContentWalking:
             ("w:body/(w:sdt/w:sdtPr,w:p)", ["p"]),
         ],
     )
-    def it_looks_through_a_block_level_content_control(
-        self, body_cxml: str, expected: list[str]
-    ):
+    def it_looks_through_a_block_level_content_control(self, body_cxml: str, expected: list[str]):
         body = cast(BaseOxmlElement, element(body_cxml))
 
         actual = [e.tag.split("}")[1] for e in iter_block_content(body)]
@@ -66,9 +64,7 @@ class DescribeRunContentWalking:
             ("w:p/(w:pPr,w:r)", ["r"]),
         ],
     )
-    def it_looks_through_a_run_level_content_control(
-        self, p_cxml: str, expected: list[str]
-    ):
+    def it_looks_through_a_run_level_content_control(self, p_cxml: str, expected: list[str]):
         p = cast(BaseOxmlElement, element(p_cxml))
 
         actual = [e.tag.split("}")[1] for e in iter_run_content(p)]

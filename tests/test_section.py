@@ -211,9 +211,7 @@ class DescribeSection:
         assert section.column_widths == ()
 
     def it_discards_stale_column_widths_when_the_count_changes(self, document_part_: Mock):
-        sectPr_cxml = (
-            "w:sectPr/w:cols{w:num=2,w:equalWidth=0}/(w:col{w:w=2880},w:col{w:w=5760})"
-        )
+        sectPr_cxml = "w:sectPr/w:cols{w:num=2,w:equalWidth=0}/(w:col{w:w=2880},w:col{w:w=5760})"
         section = Section(cast(CT_SectPr, element(sectPr_cxml)), document_part_)
 
         section.column_count = 3
@@ -221,9 +219,7 @@ class DescribeSection:
         assert section._sectPr.xml == xml("w:sectPr/w:cols{w:num=3}")
         assert section.column_widths == ()
 
-    def it_raises_on_column_widths_and_spacings_of_different_lengths(
-        self, document_part_: Mock
-    ):
+    def it_raises_on_column_widths_and_spacings_of_different_lengths(self, document_part_: Mock):
         section = Section(cast(CT_SectPr, element("w:sectPr")), document_part_)
 
         with pytest.raises(ValueError, match="one value per column"):

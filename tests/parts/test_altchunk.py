@@ -54,9 +54,7 @@ class DescribeAltChunkPart:
     def it_can_be_created_from_a_stream(self, package_: Mock):
         package_.iter_parts.return_value = iter([])
 
-        alt_chunk_part = AltChunkPart.new_from_stream(
-            package_, io.BytesIO(b"<html/>"), "text/html"
-        )
+        alt_chunk_part = AltChunkPart.new_from_stream(package_, io.BytesIO(b"<html/>"), "text/html")
 
         assert alt_chunk_part.blob == b"<html/>"
 

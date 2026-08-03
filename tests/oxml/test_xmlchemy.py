@@ -46,22 +46,24 @@ class DescribeBaseOxmlElement:
         assert len(element.xpath("w:r")) == 1
 
     def it_accepts_additional_namespace_prefixes_in_xpath_calls(self):
-        """Elements in vendor namespaces are not reachable via the standard nsmap."""
+        """Elements in vendor namespaces are not reachable via the standard nsmap.
+
+        The prefix used here must be one `docx.oxml.ns.nsmap` does not define, or the
+        standard mapping resolves it and the first half of this test proves nothing.
+        """
         vendor_ns = "http://example.com/vendor/2024"
         element = parse_xml(
-            '<w:p %s xmlns:v="%s"><v:custom/></w:p>' % (nsdecls("w"), vendor_ns)
+            '<w:p %s xmlns:acme="%s"><acme:custom/></w:p>' % (nsdecls("w"), vendor_ns)
         )
 
         with pytest.raises(XPathEvalError, match="Undefined namespace prefix"):
-            element.xpath("v:custom")
+            element.xpath("acme:custom")
 
-        assert len(element.xpath("v:custom", namespaces={"v": vendor_ns})) == 1
+        assert len(element.xpath("acme:custom", namespaces={"acme": vendor_ns})) == 1
 
     def it_lets_supplied_prefixes_override_the_standard_mapping(self):
         other_ns = "http://example.com/other"
-        element = parse_xml(
-            '<w:p %s xmlns:o="%s"><o:r/></w:p>' % (nsdecls("w"), other_ns)
-        )
+        element = parse_xml('<w:p %s xmlns:acme="%s"><acme:r/></w:p>' % (nsdecls("w"), other_ns))
 
         # -- "w" normally resolves to the wordprocessingml namespace --
         assert len(element.xpath("w:r", namespaces={"w": other_ns})) == 1

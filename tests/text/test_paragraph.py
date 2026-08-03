@@ -180,9 +180,7 @@ class DescribeParagraph:
 
     def it_sees_the_runs_inside_a_run_level_content_control(self):
         """A `w:sdt` inside a `w:p` would otherwise hide its runs entirely."""
-        paragraph = Paragraph(
-            element("w:p/(w:r,w:sdt/w:sdtContent/(w:r,w:r),w:r)"), None
-        )
+        paragraph = Paragraph(element("w:p/(w:r,w:sdt/w:sdtContent/(w:r,w:r),w:r)"), None)
 
         runs = paragraph.runs
 
@@ -386,7 +384,6 @@ class DescribeParagraph:
         return property_mock(request, Run, "style")
 
 
-
 class DescribeAddHyperlink:
     """Unit-test suite for `docx.text.paragraph.Paragraph.add_hyperlink`."""
 
@@ -427,9 +424,7 @@ class DescribeAddHyperlink:
     def it_can_add_a_hyperlink_with_both_an_address_and_a_fragment(self):
         paragraph = docx.Document().add_paragraph()
 
-        hyperlink = paragraph.add_hyperlink(
-            "docs", "https://example.com/guide", fragment="install"
-        )
+        hyperlink = paragraph.add_hyperlink("docs", "https://example.com/guide", fragment="install")
 
         assert hyperlink.url == "https://example.com/guide#install"
 
@@ -452,9 +447,7 @@ class DescribeAddHyperlink:
     def it_can_skip_styling_the_link_text(self):
         document = docx.Document()
 
-        hyperlink = document.add_paragraph().add_hyperlink(
-            "x", "https://example.com/", style=None
-        )
+        hyperlink = document.add_paragraph().add_hyperlink("x", "https://example.com/", style=None)
 
         assert "Hyperlink" not in [s.name for s in document.styles]
         assert hyperlink.runs[0].style.name == "Default Paragraph Font"

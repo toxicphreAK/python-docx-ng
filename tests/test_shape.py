@@ -208,9 +208,7 @@ class DescribeSvgPictureInsertion:
         blip = shape._inline.graphic.graphicData.pic.blipFill.blip
         assert blip.svgBlip is not None
         # -- the extension uri is the fixed GUID a consumer matches on --
-        assert blip.xpath("./a:extLst/a:ext/@uri") == [
-            "{96DAC541-7B7A-43D3-8B79-37D633B846F1}"
-        ]
+        assert blip.xpath("./a:extLst/a:ext/@uri") == ["{96DAC541-7B7A-43D3-8B79-37D633B846F1}"]
 
     def it_points_the_fallback_blip_at_the_svg_when_no_fallback_is_given(self):
         """Word 2016 and later render this; earlier versions show nothing."""
@@ -263,9 +261,7 @@ class DescribeSvgPictureInsertion:
             ("CVS_LOGO.WMF", "WMF"),
         ],
     )
-    def it_declares_the_content_type_of_a_vector_part(
-        self, filename: str, expected_extension: str
-    ):
+    def it_declares_the_content_type_of_a_vector_part(self, filename: str, expected_extension: str):
         """A part with no content type declared is a document Word refuses to open."""
         import zipfile
 

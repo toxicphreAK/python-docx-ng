@@ -50,7 +50,7 @@ class DescribeWebp:
         assert (webp.horz_dpi, webp.vert_dpi) == (72, 72)
 
     def it_is_recognized_by_the_image_signature_matcher(self):
-        """"WEBP" at offset 8 is what tells a WebP file from a WAV or an AVI."""
+        """ "WEBP" at offset 8 is what tells a WebP file from a WAV or an AVI."""
         image = Image.from_file(test_file("webp-lossless.webp"))
 
         assert isinstance(image._image_header, Webp)

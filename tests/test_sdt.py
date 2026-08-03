@@ -39,9 +39,7 @@ class DescribeContentControl:
         assert content_control.type == WD_CONTENT_CONTROL_TYPE.TEXT
 
     def it_provides_access_to_the_paragraphs_it_wraps(self):
-        sdt = cast(
-            CT_Sdt, element('w:sdt/w:sdtContent/(w:p/w:r/w:t"one",w:p/w:r/w:t"two")')
-        )
+        sdt = cast(CT_Sdt, element('w:sdt/w:sdtContent/(w:p/w:r/w:t"one",w:p/w:r/w:t"two")'))
 
         content_control = ContentControl(sdt, None)
 
@@ -52,8 +50,7 @@ class DescribeContentControl:
         sdt = cast(
             CT_Sdt,
             element(
-                "w:sdt/w:sdtContent/w:tbl/(w:tblPr,w:tblGrid/w:gridCol,"
-                'w:tr/w:tc/w:p/w:r/w:t"cell")'
+                'w:sdt/w:sdtContent/w:tbl/(w:tblPr,w:tblGrid/w:gridCol,w:tr/w:tc/w:p/w:r/w:t"cell")'
             ),
         )
 
@@ -73,9 +70,7 @@ class DescribeContentControl:
         assert content_control.is_block_level is False
 
     def it_knows_the_text_it_contains(self):
-        sdt = cast(
-            CT_Sdt, element('w:sdt/w:sdtContent/(w:p/w:r/w:t"one",w:p/w:r/w:t"two")')
-        )
+        sdt = cast(CT_Sdt, element('w:sdt/w:sdtContent/(w:p/w:r/w:t"one",w:p/w:r/w:t"two")'))
 
         assert ContentControl(sdt, None).text == "one\ntwo"
 
@@ -154,10 +149,7 @@ class DescribeContentControlsInAParagraph:
     def it_keeps_the_control_boundary_discoverable(self):
         p = cast(
             CT_P,
-            element(
-                'w:p/(w:r/w:t"a",w:sdt/(w:sdtPr/w:tag{w:val=inline},'
-                'w:sdtContent/w:r/w:t"b"))'
-            ),
+            element('w:p/(w:r/w:t"a",w:sdt/(w:sdtPr/w:tag{w:val=inline},w:sdtContent/w:r/w:t"b"))'),
         )
 
         paragraph = Paragraph(p, None)

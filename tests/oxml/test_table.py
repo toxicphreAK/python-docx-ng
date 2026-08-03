@@ -470,19 +470,13 @@ class DescribeCT_Tbl:
 class DescribeCT_Row_grid_offsets:
     """Unit-test suite for resolving a `w:tc` by layout-grid column."""
 
-    @pytest.mark.parametrize(
-        ("grid_offset", "expected_tc_idx"), [(0, 0), (1, 1), (2, 1), (3, 2)]
-    )
+    @pytest.mark.parametrize(("grid_offset", "expected_tc_idx"), [(0, 0), (1, 1), (2, 1), (3, 2)])
     def it_returns_the_covering_tc_for_a_spanned_grid_offset(
         self, grid_offset: int, expected_tc_idx: int
     ):
         tr = cast(
             CT_Row,
-            element(
-                "w:tr/(w:tc/w:p,"
-                "w:tc/(w:tcPr/w:gridSpan{w:val=2},w:p),"
-                "w:tc/w:p)"
-            ),
+            element("w:tr/(w:tc/w:p,w:tc/(w:tcPr/w:gridSpan{w:val=2},w:p),w:tc/w:p)"),
         )
 
         assert tr.tc_covering_grid_offset(grid_offset) is tr.tc_lst[expected_tc_idx]

@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterator, List, Sequence, overload
+from typing import IO, TYPE_CHECKING, Iterator, List, Sequence, overload
 
 from docx.blkcntnr import BlockItemContainer
 from docx.enum.section import WD_HEADER_FOOTER
 from docx.oxml.text.paragraph import CT_P
 from docx.parts.hdrftr import FooterPart, HeaderPart
-from docx.shared import lazyproperty
+from docx.shared import Pt, lazyproperty
 from docx.table import Table
 from docx.text.paragraph import Paragraph
 
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from docx.parts.document import DocumentPart
     from docx.parts.story import StoryPart
     from docx.shared import Length
+    from docx.watermark import Watermark
 
 
 class Section:
@@ -173,6 +174,106 @@ class Section:
     @footer_distance.setter
     def footer_distance(self, value: int | Length | None):
         self._sectPr.footer = value
+
+    def add_text_watermark(
+        self,
+        text: str,
+        *,
+        font: str = "Calibri",
+        font_size: Length | int | None = None,
+        color: str = "C0C0C0",
+        opacity: float | None = None,
+        angle: float = 315,
+        width: Length | int = Pt(468),
+        height: Length | int = Pt(234),
+        bold: bool = False,
+        italic: bool = False,
+    ) -> List[Watermark]:
+        """Add a text watermark to this section, returning the watermarks added.
+
+        The watermark goes into all three header types — default, first-page and
+        even-page — so it does not vanish on a page that uses a different header::
+
+            section.add_text_watermark("DRAFT")
+            section.add_text_watermark("CONFIDENTIAL", color="FF0000", angle=0)
+
+        `color` is an RGB hex string; Word's own "Semitransparent" watermark is simply a
+        light grey, which is the default here. `opacity` additionally sets true VML
+        transparency, between 0 and 1. `angle` is the rotation in degrees, 315 giving
+        Word's diagonal watermark and 0 a horizontal one.
+
+        The text is stretched to fill a box of `width` by `height`, which is how Word
+        sizes a watermark; the defaults are Word's own. Passing `font_size` renders the
+        text at that size instead of stretching it.
+
+        Where this section's headers are inherited from an earlier section, the
+        watermark is written into the header actually in force, which that earlier
+        section shares. An inherited header is the same header, so there is no way to
+        mark up one section's copy of it alone without first setting
+        `is_linked_to_previous = False`.
+        """
+        from docx.watermark import add_text_watermark, iter_watermark_headers
+
+        return add_text_watermark(
+            iter_watermark_headers([self]),
+            text,
+            font=font,
+            font_size=font_size,
+            color=color,
+            opacity=opacity,
+            angle=angle,
+            width=width,
+            height=height,
+            bold=bold,
+            italic=italic,
+        )
+
+    def add_image_watermark(
+        self,
+        image_path_or_stream: str | IO[bytes],
+        *,
+        width: Length | int | None = None,
+        height: Length | int | None = None,
+        washout: bool = True,
+        scale: float = 1.0,
+    ) -> List[Watermark]:
+        """Add an image watermark to this section, returning the watermarks added.
+
+        As with :meth:`add_text_watermark`, all three header types get the watermark.
+
+        `width` and `height` scale the image the same way :meth:`.Run.add_picture` does,
+        defaulting to its native size; `scale` multiplies whatever that works out to.
+        `washout` applies Word's brightness-and-contrast correction, which is what turns
+        a logo into a pale background image rather than an opaque one over the text.
+        """
+        from docx.watermark import add_image_watermark, iter_watermark_headers
+
+        return add_image_watermark(
+            iter_watermark_headers([self]),
+            image_path_or_stream,
+            width=width,
+            height=height,
+            washout=washout,
+            scale=scale,
+        )
+
+    def remove_watermark(self) -> int:
+        """Remove every watermark from this section, returning how many were removed."""
+        from docx.watermark import iter_watermark_headers, remove_watermarks
+
+        return remove_watermarks(iter_watermark_headers([self]))
+
+    @property
+    def watermarks(self) -> List[Watermark]:
+        """The watermarks in force for this section, in header order.
+
+        Empty when the section has none. Ordinarily one per header type, all saying the
+        same thing; they are separate objects because they are separate shapes in
+        separate headers.
+        """
+        from docx.watermark import iter_watermark_headers, iter_watermarks
+
+        return [w for hdr in iter_watermark_headers([self]) for w in iter_watermarks(hdr)]
 
     def iter_headers_footers(self) -> Iterator[_Header | _Footer]:
         """Generate all six header and footer objects of this section.

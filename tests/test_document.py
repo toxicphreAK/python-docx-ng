@@ -62,9 +62,7 @@ class DescribeDocument:
 
         document_part_.add_alt_chunk_part.assert_called_once_with(expected_blob, "text/html")
         # -- the `w:altChunk` goes after the existing block content --
-        assert document._element.xml == xml(
-            "w:document{r:a=b}/w:body/(w:p,w:altChunk{r:id=rId7})"
-        )
+        assert document._element.xml == xml("w:document{r:a=b}/w:body/(w:p,w:altChunk{r:id=rId7})")
         assert isinstance(alt_chunk, AltChunk)
 
     def and_it_places_the_alt_chunk_before_the_body_sectPr(self, document_part_: Mock):

@@ -17,6 +17,12 @@ nsmap = {
     "dgm": "http://schemas.openxmlformats.org/drawingml/2006/diagram",
     "ep": "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties",
     "m": "http://schemas.openxmlformats.org/officeDocument/2006/math",
+    # -- the VML namespaces. VML is deprecated in favour of DrawingML, but Word still
+    # -- writes it for watermarks and still renders those correctly where the DrawingML
+    # -- equivalent does not, so this is not legacy support but current output. --
+    "o": "urn:schemas-microsoft-com:office:office",
+    "v": "urn:schemas-microsoft-com:vml",
+    "w10": "urn:schemas-microsoft-com:office:word",
     "pic": "http://schemas.openxmlformats.org/drawingml/2006/picture",
     "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
     "sl": "http://schemas.openxmlformats.org/schemaLibrary/2006/main",

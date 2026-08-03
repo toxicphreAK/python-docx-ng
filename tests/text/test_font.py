@@ -99,9 +99,7 @@ class DescribeFont:
             ),
         ],
     )
-    def it_can_change_its_theme_typeface(
-        self, r_cxml: str, value: str, expected_r_cxml: str
-    ):
+    def it_can_change_its_theme_typeface(self, r_cxml: str, value: str, expected_r_cxml: str):
         font = Font(cast(CT_R, element(r_cxml)))
         expected_xml = xml(expected_r_cxml)
 
@@ -178,9 +176,7 @@ class DescribeFont:
             ("w:r/w:rPr/w:shd{w:fill=FF0000}", None, "w:r/w:rPr"),
         ],
     )
-    def it_can_change_its_shading_fill(
-        self, r_cxml: str, value: object, expected_r_cxml: str
-    ):
+    def it_can_change_its_shading_fill(self, r_cxml: str, value: object, expected_r_cxml: str):
         font = Font(cast(CT_R, element(r_cxml)))
         expected_xml = xml(expected_r_cxml)
 
@@ -624,9 +620,7 @@ class DescribeFontTypefaceSlots:
 
         font.name = "Calibri"
 
-        assert font._element.xml == xml(
-            "w:r/w:rPr/w:rFonts{w:ascii=Calibri,w:hAnsi=Calibri}"
-        )
+        assert font._element.xml == xml("w:r/w:rPr/w:rFonts{w:ascii=Calibri,w:hAnsi=Calibri}")
 
     @pytest.mark.parametrize(
         ("prop_name", "value", "expected_r_cxml"),
@@ -676,9 +670,7 @@ class DescribeFontTypefaceSlots:
 
         font.hint = WD_FONT_HINT.EAST_ASIA
 
-        assert font._element.xml == xml(
-            "w:r/w:rPr/w:rFonts{w:hint=eastAsia,w:eastAsia=SimSun}"
-        )
+        assert font._element.xml == xml("w:r/w:rPr/w:rFonts{w:hint=eastAsia,w:eastAsia=SimSun}")
 
     @pytest.mark.parametrize(
         ("r_cxml", "expected_value"),
@@ -717,6 +709,4 @@ class DescribeFontTypefaceSlots:
 
         assert font.size == Pt(10)
         assert font.cs_size == Pt(14)
-        assert font._element.xml == xml(
-            "w:r/w:rPr/(w:sz{w:val=20},w:szCs{w:val=28})"
-        )
+        assert font._element.xml == xml("w:r/w:rPr/(w:sz{w:val=20},w:szCs{w:val=28})")

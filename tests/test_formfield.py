@@ -202,7 +202,7 @@ class DescribeFormField:
         form_field = self._only_field(
             '<w:r><w:rPr><w:i/></w:rPr><w:fldChar w:fldCharType="begin"><w:ffData>'
             "<w:textInput/></w:ffData></w:fldChar></w:r>"
-            '<w:r><w:instrText> FORMTEXT </w:instrText></w:r>'
+            "<w:r><w:instrText> FORMTEXT </w:instrText></w:r>"
             '<w:r><w:fldChar w:fldCharType="end"/></w:r>',
             parent_,
         )
@@ -312,7 +312,7 @@ class DescribeFormField:
             "<w:textInput/></w:ffData></w:fldChar></w:r>"
             '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'
             '<w:r><w:fldChar w:fldCharType="begin"/></w:r>'
-            '<w:r><w:instrText> PAGE </w:instrText></w:r>'
+            "<w:r><w:instrText> PAGE </w:instrText></w:r>"
             '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'
             "<w:r><w:t>7</w:t></w:r>"
             '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
@@ -350,7 +350,7 @@ class DescribeFormFieldDiscovery:
         paragraph = Paragraph(
             _p(
                 '<w:r><w:fldChar w:fldCharType="begin"/></w:r>'
-                '<w:r><w:instrText> PAGE </w:instrText></w:r>'
+                "<w:r><w:instrText> PAGE </w:instrText></w:r>"
                 '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
             ),
             parent_,
@@ -369,7 +369,7 @@ class DescribeCT_FldChar:
     """Unit-test suite for `docx.oxml.text.form.CT_FldChar`."""
 
     def it_knows_the_run_it_belongs_to(self):
-        r = element('w:r/w:fldChar{w:fldCharType=begin}')
+        r = element("w:r/w:fldChar{w:fldCharType=begin}")
         fldChar = cast(CT_FldChar, r[0])
 
         assert fldChar.r is r
@@ -378,4 +378,3 @@ class DescribeCT_FldChar:
         fldChar = cast(CT_FldChar, element("w:fldChar{w:fldCharType=begin}"))
 
         assert fldChar.r is None
-

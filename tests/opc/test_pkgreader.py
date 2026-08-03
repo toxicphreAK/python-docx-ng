@@ -562,9 +562,7 @@ class DescribeDanglingRelationshipLoading:
         assert document.part.rels["rIdExternal"].is_external is True
         assert document.part.part_related_by(RT.STYLES) is not None
 
-    def it_saves_a_loadable_document_without_the_bad_relationship(
-        self, dangling_docx: io.BytesIO
-    ):
+    def it_saves_a_loadable_document_without_the_bad_relationship(self, dangling_docx: io.BytesIO):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DanglingRelationshipWarning)
             document = docx.Document(dangling_docx)
