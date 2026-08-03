@@ -11,6 +11,7 @@ from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.opc.coreprops import CoreProperties
 from docx.opc.packuri import PackURI
 from docx.package import Package
+from docx.parts.altchunk import AltChunkPart
 from docx.parts.comments import CommentsPart
 from docx.parts.document import DocumentPart
 from docx.parts.hdrftr import FooterPart, HeaderPart
@@ -33,6 +34,21 @@ from ..unitutil.mock import (
 
 
 class DescribeDocumentPart:
+    def it_can_add_an_alt_chunk_part(
+        self, package_: Mock, AltChunkPart_: Mock, alt_chunk_part_: Mock, relate_to_: Mock
+    ):
+        AltChunkPart_.new.return_value = alt_chunk_part_
+        relate_to_.return_value = "rId9"
+        document_part = DocumentPart(
+            PackURI("/word/document.xml"), CT.WML_DOCUMENT, element("w:document"), package_
+        )
+
+        rId = document_part.add_alt_chunk_part(b"<html/>", "text/html")
+
+        AltChunkPart_.new.assert_called_once_with(package_, b"<html/>", "text/html")
+        relate_to_.assert_called_once_with(document_part, alt_chunk_part_, RT.A_F_CHUNK)
+        assert rId == "rId9"
+
     def it_can_add_a_footer_part(
         self, package_: Mock, FooterPart_: Mock, footer_part_: Mock, relate_to_: Mock
     ):
@@ -347,6 +363,14 @@ class DescribeDocumentPart:
     @pytest.fixture
     def core_properties_(self, request: FixtureRequest):
         return instance_mock(request, CoreProperties)
+
+    @pytest.fixture
+    def AltChunkPart_(self, request: FixtureRequest):
+        return class_mock(request, "docx.parts.document.AltChunkPart")
+
+    @pytest.fixture
+    def alt_chunk_part_(self, request: FixtureRequest):
+        return instance_mock(request, AltChunkPart)
 
     @pytest.fixture
     def drop_rel_(self, request: FixtureRequest):

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import IO, TYPE_CHECKING, Iterator, List, Sequence
 
+from docx.altchunk import AltChunk
 from docx.blkcntnr import BlockItemContainer
 from docx.bookmark import Bookmarks
 from docx.enum.section import WD_SECTION
@@ -41,6 +42,27 @@ class Document(ElementProxy):
         self._element = element
         self._part = part
         self.__body = None
+
+    def add_alt_chunk(self, chunk: bytes | str | IO[bytes], content_type: str) -> AltChunk:
+        """Return an |AltChunk| newly added at the end of the document body.
+
+        `chunk` is the embedded document, given as bytes, as a path to a file, or as a
+        file-like object open for binary read. `content_type` states its format, e.g.
+        `"text/html"`, `"application/rtf"` or
+        `"application/vnd.openxmlformats-officedocument.wordprocessingml.document"`;
+        Word chooses an importer from it, so it must be right.
+
+        Word performs the import when it opens the document, which means the embedded
+        content is not visible to this library. Its paragraphs and tables do not appear
+        in `Document.paragraphs`, `Document.tables` or `Document.iter_inner_content()`,
+        and it contributes no styles, numbering or images to this document until Word
+        has rewritten the file.
+        """
+        blob = chunk if isinstance(chunk, bytes) else _read_blob(chunk)
+        rId = self._part.add_alt_chunk_part(blob, content_type)
+        altChunk = self._element.body.add_altChunk()
+        altChunk.rId = rId
+        return AltChunk(altChunk, self._part)
 
     def add_comment(
         self,
@@ -177,6 +199,15 @@ class Document(ElementProxy):
         table = self._body.add_table(rows, cols, self._block_width)
         table.style = style
         return table
+
+    @property
+    def alt_chunks(self) -> List[AltChunk]:
+        """The |AltChunk| objects in the document body, in document order.
+
+        Only alt-chunks that are direct children of the body appear here; the schema
+        also allows one inside a table cell or other block container.
+        """
+        return [AltChunk(altChunk, self._part) for altChunk in self._element.body.altChunk_lst]
 
     @lazyproperty
     def bookmarks(self) -> Bookmarks:
@@ -373,3 +404,11 @@ def _document_content_type(content_type: str, as_template: bool) -> str:
         else _DOCUMENT_CONTENT_TYPE_BY_TEMPLATE
     )
     return mapping.get(content_type, content_type)
+
+
+def _read_blob(chunk: str | IO[bytes]) -> bytes:
+    """The bytes of `chunk`, a path to a file or a file-like object open for read."""
+    if isinstance(chunk, str):
+        with open(chunk, "rb") as f:
+            return f.read()
+    return chunk.read()

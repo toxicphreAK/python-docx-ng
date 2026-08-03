@@ -21,6 +21,24 @@ The main Document and related objects.
    :exclude-members: styles_part
 
 
+|AltChunk| objects
+------------------
+
+An *alt-chunk* embeds a document in some format other than WordprocessingML — HTML,
+RTF, plain text, MHTML, or another ``.docx`` — for Word to convert and splice in at
+that position when it opens the file.
+
+The conversion is Word's and it happens on open, so the embedded content is opaque to
+|docx|. Its paragraphs and tables do not appear in :attr:`Document.paragraphs`,
+:attr:`Document.tables` or :meth:`Document.iter_inner_content`, and it contributes no
+styles, numbering or images to the document until Word has rewritten the file::
+
+    document.add_alt_chunk(b"<html><body><p>Imported.</p></body></html>", "text/html")
+
+.. autoclass:: docx.altchunk.AltChunk()
+   :members:
+
+
 |CoreProperties| objects
 -------------------------
 

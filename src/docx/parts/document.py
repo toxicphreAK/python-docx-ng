@@ -6,6 +6,7 @@ from typing import IO, TYPE_CHECKING, cast
 
 from docx.document import Document
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from docx.parts.altchunk import AltChunkPart
 from docx.parts.comments import CommentsPart
 from docx.parts.hdrftr import FooterPart, HeaderPart
 from docx.parts.numbering import NumberingPart
@@ -31,6 +32,16 @@ class DocumentPart(StoryPart):
     involving a remote ancestor. The `Parented.part` property inherited by many content
     objects provides access to this part object for that purpose.
     """
+
+    def add_alt_chunk_part(self, blob: bytes, content_type: str) -> str:
+        """Return the rId of a newly-created alt-chunk part holding `blob`.
+
+        Each call adds a new part; alt-chunk content is not deduplicated the way image
+        content is, because two embedded documents with identical bytes are rare and
+        Word rewrites them independently on import.
+        """
+        alt_chunk_part = AltChunkPart.new(self.package, blob, content_type)
+        return self.relate_to(alt_chunk_part, RT.A_F_CHUNK)
 
     def add_footer_part(self):
         """Return (footer_part, rId) pair for newly-created footer part."""

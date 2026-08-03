@@ -5,10 +5,12 @@
 
 from __future__ import annotations
 
+import io
 from typing import cast
 
 import pytest
 
+from docx.altchunk import AltChunk
 from docx.comments import Comment, Comments
 from docx.document import Document, _Body
 from docx.enum.section import WD_SECTION
@@ -38,6 +40,52 @@ from .unitutil.mock import (
 
 class DescribeDocument:
     """Unit-test suite for `docx.document.Document`."""
+
+    @pytest.mark.parametrize(
+        ("chunk", "expected_blob"),
+        [
+            (b"<html/>", b"<html/>"),
+            (io.BytesIO(b"<html/>"), b"<html/>"),
+        ],
+    )
+    def it_can_add_an_alt_chunk(
+        self, chunk: bytes | io.BytesIO, expected_blob: bytes, document_part_: Mock
+    ):
+        document_part_.add_alt_chunk_part.return_value = "rId7"
+        # -- `{r:a=b}` only declares the `r` prefix on the root, as a real document does --
+        document = Document(
+            cast(CT_Document, element("w:document{r:a=b}/w:body/w:p")), document_part_
+        )
+
+        alt_chunk = document.add_alt_chunk(chunk, "text/html")
+
+        document_part_.add_alt_chunk_part.assert_called_once_with(expected_blob, "text/html")
+        # -- the `w:altChunk` goes after the existing block content --
+        assert document._element.xml == xml(
+            "w:document{r:a=b}/w:body/(w:p,w:altChunk{r:id=rId7})"
+        )
+        assert isinstance(alt_chunk, AltChunk)
+
+    def and_it_places_the_alt_chunk_before_the_body_sectPr(self, document_part_: Mock):
+        document_part_.add_alt_chunk_part.return_value = "rId7"
+        document = Document(
+            cast(CT_Document, element("w:document{r:a=b}/w:body/(w:p,w:sectPr)")), document_part_
+        )
+
+        document.add_alt_chunk(b"<html/>", "text/html")
+
+        assert document._element.xml == xml(
+            "w:document{r:a=b}/w:body/(w:p,w:altChunk{r:id=rId7},w:sectPr)"
+        )
+
+    def it_provides_access_to_its_alt_chunks(self, document_part_: Mock):
+        body_cxml = "w:document/w:body/(w:altChunk{r:id=rId4},w:p,w:altChunk{r:id=rId5})"
+        document = Document(cast(CT_Document, element(body_cxml)), document_part_)
+
+        alt_chunks = document.alt_chunks
+
+        assert [a._altChunk.rId for a in alt_chunks] == ["rId4", "rId5"]
+        assert all(isinstance(a, AltChunk) for a in alt_chunks)
 
     def it_can_add_a_comment(
         self,

@@ -111,8 +111,9 @@ from .extendedprops import CT_ExtendedProperties
 
 register_element_cls("ep:Properties", CT_ExtendedProperties)
 
-from .document import CT_Body, CT_Document
+from .document import CT_AltChunk, CT_Body, CT_Document
 
+register_element_cls("w:altChunk", CT_AltChunk)
 register_element_cls("w:body", CT_Body)
 register_element_cls("w:document", CT_Document)
 

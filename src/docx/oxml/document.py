@@ -6,11 +6,24 @@ from typing import TYPE_CHECKING, Callable, List
 
 from docx.oxml.sdt import iter_block_content
 from docx.oxml.section import CT_SectPr
-from docx.oxml.xmlchemy import BaseOxmlElement, ZeroOrMore, ZeroOrOne
+from docx.oxml.simpletypes import ST_RelationshipId
+from docx.oxml.xmlchemy import BaseOxmlElement, OptionalAttribute, ZeroOrMore, ZeroOrOne
 
 if TYPE_CHECKING:
     from docx.oxml.table import CT_Tbl
     from docx.oxml.text.paragraph import CT_P
+
+
+class CT_AltChunk(BaseOxmlElement):
+    """`w:altChunk` element, an embedded document Word imports when it opens the file.
+
+    The `r:id` attribute is optional in the schema; an alt-chunk without one names no
+    content and Word ignores it.
+    """
+
+    rId: str | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "r:id", ST_RelationshipId
+    )
 
 
 class CT_Document(BaseOxmlElement):
@@ -36,13 +49,18 @@ class CT_Document(BaseOxmlElement):
 class CT_Body(BaseOxmlElement):
     """`w:body`, the container element for the main document story in `document.xml`."""
 
+    add_altChunk: Callable[[], CT_AltChunk]
     add_p: Callable[[], CT_P]
+    altChunk_lst: List[CT_AltChunk]
     get_or_add_sectPr: Callable[[], CT_SectPr]
     p_lst: List[CT_P]
     tbl_lst: List[CT_Tbl]
 
     _insert_tbl: Callable[[CT_Tbl], CT_Tbl]
 
+    # -- `w:altChunk` is a block-level sibling of `w:p` and `w:tbl` in `EG_BlockLevelElts`,
+    # -- so like them it goes anywhere before the body-level `w:sectPr` --
+    altChunk = ZeroOrMore("w:altChunk", successors=("w:sectPr",))
     p = ZeroOrMore("w:p", successors=("w:sectPr",))
     tbl = ZeroOrMore("w:tbl", successors=("w:sectPr",))
     sectPr: CT_SectPr | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]

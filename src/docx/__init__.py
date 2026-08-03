@@ -27,6 +27,7 @@ from docx.opc.part import PartFactory
 from docx.opc.parts.coreprops import CorePropertiesPart
 from docx.opc.parts.customprops import CustomPropertiesPart
 from docx.opc.parts.extendedprops import ExtendedPropertiesPart
+from docx.parts.altchunk import AltChunkPart
 from docx.parts.comments import CommentsPart
 from docx.parts.document import DocumentPart
 from docx.parts.hdrftr import FooterPart, HeaderPart
@@ -39,6 +40,10 @@ from docx.parts.styles import StylesPart
 def part_class_selector(content_type: str, reltype: str) -> Type[Part] | None:
     if reltype == RT.IMAGE:
         return ImagePart
+    # -- an alt-chunk part carries whatever content type the embedded format has, so it
+    # -- can only be recognized by the relationship that reaches it --
+    if reltype == RT.A_F_CHUNK:
+        return AltChunkPart
     return None
 
 
