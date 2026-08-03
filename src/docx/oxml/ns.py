@@ -7,6 +7,7 @@ from typing import Dict
 
 nsmap = {
     "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
+    "asvg": "http://schemas.microsoft.com/office/drawing/2016/SVG/main",
     "c": "http://schemas.openxmlformats.org/drawingml/2006/chart",
     "cp": "http://schemas.openxmlformats.org/package/2006/metadata/core-properties",
     "cust": "http://schemas.openxmlformats.org/officeDocument/2006/custom-properties",

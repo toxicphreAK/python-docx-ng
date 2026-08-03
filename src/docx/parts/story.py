@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import IO, TYPE_CHECKING, Tuple, cast
 
+from docx.image.constants import MIME_TYPE
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.opc.part import XmlPart
 from docx.oxml.shape import CT_Inline
@@ -76,18 +77,36 @@ class StoryPart(XmlPart):
         height: int | Length | None = None,
         description: str | None = None,
         title: str | None = None,
+        svg_fallback: str | IO[bytes] | None = None,
     ) -> CT_Inline:
         """Return a newly-created `w:inline` element.
 
         The element contains the image specified by `image_descriptor` and is scaled
         based on the values of `width` and `height`. `description` and `title` are the
-        alternative text of the picture.
+        alternative text of the picture. `svg_fallback` is the raster image to show in
+        place of an SVG where the SVG cannot be rendered.
         """
         rId, image = self.get_or_add_image(image_descriptor)
+        svg_rId = None
+        if image.content_type == MIME_TYPE.SVG:
+            # -- the vector source goes on the extension; the raster blip alongside it
+            # -- is what a consumer that does not understand the extension renders --
+            svg_rId = rId
+            if svg_fallback is not None:
+                rId, _ = self.get_or_add_image(svg_fallback)
+        # -- dimensions always come from the SVG, which is what states the intended
+        # -- display size; the fallback is only ever a rendering of it --
         cx, cy = image.scaled_dimensions(width, height)
         shape_id, filename = self.next_id, image.filename
         return CT_Inline.new_pic_inline(
-            shape_id, rId, filename, cx, cy, description=description, title=title
+            shape_id,
+            rId,
+            filename,
+            cx,
+            cy,
+            description=description,
+            title=title,
+            svg_rId=svg_rId,
         )
 
     @property

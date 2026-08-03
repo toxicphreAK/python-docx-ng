@@ -41,6 +41,29 @@ class CT_Blip(BaseOxmlElement):
         "r:link", ST_RelationshipId
     )
 
+    @property
+    def svgBlip(self) -> CT_SvgBlip | None:
+        """The `asvg:svgBlip` extension of this blip, or |None| when there is none.
+
+        Reached by xpath rather than a declared child, because `a:ext` is already
+        registered as the extent element of `a:xfrm` and lxml dispatches on tag name
+        alone; the same tag means two different things in DrawingML.
+        """
+        matches = self.xpath("./a:extLst/a:ext/asvg:svgBlip")
+        return matches[0] if matches else None
+
+
+class CT_SvgBlip(BaseOxmlElement):
+    """`<asvg:svgBlip>` element, the SVG source of a picture.
+
+    A Word 2016 extension. It accompanies rather than replaces the raster blip: a
+    consumer that does not understand the extension renders the raster one instead.
+    """
+
+    embed: str | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "r:embed", ST_RelationshipId
+    )
+
 
 class CT_BlipFillProperties(BaseOxmlElement):
     """``<pic:blipFill>`` element, specifies picture properties."""
@@ -99,15 +122,17 @@ class CT_Inline(BaseOxmlElement):
         cy: Length,
         description: str | None = None,
         title: str | None = None,
+        svg_rId: str | None = None,
     ) -> CT_Inline:
         """Create `wp:inline` element containing a `pic:pic` element.
 
         The contents of the `pic:pic` element is taken from the argument values.
         `description` and `title` are the alternative text of the picture and are
-        omitted when |None|.
+        omitted when |None|. `svg_rId`, when given, identifies the SVG source of the
+        picture, making `rId` its raster fallback.
         """
         pic_id = 0  # Word doesn't seem to use this, but does not omit it
-        pic = CT_Picture.new(pic_id, filename, rId, cx, cy)
+        pic = CT_Picture.new(pic_id, filename, rId, cx, cy, svg_rId=svg_rId)
         inline = cls.new(cx, cy, shape_id, pic)
         if description is not None:
             inline.docPr.descr = description
@@ -165,15 +190,68 @@ class CT_Picture(BaseOxmlElement):
     spPr: CT_ShapeProperties = OneAndOnlyOne("pic:spPr")  # pyright: ignore[reportAssignmentType]
 
     @classmethod
-    def new(cls, pic_id: int, filename: str, rId: str, cx: Length, cy: Length) -> CT_Picture:
-        """A new minimum viable `<pic:pic>` (picture) element."""
-        pic = parse_xml(cls._pic_xml())
+    def new(
+        cls,
+        pic_id: int,
+        filename: str,
+        rId: str,
+        cx: Length,
+        cy: Length,
+        svg_rId: str | None = None,
+    ) -> CT_Picture:
+        """A new minimum viable `<pic:pic>` (picture) element.
+
+        `rId` identifies the image the raster blip refers to. When `svg_rId` is given
+        the picture also carries an `asvg:svgBlip` extension referring to that SVG, and
+        `rId` is the raster fallback shown by anything that does not understand the
+        extension.
+        """
+        pic = parse_xml(cls._pic_xml_svg() if svg_rId else cls._pic_xml())
         pic.nvPicPr.cNvPr.id = pic_id
         pic.nvPicPr.cNvPr.name = filename
         pic.blipFill.blip.embed = rId
+        if svg_rId:
+            svgBlip = pic.blipFill.blip.svgBlip
+            assert svgBlip is not None
+            svgBlip.embed = svg_rId
         pic.spPr.cx = cx
         pic.spPr.cy = cy
         return pic
+
+    @classmethod
+    def _pic_xml_svg(cls):
+        """The `pic:pic` XML for a picture whose source is an SVG.
+
+        The extension `uri` is the fixed GUID Word writes for the SVG extension; a
+        consumer matches on it to find the vector source.
+        """
+        return (
+            "<pic:pic %s>\n"
+            "  <pic:nvPicPr>\n"
+            '    <pic:cNvPr id="666" name="unnamed"/>\n'
+            "    <pic:cNvPicPr/>\n"
+            "  </pic:nvPicPr>\n"
+            "  <pic:blipFill>\n"
+            "    <a:blip>\n"
+            "      <a:extLst>\n"
+            '        <a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}">\n'
+            "          <asvg:svgBlip/>\n"
+            "        </a:ext>\n"
+            "      </a:extLst>\n"
+            "    </a:blip>\n"
+            "    <a:stretch>\n"
+            "      <a:fillRect/>\n"
+            "    </a:stretch>\n"
+            "  </pic:blipFill>\n"
+            "  <pic:spPr>\n"
+            "    <a:xfrm>\n"
+            '      <a:off x="0" y="0"/>\n'
+            '      <a:ext cx="914400" cy="914400"/>\n'
+            "    </a:xfrm>\n"
+            '    <a:prstGeom prst="rect"/>\n'
+            "  </pic:spPr>\n"
+            "</pic:pic>" % nsdecls("pic", "a", "r", "asvg")
+        )
 
     @classmethod
     def _pic_xml(cls):

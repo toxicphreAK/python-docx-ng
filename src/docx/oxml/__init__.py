@@ -22,6 +22,7 @@ from docx.oxml.shape import (
     CT_Point2D,
     CT_PositiveSize2D,
     CT_ShapeProperties,
+    CT_SvgBlip,
     CT_Transform2D,
 )
 from docx.oxml.shared import CT_DecimalNumber, CT_OnOff, CT_String
@@ -50,6 +51,7 @@ register_element_cls("a:graphic", CT_GraphicalObject)
 register_element_cls("a:graphicData", CT_GraphicalObjectData)
 register_element_cls("a:off", CT_Point2D)
 register_element_cls("a:xfrm", CT_Transform2D)
+register_element_cls("asvg:svgBlip", CT_SvgBlip)
 register_element_cls("pic:blipFill", CT_BlipFillProperties)
 register_element_cls("pic:cNvPr", CT_NonVisualDrawingProps)
 register_element_cls("pic:nvPicPr", CT_PictureNonVisual)

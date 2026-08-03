@@ -65,6 +65,7 @@ class Run(StoryChild):
         height: int | Length | None = None,
         description: str | None = None,
         title: str | None = None,
+        svg_fallback: str | IO[bytes] | None = None,
     ) -> InlineShape:
         """Return |InlineShape| containing image identified by `image_path_or_stream`.
 
@@ -84,9 +85,21 @@ class Run(StoryChild):
         announces and what an accessibility check looks for. `title` is the separate,
         rarely-used caption-like field Word writes alongside it. Both are omitted from
         the XML when |None|.
+
+        `svg_fallback` applies only when the picture is an SVG. Word records an SVG
+        alongside a raster rendering of it and shows the raster one wherever the vector
+        source cannot be used, so passing a PNG or JPEG here is what makes the picture
+        appear in an older Word, in a PDF export from some tools, and anywhere else the
+        SVG extension is not understood. Without it the fallback refers to the SVG
+        itself, which Word 2016 and later render but earlier versions do not.
         """
         inline = self.part.new_pic_inline(
-            image_path_or_stream, width, height, description=description, title=title
+            image_path_or_stream,
+            width,
+            height,
+            description=description,
+            title=title,
+            svg_fallback=svg_fallback,
         )
         self._r.add_drawing(inline)
         return InlineShape(inline)

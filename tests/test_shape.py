@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import io
 from typing import cast
 
 import pytest
@@ -15,7 +16,7 @@ from docx.oxml.document import CT_Body
 from docx.oxml.ns import nsmap
 from docx.oxml.shape import CT_Inline
 from docx.shape import InlineShape, InlineShapes
-from docx.shared import Emu, Length
+from docx.shared import Emu, Inches, Length
 
 from .unitutil.cxml import element, xml
 from .unitutil.file import test_file
@@ -194,3 +195,101 @@ class DescribeInlineShapeAltText:
 
         assert shape.description == "A snake"
         assert shape.title is None
+
+
+class DescribeSvgPictureInsertion:
+    """An SVG picture carries its vector source in an extension of a raster blip."""
+
+    def it_writes_an_svgBlip_extension_alongside_the_blip(self):
+        document = docx.Document()
+
+        shape = document.add_picture(test_file("python-logo.svg"))
+
+        blip = shape._inline.graphic.graphicData.pic.blipFill.blip
+        assert blip.svgBlip is not None
+        # -- the extension uri is the fixed GUID a consumer matches on --
+        assert blip.xpath("./a:extLst/a:ext/@uri") == [
+            "{96DAC541-7B7A-43D3-8B79-37D633B846F1}"
+        ]
+
+    def it_points_the_fallback_blip_at_the_svg_when_no_fallback_is_given(self):
+        """Word 2016 and later render this; earlier versions show nothing."""
+        document = docx.Document()
+
+        shape = document.add_picture(test_file("python-logo.svg"))
+
+        blip = shape._inline.graphic.graphicData.pic.blipFill.blip
+        assert blip.embed == blip.svgBlip.embed
+
+    def it_points_the_fallback_blip_at_the_fallback_image_when_given_one(self):
+        document = docx.Document()
+
+        shape = document.add_picture(
+            test_file("python-logo.svg"), svg_fallback=test_file("monty-truth.png")
+        )
+
+        blip = shape._inline.graphic.graphicData.pic.blipFill.blip
+        assert blip.embed != blip.svgBlip.embed
+        # -- the raster part is a second image part, not a second reference to the SVG --
+        rels = document.part.rels
+        assert rels[blip.embed].target_part.partname.ext == "png"
+        assert rels[blip.svgBlip.embed].target_part.partname.ext == "svg"
+
+    def it_sizes_the_picture_from_the_svg_not_the_fallback(self):
+        """The SVG states the intended size; the fallback is only a rendering of it."""
+        document = docx.Document()
+
+        shape = document.add_picture(
+            test_file("python-logo.svg"), svg_fallback=test_file("monty-truth.png")
+        )
+
+        assert shape.width == Inches(2)
+        assert shape.height == Inches(1)
+
+    def it_writes_no_svgBlip_for_a_raster_picture(self):
+        document = docx.Document()
+
+        shape = document.add_picture(test_file("monty-truth.png"))
+
+        blip = shape._inline.graphic.graphicData.pic.blipFill.blip
+        assert blip.svgBlip is None
+        assert blip.embed is not None
+
+    @pytest.mark.parametrize(
+        ("filename", "expected_extension"),
+        [
+            ("python-logo.svg", "svg"),
+            ("frame-2x1in.emf", "emf"),
+            ("CVS_LOGO.WMF", "WMF"),
+        ],
+    )
+    def it_declares_the_content_type_of_a_vector_part(
+        self, filename: str, expected_extension: str
+    ):
+        """A part with no content type declared is a document Word refuses to open."""
+        import zipfile
+
+        document = docx.Document()
+        document.add_picture(test_file(filename))
+
+        stream = io.BytesIO()
+        document.save(stream)
+        with zipfile.ZipFile(stream) as z:
+            content_types = z.read("[Content_Types].xml").decode("utf-8")
+
+        assert 'Extension="%s"' % expected_extension.lower() in content_types
+
+    def it_survives_a_round_trip(self):
+        document = docx.Document()
+        document.add_picture(
+            test_file("python-logo.svg"), svg_fallback=test_file("monty-truth.png")
+        )
+
+        stream = io.BytesIO()
+        document.save(stream)
+        stream.seek(0)
+
+        shape = docx.Document(stream).inline_shapes[0]
+        blip = shape._inline.graphic.graphicData.pic.blipFill.blip
+        assert blip.svgBlip is not None
+        assert shape.width == Inches(2)

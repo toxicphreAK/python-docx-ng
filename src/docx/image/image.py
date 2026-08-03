@@ -166,20 +166,34 @@ class Image:
 
 
 def _ImageHeaderFactory(stream: IO[bytes]):
-    """A |BaseImageHeader| subclass instance that can parse headers of image in `stream`."""
-    from docx.image import SIGNATURES
+    """A |BaseImageHeader| subclass instance that can parse headers of image in `stream`.
 
-    def read_32(stream: IO[bytes]):
-        stream.seek(0)
-        return stream.read(32)
+    Most formats are identified by a magic number at a fixed offset. A format that has
+    no such number — SVG, being XML — is identified by a sniffer function instead, and
+    only after every signature has failed to match, so sniffing can never shadow an
+    exact identification.
+    """
+    from docx.image import SIGNATURES, SNIFFERS
 
-    header = read_32(stream)
+    stream.seek(0)
+    header = stream.read(_HEADER_SAMPLE_LENGTH)
+
     for cls, offset, signature_bytes in SIGNATURES:
         end = offset + len(signature_bytes)
-        found_bytes = header[offset:end]
-        if found_bytes == signature_bytes:
+        if header[offset:end] == signature_bytes:
             return cls.from_stream(stream)
+
+    for cls, sniff in SNIFFERS:
+        if sniff(header):
+            return cls.from_stream(stream)
+
     raise UnrecognizedImageError
+
+
+# -- how much of a file to sample for format detection. A signature match needs only the
+# -- first 44 bytes, but a sniffer may have to look past an XML declaration, a DOCTYPE
+# -- and comments to find the root element. --
+_HEADER_SAMPLE_LENGTH = 4096
 
 
 class BaseImageHeader:

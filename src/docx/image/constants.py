@@ -101,11 +101,14 @@ class MIME_TYPE:
     """Image content types."""
 
     BMP = "image/bmp"
+    EMF = "image/x-emf"
     GIF = "image/gif"
     JPEG = "image/jpeg"
     PNG = "image/png"
+    SVG = "image/svg+xml"
     TIFF = "image/tiff"
     WEBP = "image/webp"
+    WMF = "image/x-wmf"
 
 
 class PNG_CHUNK_TYPE:

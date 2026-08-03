@@ -13,18 +13,22 @@ Feature: Characterize an image file
       And the image has <vert_dpi> vertical dpi
 
    Examples: Image file characteristics
-     | filename           | mime_type  | cx   | cy   | horz_dpi | vert_dpi |
-     | test.png           | image/png  | 901  | 1350 | 150      | 150      |
-     | monty-truth.png    | image/png  | 150  | 214  | 72       | 72       |
-     | jfif-300-dpi.jpg   | image/jpeg | 1504 | 1936 | 300      | 300      |
-     | lena_std.jpg       | image/jpeg | 512  | 512  | 72       | 72       |
-     | lena.tif           | image/tiff | 512  | 512  | 72       | 72       |
-     | sample.tif         | image/tiff | 1600 | 2100 | 200      | 200      |
-     | jpeg420exif.jpg    | image/jpeg | 2048 | 1536 | 72       | 72       |
-     | court-exif.jpg     | image/jpeg | 500  | 375  | 256      | 256      |
-     | lena.gif           | image/gif  | 256  | 256  | 72       | 72       |
-     | lena.bmp           | image/bmp  | 512  | 512  | 96       | 96       |
-     | mountain.bmp       | image/bmp  | 640  | 480  | 300      | 300      |
-     | webp-lossy.webp    | image/webp | 150  | 214  | 72       | 72       |
-     | webp-lossless.webp | image/webp | 24   | 24   | 72       | 72       |
-     | webp-extended.webp | image/webp | 150  | 214  | 72       | 72       |
+     | filename           | mime_type     | cx   | cy   | horz_dpi | vert_dpi |
+     | test.png           | image/png     | 901  | 1350 | 150      | 150      |
+     | monty-truth.png    | image/png     | 150  | 214  | 72       | 72       |
+     | jfif-300-dpi.jpg   | image/jpeg    | 1504 | 1936 | 300      | 300      |
+     | lena_std.jpg       | image/jpeg    | 512  | 512  | 72       | 72       |
+     | lena.tif           | image/tiff    | 512  | 512  | 72       | 72       |
+     | sample.tif         | image/tiff    | 1600 | 2100 | 200      | 200      |
+     | jpeg420exif.jpg    | image/jpeg    | 2048 | 1536 | 72       | 72       |
+     | court-exif.jpg     | image/jpeg    | 500  | 375  | 256      | 256      |
+     | lena.gif           | image/gif     | 256  | 256  | 72       | 72       |
+     | lena.bmp           | image/bmp     | 512  | 512  | 96       | 96       |
+     | mountain.bmp       | image/bmp     | 640  | 480  | 300      | 300      |
+     | webp-lossy.webp    | image/webp    | 150  | 214  | 72       | 72       |
+     | webp-lossless.webp | image/webp    | 24   | 24   | 72       | 72       |
+     | webp-extended.webp | image/webp    | 150  | 214  | 72       | 72       |
+     | python-logo.svg    | image/svg+xml | 192  | 96   | 96       | 96       |
+     | icon-viewbox.svg   | image/svg+xml | 24   | 24   | 96       | 96       |
+     | frame-2x1in.emf    | image/x-emf   | 192  | 96   | 96       | 96       |
+     | CVS_LOGO.WMF       | image/x-wmf   | 199  | 79   | 96       | 96       |

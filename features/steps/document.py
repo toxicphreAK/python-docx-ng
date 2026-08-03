@@ -299,3 +299,45 @@ def then_the_custom_property_survives_a_round_trip(context):
     context.document.save(stream)
     stream.seek(0)
     assert Document(stream).custom_properties["Matter number"] == 4242
+
+
+@when("I add a picture of the file '{filename}'")
+def when_add_a_picture_of_the_file(context, filename):
+    context.picture = context.document.add_picture(test_file(filename))
+
+
+@when("I add an SVG picture specifying a raster fallback")
+def when_add_an_svg_picture_with_a_fallback(context):
+    context.picture = context.document.add_picture(
+        test_file("python-logo.svg"), svg_fallback=test_file("monty-truth.png")
+    )
+
+
+@then("the picture part has content type '{mime_type}'")
+def then_the_picture_part_has_content_type(context, mime_type):
+    blip = context.picture._inline.graphic.graphicData.pic.blipFill.blip
+    rId = blip.svgBlip.embed if blip.svgBlip is not None else blip.embed
+    part = context.document.part.rels[rId].target_part
+    assert part.content_type == mime_type, part.content_type
+
+
+@then("the picture refers to the SVG through an svgBlip extension")
+def then_the_picture_refers_to_the_svg_through_an_svgBlip(context):
+    blip = context.picture._inline.graphic.graphicData.pic.blipFill.blip
+    assert blip.svgBlip is not None
+    svg_part = context.document.part.rels[blip.svgBlip.embed].target_part
+    assert svg_part.content_type == "image/svg+xml"
+
+
+@then("the fallback blip refers to the raster image")
+def then_the_fallback_blip_refers_to_the_raster_image(context):
+    blip = context.picture._inline.graphic.graphicData.pic.blipFill.blip
+    fallback_part = context.document.part.rels[blip.embed].target_part
+    assert fallback_part.content_type == "image/png", fallback_part.content_type
+
+
+@then("the picture is {inches} inches wide")
+def then_the_picture_is_inches_wide(context, inches):
+    from docx.shared import Inches
+
+    assert context.picture.width == Inches(float(inches)), context.picture.width

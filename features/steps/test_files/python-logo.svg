@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- a simple SVG with absolute width and height in points -->
+<svg xmlns="http://www.w3.org/2000/svg" width="144pt" height="72pt" viewBox="0 0 192 96">
+  <rect x="0" y="0" width="192" height="96" fill="#4584b6"/>
+  <circle cx="96" cy="48" r="32" fill="#ffde57"/>
+</svg>

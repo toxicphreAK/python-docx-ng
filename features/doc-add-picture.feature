@@ -35,3 +35,22 @@ Feature: Append an inline picture in its own paragraph
      When I add a picture specifying alt text
      Then picture.description is the alt text I specified
       And picture.title is the title I specified
+
+
+  Scenario Outline: Add a vector picture
+    Given a blank document
+     When I add a picture of the file '<filename>'
+     Then the picture is <width> inches wide
+      And the picture part has content type '<mime_type>'
+
+    Examples: Vector image formats
+      | filename        | width | mime_type     |
+      | python-logo.svg | 2.0   | image/svg+xml |
+      | frame-2x1in.emf | 2.0   | image/x-emf   |
+
+
+  Scenario: Add an SVG picture with a raster fallback
+    Given a blank document
+     When I add an SVG picture specifying a raster fallback
+     Then the picture refers to the SVG through an svgBlip extension
+      And the fallback blip refers to the raster image

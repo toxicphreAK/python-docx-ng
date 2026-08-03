@@ -129,6 +129,7 @@ class Document(ElementProxy):
         height: int | Length | None = None,
         description: str | None = None,
         title: str | None = None,
+        svg_fallback: str | IO[bytes] | None = None,
     ):
         """Return new picture shape added in its own paragraph at end of the document.
 
@@ -143,10 +144,18 @@ class Document(ElementProxy):
         `description` is the picture's alternative text, which is what a screen reader
         announces and what an accessibility check looks for; `title` is the separate
         caption-like field Word writes alongside it.
+
+        `svg_fallback` is the raster image shown in place of an SVG wherever the vector
+        source cannot be rendered; see `Run.add_picture()`.
         """
         run = self.add_paragraph().add_run()
         return run.add_picture(
-            image_path_or_stream, width, height, description=description, title=title
+            image_path_or_stream,
+            width,
+            height,
+            description=description,
+            title=title,
+            svg_fallback=svg_fallback,
         )
 
     def add_section(self, start_type: WD_SECTION = WD_SECTION.NEW_PAGE):

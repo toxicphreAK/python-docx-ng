@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- an icon meant to scale: percentage width/height, size only in the viewBox -->
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24">
+  <path d="M4 4 L20 20 M20 4 L4 20" stroke="#333" stroke-width="2" fill="none"/>
+</svg>
