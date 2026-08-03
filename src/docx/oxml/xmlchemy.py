@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Callable, Sequence, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Dict, Sequence, Type, TypeVar
 
 from lxml import etree
 from lxml.etree import ElementBase, _Element  # pyright: ignore[reportPrivateUsage]
@@ -684,12 +684,20 @@ class BaseOxmlElement(etree.ElementBase, metaclass=MetaOxmlElement):
         """
         return serialize_for_reading(self)
 
-    def xpath(self, xpath_str: str) -> Any:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def xpath(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self, xpath_str: str, namespaces: Dict[str, str] | None = None
+    ) -> Any:
         """Override of `lxml` _Element.xpath() method.
 
         Provides standard Open XML namespace mapping (`nsmap`) in centralized location.
+
+        `namespaces` adds prefixes not in the standard mapping, which is needed to
+        query elements from vendor or custom namespaces. Entries override the standard
+        mapping where the prefixes collide.
         """
-        return super().xpath(xpath_str, namespaces=nsmap)
+        if namespaces is None:
+            return super().xpath(xpath_str, namespaces=nsmap)
+        return super().xpath(xpath_str, namespaces={**nsmap, **namespaces})
 
     @property
     def _nsptag(self) -> str:

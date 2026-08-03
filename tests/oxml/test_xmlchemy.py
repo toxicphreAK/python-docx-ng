@@ -1,9 +1,10 @@
 """Test suite for docx.oxml.xmlchemy."""
 
 import pytest
+from lxml.etree import XPathEvalError
 
 from docx.oxml.exceptions import InvalidXmlError
-from docx.oxml.ns import qn
+from docx.oxml.ns import nsdecls, qn
 from docx.oxml.parser import parse_xml, register_element_cls
 from docx.oxml.simpletypes import BaseIntType
 from docx.oxml.xmlchemy import (
@@ -38,6 +39,32 @@ class DescribeBaseOxmlElement:
         element, tagnames, expected_xml = remove_fixture
         element.remove_all(*tagnames)
         assert element.xml == expected_xml
+
+    def it_maps_the_standard_namespace_prefixes_in_xpath_calls(self):
+        element = parse_xml("<w:p %s><w:r/></w:p>" % nsdecls("w"))
+
+        assert len(element.xpath("w:r")) == 1
+
+    def it_accepts_additional_namespace_prefixes_in_xpath_calls(self):
+        """Elements in vendor namespaces are not reachable via the standard nsmap."""
+        vendor_ns = "http://example.com/vendor/2024"
+        element = parse_xml(
+            '<w:p %s xmlns:v="%s"><v:custom/></w:p>' % (nsdecls("w"), vendor_ns)
+        )
+
+        with pytest.raises(XPathEvalError, match="Undefined namespace prefix"):
+            element.xpath("v:custom")
+
+        assert len(element.xpath("v:custom", namespaces={"v": vendor_ns})) == 1
+
+    def it_lets_supplied_prefixes_override_the_standard_mapping(self):
+        other_ns = "http://example.com/other"
+        element = parse_xml(
+            '<w:p %s xmlns:o="%s"><o:r/></w:p>' % (nsdecls("w"), other_ns)
+        )
+
+        # -- "w" normally resolves to the wordprocessingml namespace --
+        assert len(element.xpath("w:r", namespaces={"w": other_ns})) == 1
 
     # fixtures ---------------------------------------------
 
