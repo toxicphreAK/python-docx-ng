@@ -8,11 +8,12 @@ from __future__ import annotations
 from typing import IO, TYPE_CHECKING, Iterator, List, Sequence
 
 from docx.blkcntnr import BlockItemContainer
+from docx.bookmark import Bookmarks
 from docx.enum.section import WD_SECTION
 from docx.enum.text import WD_BREAK
 from docx.opc.constants import CONTENT_TYPE as CT
 from docx.section import Section, Sections
-from docx.shared import ElementProxy, Emu, Inches, Length
+from docx.shared import ElementProxy, Emu, Inches, Length, lazyproperty
 from docx.text.run import Run
 
 if TYPE_CHECKING:
@@ -167,6 +168,15 @@ class Document(ElementProxy):
         table = self._body.add_table(rows, cols, self._block_width)
         table.style = style
         return table
+
+    @lazyproperty
+    def bookmarks(self) -> Bookmarks:
+        """The |Bookmarks| in this document, in document order.
+
+        Bookmarks Word maintains for itself, such as `_GoBack` and the `_Toc…` anchors,
+        are left out of the collection; reach them through `.iter_all()`.
+        """
+        return Bookmarks(self._element, self._part)
 
     @property
     def comments(self) -> Comments:

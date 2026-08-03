@@ -86,6 +86,11 @@ register_element_cls("w:titlePg", CT_OnOff)
 # ---------------------------------------------------------------------------
 # other custom element class mappings
 
+from .bookmark import CT_BookmarkEnd, CT_BookmarkStart
+
+register_element_cls("w:bookmarkEnd", CT_BookmarkEnd)
+register_element_cls("w:bookmarkStart", CT_BookmarkStart)
+
 from .comments import CT_Comments, CT_Comment
 
 register_element_cls("w:comments", CT_Comments)

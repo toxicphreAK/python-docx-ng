@@ -13,6 +13,7 @@ from docx.oxml.xmlchemy import BaseOxmlElement, OptionalAttribute, ZeroOrMore, Z
 from docx.shared import TextAccumulator
 
 if TYPE_CHECKING:
+    from docx.oxml.bookmark import CT_BookmarkEnd, CT_BookmarkStart
     from docx.oxml.shape import CT_Anchor, CT_Inline
     from docx.oxml.text.pagebreak import CT_LastRenderedPageBreak
     from docx.oxml.text.parfmt import CT_TabStop
@@ -96,6 +97,21 @@ class CT_R(BaseOxmlElement):
         """
         self.addnext(self._new_comment_reference_run(comment_id))
         self.addnext(OxmlElement("w:commentRangeEnd", attrs={qn("w:id"): str(comment_id)}))
+
+    def insert_bookmark_start_above(self, id: int, name: str) -> CT_BookmarkStart:
+        """Insert a `w:bookmarkStart` for `name` immediately before this run."""
+        bookmarkStart = cast("CT_BookmarkStart", OxmlElement("w:bookmarkStart"))
+        bookmarkStart.id = id
+        bookmarkStart.name = name
+        self.addprevious(bookmarkStart)
+        return bookmarkStart
+
+    def insert_bookmark_end_below(self, id: int) -> CT_BookmarkEnd:
+        """Insert a `w:bookmarkEnd` for `id` immediately after this run."""
+        bookmarkEnd = cast("CT_BookmarkEnd", OxmlElement("w:bookmarkEnd"))
+        bookmarkEnd.id = id
+        self.addnext(bookmarkEnd)
+        return bookmarkEnd
 
     def insert_comment_range_start_above(self, comment_id: int) -> None:
         """Insert a `w:commentRangeStart` element with `comment_id` before this run."""

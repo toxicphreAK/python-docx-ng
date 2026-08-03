@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Dict, Tuple
 
-from behave import given, then
+from behave import given, then, when
 from behave.runner import Context
 
 from docx import Document
@@ -114,3 +114,60 @@ def then_hyperlink_url_is_value(context: Context, value: str):
     actual_value = context.hyperlink.url
     expected_value = "" if value == "''" else value
     assert actual_value == expected_value, f"expected: {expected_value}, got: {actual_value}"
+
+
+# -- write-side hyperlink steps ---------------------------
+
+
+@given("a document containing a bookmark")
+def given_a_document_containing_a_bookmark(context: Context):
+    context.document = Document()
+    context.document.add_paragraph("Introduction text").add_bookmark("Intro")
+
+
+@when("I add an external hyperlink to the paragraph")
+def when_add_an_external_hyperlink(context: Context):
+    context.hyperlink = context.paragraph.add_hyperlink(
+        "python-docx", "https://example.com/"
+    )
+
+
+@when("I add an internal hyperlink to the bookmark")
+def when_add_an_internal_hyperlink(context: Context):
+    context.hyperlink = context.document.add_paragraph().add_hyperlink(
+        "jump to intro", fragment="Intro"
+    )
+
+
+@then("the paragraph contains the hyperlink I added")
+def then_the_paragraph_contains_the_hyperlink(context: Context):
+    assert [h.text for h in context.paragraph.hyperlinks] == ["python-docx"]
+
+
+@then("the hyperlink has the address I specified")
+def then_the_hyperlink_has_the_address(context: Context):
+    assert context.hyperlink.address == "https://example.com/"
+
+
+@then("the hyperlink text is styled as a hyperlink")
+def then_the_hyperlink_text_is_styled(context: Context):
+    assert context.hyperlink.runs[0].style.name == "Hyperlink"
+
+
+@then("the hyperlink refers to the bookmark by name")
+def then_the_hyperlink_refers_to_the_bookmark(context: Context):
+    assert context.hyperlink.fragment == "Intro"
+    assert context.hyperlink.address == ""
+
+
+@then("the hyperlink survives saving and reopening")
+def then_the_hyperlink_survives_a_round_trip(context: Context):
+    import io
+
+    stream = io.BytesIO()
+    context.document.save(stream)
+    stream.seek(0)
+    reloaded = Document(stream)
+    hyperlinks = [h for p in reloaded.paragraphs for h in p.hyperlinks]
+    assert [h.fragment for h in hyperlinks] == ["Intro"]
+    assert "Intro" in reloaded.bookmarks

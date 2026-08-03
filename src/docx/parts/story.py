@@ -57,6 +57,18 @@ class StoryPart(XmlPart):
         """
         return self._document_part.get_style_id(style_or_name, style_type)
 
+    @property
+    def next_bookmark_id(self) -> int:
+        """Next available `w:id` for a bookmark in this story.
+
+        A bookmark id pairs a `w:bookmarkStart` with its `w:bookmarkEnd`, so it needs to
+        be unique only among the bookmarks of this part; `next_id` does not see these,
+        because it looks at unprefixed `id` attributes and a bookmark's is `w:id`.
+        """
+        id_strs = self._element.xpath("//w:bookmarkStart/@w:id")
+        used_ids = [int(id_str) for id_str in id_strs if id_str.isdigit()]
+        return max(used_ids) + 1 if used_ids else 0
+
     def new_pic_inline(
         self,
         image_descriptor: str | IO[bytes],

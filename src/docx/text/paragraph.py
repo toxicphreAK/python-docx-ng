@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterator, List, cast
 
 from docx.enum.style import WD_STYLE_TYPE
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml.text.run import CT_R
 from docx.shared import StoryChild
 from docx.styles.style import ParagraphStyle
@@ -15,10 +16,17 @@ from docx.text.run import Run
 
 if TYPE_CHECKING:
     import docx.types as t
+    from docx.bookmark import Bookmark
     from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
     from docx.oxml.text.paragraph import CT_P
     from docx.sdt import ContentControl
     from docx.styles.style import CharacterStyle
+    from docx.text.hyperlink import Hyperlink
+
+
+# -- the character style Word applies to hyperlink text, and adds to a document the
+# -- first time a link is inserted into one --
+_HYPERLINK_STYLE_NAME = "Hyperlink"
 
 
 class Paragraph(StoryChild):
@@ -71,6 +79,99 @@ class Paragraph(StoryChild):
     def contains_page_break(self) -> bool:
         """`True` when one or more rendered page-breaks occur in this paragraph."""
         return bool(self._p.lastRenderedPageBreaks)
+
+    def add_hyperlink(
+        self,
+        text: str,
+        address: str | None = None,
+        fragment: str | None = None,
+        style: str | CharacterStyle | None = "Hyperlink",
+    ) -> Hyperlink:
+        """Append a hyperlink displaying `text` and return it.
+
+        `address` is the target URL. `fragment` is the part of a URL after the "#", and
+        is also how an internal link names its target: pass `fragment` alone, with no
+        `address`, to link to a bookmark elsewhere in this document, which is what a
+        cross-reference or a table-of-contents entry is.
+
+        `style` is the character style applied to the link text, "Hyperlink" by
+        default, which is the style Word uses. A document that does not define it — the
+        bundled default template among them — has it added, blue and underlined as Word
+        defines it, since an unstyled hyperlink is indistinguishable from body text.
+        Pass |None| to skip styling deliberately, or the name of another character
+        style to use that instead.
+
+        The returned |Hyperlink| exposes its `.runs`, so the link text can be formatted
+        further::
+
+            link = paragraph.add_hyperlink("python-docx", "https://example.com/")
+            link.runs[0].font.bold = True
+
+        Raises |ValueError| when neither `address` nor `fragment` is given, which would
+        produce a link that goes nowhere.
+        """
+        from docx.text.hyperlink import Hyperlink
+
+        if not address and not fragment:
+            raise ValueError("hyperlink requires an address, a fragment, or both")
+
+        hyperlink = self._p.add_hyperlink()
+        if address:
+            # -- reuses the rId of an existing relationship to the same address --
+            hyperlink.rId = self.part.relate_to(address, RT.HYPERLINK, is_external=True)
+        if fragment:
+            hyperlink.anchor = fragment
+
+        run = Run(hyperlink.add_r(), self)
+        run.text = text
+        if style is not None:
+            self._apply_hyperlink_style(run, style)
+        return Hyperlink(hyperlink, self._parent)
+
+    def _apply_hyperlink_style(self, run: Run, style: str | CharacterStyle) -> None:
+        """Apply `style` to `run`, defining the default hyperlink style if it is absent.
+
+        Word adds the "Hyperlink" style to a document the first time a link is inserted
+        into it, and a link that inherits body-text formatting does not look like a
+        link at all. Any other named style that is missing is the caller's problem and
+        raises, as assigning a missing style always has.
+        """
+        try:
+            run.style = style
+        except KeyError:
+            if style != _HYPERLINK_STYLE_NAME:
+                raise
+            run.style = self._add_default_hyperlink_style()
+
+    def _add_default_hyperlink_style(self) -> CharacterStyle:
+        """Add and return the "Hyperlink" character style, blue and underlined."""
+        from docx.enum.style import WD_STYLE_TYPE
+        from docx.enum.text import WD_UNDERLINE
+        from docx.shared import RGBColor
+
+        style = cast(
+            "CharacterStyle",
+            self.part.document.styles.add_style(
+                _HYPERLINK_STYLE_NAME, WD_STYLE_TYPE.CHARACTER, builtin=True
+            ),
+        )
+        style.font.color.rgb = RGBColor(0x05, 0x63, 0xC1)
+        style.font.underline = WD_UNDERLINE.SINGLE
+        style.priority = 99
+        style.unhide_when_used = True
+        return style
+
+    def add_bookmark(self, name: str) -> Bookmark:
+        """Return a |Bookmark| named `name` spanning the content of this paragraph.
+
+        Use `Run.mark_bookmark_range()` to bookmark a narrower range. `name` must be
+        unique in the document; Word treats a duplicate name as a second bookmark and
+        the two then compete for anything referring to the name.
+        """
+        from docx.bookmark import Bookmark
+
+        bookmarkStart = self._p.add_bookmark_around_content(self.part.next_bookmark_id, name)
+        return Bookmark(bookmarkStart, self)
 
     @property
     def content_controls(self) -> List[ContentControl]:

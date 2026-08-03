@@ -17,6 +17,7 @@ from docx.text.pagebreak import RenderedPageBreak
 
 if TYPE_CHECKING:
     import docx.types as t
+    from docx.bookmark import Bookmark
     from docx.enum.text import WD_UNDERLINE
     from docx.oxml.text.run import CT_R, CT_Text
     from docx.shared import Length
@@ -181,6 +182,20 @@ class Run(StoryChild):
                 yield RenderedPageBreak(item, self)
             elif isinstance(item, CT_Drawing):  # pyright: ignore[reportUnnecessaryIsInstance]
                 yield Drawing(item, self)
+
+    def mark_bookmark_range(self, last_run: Run, name: str) -> Bookmark:
+        """Return a |Bookmark| named `name` spanning this run through `last_run`.
+
+        The two runs need not be in the same paragraph; a bookmark's delimiters are
+        siblings of the content they surround rather than a container for it, which is
+        what lets one span paragraphs and table cells.
+        """
+        from docx.bookmark import Bookmark
+
+        id = self.part.next_bookmark_id
+        bookmarkStart = self._r.insert_bookmark_start_above(id, name)
+        last_run._r.insert_bookmark_end_below(id)
+        return Bookmark(bookmarkStart, self)
 
     def mark_comment_range(self, last_run: Run, comment_id: int) -> None:
         """Mark the range of runs from this run to `last_run` (inclusive) as belonging to a comment.

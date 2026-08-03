@@ -1,14 +1,17 @@
 """Unit test suite for the docx.text.paragraph module."""
 
+import io
 from typing import List, cast
 
 import pytest
 
+import docx
 from docx import types as t
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.text.paragraph import CT_P
 from docx.parts.document import DocumentPart
+from docx.text.hyperlink import Hyperlink
 from docx.text.paragraph import Paragraph
 from docx.text.parfmt import ParagraphFormat
 from docx.text.run import Run
@@ -382,3 +385,104 @@ class DescribeParagraph:
     def run_style_prop_(self, request):
         return property_mock(request, Run, "style")
 
+
+
+class DescribeAddHyperlink:
+    """Unit-test suite for `docx.text.paragraph.Paragraph.add_hyperlink`."""
+
+    def it_can_add_an_external_hyperlink(self):
+        document = docx.Document()
+        paragraph = document.add_paragraph()
+
+        hyperlink = paragraph.add_hyperlink("python-docx", "https://example.com/")
+
+        assert isinstance(hyperlink, Hyperlink)
+        assert hyperlink.text == "python-docx"
+        assert hyperlink.address == "https://example.com/"
+        assert paragraph.text == "python-docx"
+
+    def it_reuses_the_relationship_for_an_address_already_related(self):
+        """A duplicate relationship to the same address is waste, not a second link."""
+        document = docx.Document()
+        paragraph = document.add_paragraph()
+
+        first = paragraph.add_hyperlink("one", "https://example.com/")
+        second = paragraph.add_hyperlink("two", "https://example.com/")
+        other = paragraph.add_hyperlink("three", "https://other.example/")
+
+        assert first._hyperlink.rId == second._hyperlink.rId
+        assert other._hyperlink.rId != first._hyperlink.rId
+
+    def it_can_add_an_internal_hyperlink_to_a_bookmark(self):
+        """This is what a cross-reference or table-of-contents entry is."""
+        document = docx.Document()
+        document.add_paragraph("Introduction text").add_bookmark("Intro")
+
+        hyperlink = document.add_paragraph().add_hyperlink("jump", fragment="Intro")
+
+        assert hyperlink.fragment == "Intro"
+        assert hyperlink.address == ""
+        assert hyperlink._hyperlink.rId is None
+
+    def it_can_add_a_hyperlink_with_both_an_address_and_a_fragment(self):
+        paragraph = docx.Document().add_paragraph()
+
+        hyperlink = paragraph.add_hyperlink(
+            "docs", "https://example.com/guide", fragment="install"
+        )
+
+        assert hyperlink.url == "https://example.com/guide#install"
+
+    def it_raises_when_given_neither_an_address_nor_a_fragment(self):
+        paragraph = docx.Document().add_paragraph()
+
+        with pytest.raises(ValueError, match="address, a fragment, or both"):
+            paragraph.add_hyperlink("nowhere")
+
+    def it_defines_the_hyperlink_style_when_the_document_lacks_it(self):
+        """An unstyled link is indistinguishable from body text."""
+        document = docx.Document()
+        assert "Hyperlink" not in [s.name for s in document.styles]
+
+        hyperlink = document.add_paragraph().add_hyperlink("x", "https://example.com/")
+
+        assert hyperlink.runs[0].style.name == "Hyperlink"
+        assert "Hyperlink" in [s.name for s in document.styles]
+
+    def it_can_skip_styling_the_link_text(self):
+        document = docx.Document()
+
+        hyperlink = document.add_paragraph().add_hyperlink(
+            "x", "https://example.com/", style=None
+        )
+
+        assert "Hyperlink" not in [s.name for s in document.styles]
+        assert hyperlink.runs[0].style.name == "Default Paragraph Font"
+
+    def it_raises_for_a_missing_style_that_is_not_the_hyperlink_style(self):
+        paragraph = docx.Document().add_paragraph()
+
+        with pytest.raises(KeyError):
+            paragraph.add_hyperlink("x", "https://example.com/", style="No Such Style")
+
+    def it_places_the_hyperlink_after_the_existing_content(self):
+        paragraph = docx.Document().add_paragraph("before ")
+
+        paragraph.add_hyperlink("link", "https://example.com/")
+        paragraph.add_run(" after")
+
+        children = [child.tag.split("}")[1] for child in paragraph._p]
+        assert children == ["r", "hyperlink", "r"]
+        assert paragraph.text == "before link after"
+
+    def it_survives_a_round_trip(self):
+        document = docx.Document()
+        document.add_paragraph().add_hyperlink("python-docx", "https://example.com/")
+
+        stream = io.BytesIO()
+        document.save(stream)
+        stream.seek(0)
+
+        hyperlink = docx.Document(stream).paragraphs[0].hyperlinks[0]
+        assert hyperlink.text == "python-docx"
+        assert hyperlink.address == "https://example.com/"

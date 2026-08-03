@@ -12,6 +12,7 @@ from docx.oxml.xmlchemy import BaseOxmlElement, ZeroOrMore, ZeroOrOne
 
 if TYPE_CHECKING:
     from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+    from docx.oxml.bookmark import CT_BookmarkEnd, CT_BookmarkStart
     from docx.oxml.section import CT_SectPr
     from docx.oxml.text.hyperlink import CT_Hyperlink
     from docx.oxml.text.pagebreak import CT_LastRenderedPageBreak
@@ -30,6 +31,26 @@ class CT_P(BaseOxmlElement):
     pPr: CT_PPr | None = ZeroOrOne("w:pPr")  # pyright: ignore[reportAssignmentType]
     hyperlink = ZeroOrMore("w:hyperlink")
     r = ZeroOrMore("w:r")
+
+    def add_bookmark_around_content(self, id: int, name: str) -> CT_BookmarkStart:
+        """Wrap the inner content of this paragraph in a bookmark named `name`.
+
+        The `w:bookmarkStart` goes after `w:pPr` and before the first run; the
+        `w:bookmarkEnd` goes at the end of the paragraph.
+        """
+        bookmarkStart = cast("CT_BookmarkStart", OxmlElement("w:bookmarkStart"))
+        bookmarkStart.id = id
+        bookmarkStart.name = name
+        pPr = self.pPr
+        if pPr is None:
+            self.insert(0, bookmarkStart)
+        else:
+            pPr.addnext(bookmarkStart)
+
+        bookmarkEnd = cast("CT_BookmarkEnd", OxmlElement("w:bookmarkEnd"))
+        bookmarkEnd.id = id
+        self.append(bookmarkEnd)
+        return bookmarkStart
 
     def add_p_before(self) -> CT_P:
         """Return a new `<w:p>` element inserted directly prior to this one."""
