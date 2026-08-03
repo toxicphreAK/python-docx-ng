@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from docx.dml.color import ColorFormat
-from docx.enum.text import WD_UNDERLINE
+from docx.enum.text import WD_FONT_HINT, WD_UNDERLINE
 from docx.shared import ElementProxy, Emu
 
 if TYPE_CHECKING:
@@ -91,6 +91,74 @@ class Font(ElementProxy):
     @cs_italic.setter
     def cs_italic(self, value: bool | None) -> None:
         self._set_bool_prop("iCs", value)
+
+    @property
+    def cs_name(self) -> str | None:
+        """The typeface name applied to complex-script characters in this run.
+
+        `w:rFonts` has four independent typeface slots and Word chooses between them per
+        character, according to the script that character belongs to. This is the slot
+        used for Arabic, Hebrew and other complex scripts. |None| indicates the typeface
+        is inherited from the style hierarchy.
+        """
+        rPr = self._element.rPr
+        if rPr is None:
+            return None
+        return rPr.rFonts_cs
+
+    @cs_name.setter
+    def cs_name(self, value: str | None) -> None:
+        self._element.get_or_add_rPr().rFonts_cs = value
+
+    @property
+    def cs_size(self) -> Length | None:
+        """The font size applied to complex-script characters in this run.
+
+        Word tracks this separately from `.size`, in `w:szCs`. |None| indicates the size
+        is inherited from the style hierarchy.
+        """
+        rPr = self._element.rPr
+        if rPr is None:
+            return None
+        return rPr.szCs_val
+
+    @cs_size.setter
+    def cs_size(self, emu: Length | None) -> None:
+        self._element.get_or_add_rPr().szCs_val = emu
+
+    @property
+    def east_asia_name(self) -> str | None:
+        """The typeface name applied to East Asian characters in this run.
+
+        This is the slot that carries the meaningful typeface for Chinese, Japanese and
+        Korean text; see `.cs_name` for the four-slot arrangement. |None| indicates the
+        typeface is inherited from the style hierarchy.
+        """
+        rPr = self._element.rPr
+        if rPr is None:
+            return None
+        return rPr.rFonts_eastAsia
+
+    @east_asia_name.setter
+    def east_asia_name(self, value: str | None) -> None:
+        self._element.get_or_add_rPr().rFonts_eastAsia = value
+
+    @property
+    def hint(self) -> WD_FONT_HINT | None:
+        """Member of :ref:`WdFontHint`, or |None| when no hint is specified.
+
+        Tells Word which typeface slot to prefer for a character that belongs to no
+        particular script, such as a space or a digit. This matters for correct East
+        Asian rendering, where an unhinted run mixes typefaces mid-word.
+        """
+        rPr = self._element.rPr
+        if rPr is None:
+            return None
+        return rPr.rFonts_hint
+
+    @hint.setter
+    def hint(self, value: WD_FONT_HINT | None) -> None:
+        self._element.get_or_add_rPr().rFonts_hint = value
 
     @property
     def double_strike(self) -> bool | None:
@@ -187,6 +255,14 @@ class Font(ElementProxy):
 
         Causes the text it controls to appear in the named font, if a matching font is
         found. |None| indicates the typeface is inherited from the style hierarchy.
+
+        This is the `w:ascii` slot of `w:rFonts`, and assigning to it also sets
+        `w:hAnsi`, which is what Word does. It deliberately does *not* fall back to the
+        other slots: a run can name a different typeface for East Asian
+        (`.east_asia_name`) and complex-script (`.cs_name`) characters, Word picks
+        between them per character, and reporting one of them as "the" font would be an
+        approximation dressed up as an answer. A run with only `w:eastAsia` set
+        therefore reports |None| here and its typeface through `.east_asia_name`.
         """
         rPr = self._element.rPr
         if rPr is None:

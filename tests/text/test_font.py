@@ -10,7 +10,7 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 
 from docx.dml.color import ColorFormat
-from docx.enum.text import WD_COLOR, WD_COLOR_INDEX, WD_UNDERLINE
+from docx.enum.text import WD_COLOR, WD_COLOR_INDEX, WD_FONT_HINT, WD_UNDERLINE
 from docx.oxml.text.run import CT_R
 from docx.shared import Emu, Length, Pt, RGBColor
 from docx.text.font import Font
@@ -583,3 +583,140 @@ class DescribeFont:
     @pytest.fixture
     def ColorFormat_(self, request: FixtureRequest, color_: Mock):
         return class_mock(request, "docx.text.font.ColorFormat", return_value=color_)
+
+
+class DescribeFontTypefaceSlots:
+    """`w:rFonts` has four independent typeface slots, chosen between per character."""
+
+    @pytest.mark.parametrize(
+        ("r_cxml", "expected_name", "expected_east_asia", "expected_cs"),
+        [
+            ("w:r", None, None, None),
+            ("w:r/w:rPr", None, None, None),
+            ("w:r/w:rPr/w:rFonts{w:ascii=Calibri}", "Calibri", None, None),
+            ("w:r/w:rPr/w:rFonts{w:eastAsia=SimSun}", None, "SimSun", None),
+            ("w:r/w:rPr/w:rFonts{w:cs=Arial}", None, None, "Arial"),
+            (
+                "w:r/w:rPr/w:rFonts{w:ascii=Calibri,w:eastAsia=SimSun,w:cs=Arial}",
+                "Calibri",
+                "SimSun",
+                "Arial",
+            ),
+        ],
+    )
+    def it_knows_the_typeface_of_each_slot(
+        self,
+        r_cxml: str,
+        expected_name: str | None,
+        expected_east_asia: str | None,
+        expected_cs: str | None,
+    ):
+        """`.name` reports only the ASCII slot; it does not fall back to the others."""
+        font = Font(cast(CT_R, element(r_cxml)))
+
+        assert font.name == expected_name
+        assert font.east_asia_name == expected_east_asia
+        assert font.cs_name == expected_cs
+
+    def it_writes_the_ascii_and_hAnsi_slots_together(self):
+        """This is what Word does, and the two are almost never set independently."""
+        font = Font(cast(CT_R, element("w:r")))
+
+        font.name = "Calibri"
+
+        assert font._element.xml == xml(
+            "w:r/w:rPr/w:rFonts{w:ascii=Calibri,w:hAnsi=Calibri}"
+        )
+
+    @pytest.mark.parametrize(
+        ("prop_name", "value", "expected_r_cxml"),
+        [
+            ("east_asia_name", "SimSun", "w:r/w:rPr/w:rFonts{w:eastAsia=SimSun}"),
+            ("cs_name", "Arial", "w:r/w:rPr/w:rFonts{w:cs=Arial}"),
+        ],
+    )
+    def it_can_set_a_slot_without_disturbing_the_others(
+        self, prop_name: str, value: str, expected_r_cxml: str
+    ):
+        font = Font(cast(CT_R, element("w:r")))
+
+        setattr(font, prop_name, value)
+
+        assert font._element.xml == xml(expected_r_cxml)
+
+    def it_round_trips_a_run_with_every_slot_set(self):
+        r_cxml = (
+            "w:r/w:rPr/w:rFonts{w:hint=eastAsia,w:ascii=Calibri,w:hAnsi=Calibri,"
+            "w:eastAsia=SimSun,w:cs=Arial}"
+        )
+        font = Font(cast(CT_R, element(r_cxml)))
+
+        font.name = font.name
+        font.east_asia_name = font.east_asia_name
+        font.cs_name = font.cs_name
+        font.hint = font.hint
+
+        assert font._element.xml == xml(r_cxml)
+
+    @pytest.mark.parametrize(
+        ("r_cxml", "expected_value"),
+        [
+            ("w:r", None),
+            ("w:r/w:rPr/w:rFonts", None),
+            ("w:r/w:rPr/w:rFonts{w:hint=default}", WD_FONT_HINT.DEFAULT),
+            ("w:r/w:rPr/w:rFonts{w:hint=eastAsia}", WD_FONT_HINT.EAST_ASIA),
+            ("w:r/w:rPr/w:rFonts{w:hint=cs}", WD_FONT_HINT.COMPLEX_SCRIPT),
+        ],
+    )
+    def it_knows_its_font_hint(self, r_cxml: str, expected_value: WD_FONT_HINT | None):
+        assert Font(cast(CT_R, element(r_cxml))).hint == expected_value
+
+    def it_can_change_its_font_hint(self):
+        font = Font(cast(CT_R, element("w:r/w:rPr/w:rFonts{w:eastAsia=SimSun}")))
+
+        font.hint = WD_FONT_HINT.EAST_ASIA
+
+        assert font._element.xml == xml(
+            "w:r/w:rPr/w:rFonts{w:hint=eastAsia,w:eastAsia=SimSun}"
+        )
+
+    @pytest.mark.parametrize(
+        ("r_cxml", "expected_value"),
+        [
+            ("w:r", None),
+            ("w:r/w:rPr", None),
+            ("w:r/w:rPr/w:szCs{w:val=28}", Pt(14)),
+        ],
+    )
+    def it_knows_its_complex_script_size(self, r_cxml: str, expected_value: Length | None):
+        """Word tracks the complex-script size separately, in `w:szCs`."""
+        assert Font(cast(CT_R, element(r_cxml))).cs_size == expected_value
+
+    @pytest.mark.parametrize(
+        ("r_cxml", "value", "expected_r_cxml"),
+        [
+            ("w:r", Pt(12), "w:r/w:rPr/w:szCs{w:val=24}"),
+            ("w:r/w:rPr/w:szCs{w:val=24}", Pt(18), "w:r/w:rPr/w:szCs{w:val=36}"),
+            ("w:r/w:rPr/w:szCs{w:val=24}", None, "w:r/w:rPr"),
+        ],
+    )
+    def it_can_change_its_complex_script_size(
+        self, r_cxml: str, value: Length | None, expected_r_cxml: str
+    ):
+        font = Font(cast(CT_R, element(r_cxml)))
+
+        font.cs_size = value
+
+        assert font._element.xml == xml(expected_r_cxml)
+
+    def it_keeps_the_two_sizes_independent(self):
+        font = Font(cast(CT_R, element("w:r")))
+
+        font.size = Pt(10)
+        font.cs_size = Pt(14)
+
+        assert font.size == Pt(10)
+        assert font.cs_size == Pt(14)
+        assert font._element.xml == xml(
+            "w:r/w:rPr/(w:sz{w:val=20},w:szCs{w:val=28})"
+        )

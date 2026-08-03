@@ -214,6 +214,31 @@ class WD_CONTENT_CONTROL_TYPE(BaseEnum):
     """A section repeated once per item in a bound collection."""
 
 
+class WD_FONT_HINT(BaseXmlEnum):
+    """Specifies which `w:rFonts` typeface slot Word prefers for ambiguous characters.
+
+    A character that belongs to no particular script — a space, a digit, punctuation —
+    could be rendered from more than one slot, and the hint settles it. Getting this
+    wrong is a common cause of East Asian text rendering in the wrong typeface.
+
+    There is no MS API enumeration for this; it corresponds to the `ST_Hint` schema type
+    and the member values are this library's own.
+    """
+
+    DEFAULT = (0, "default", "Use the ASCII typeface for ambiguous characters.")
+    """Use the ASCII typeface for ambiguous characters."""
+
+    EAST_ASIA = (1, "eastAsia", "Use the East Asian typeface for ambiguous characters.")
+    """Use the East Asian typeface for ambiguous characters."""
+
+    COMPLEX_SCRIPT = (
+        2,
+        "cs",
+        "Use the complex-script typeface for ambiguous characters.",
+    )
+    """Use the complex-script typeface for ambiguous characters."""
+
+
 class WD_LINE_SPACING(BaseXmlEnum):
     """Specifies a line spacing format to be applied to a paragraph.
 

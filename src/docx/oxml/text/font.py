@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable
 
 from docx.enum.dml import MSO_THEME_COLOR
-from docx.enum.text import WD_COLOR_INDEX, WD_UNDERLINE
+from docx.enum.text import WD_COLOR_INDEX, WD_FONT_HINT, WD_UNDERLINE
 from docx.oxml.ns import nsdecls
 from docx.oxml.parser import parse_xml
 from docx.oxml.simpletypes import (
@@ -40,13 +40,22 @@ class CT_Color(BaseOxmlElement):
 class CT_Fonts(BaseOxmlElement):
     """`<w:rFonts>` element.
 
-    Specifies typeface name for the various language types.
+    Specifies typeface name for the various language types. The four independent slots —
+    `w:ascii`, `w:hAnsi`, `w:eastAsia` and `w:cs` — are chosen between per character by
+    Word, according to the script the character belongs to.
     """
 
+    hint: WD_FONT_HINT | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:hint", WD_FONT_HINT
+    )
     ascii: str | None = OptionalAttribute("w:ascii", ST_String)
     hAnsi: str | None = OptionalAttribute("w:hAnsi", ST_String)
+    eastAsia: str | None = OptionalAttribute("w:eastAsia", ST_String)
+    cs: str | None = OptionalAttribute("w:cs", ST_String)
     asciiTheme: str | None = OptionalAttribute("w:asciiTheme", ST_String)
     hAnsiTheme: str | None = OptionalAttribute("w:hAnsiTheme", ST_String)
+    eastAsiaTheme: str | None = OptionalAttribute("w:eastAsiaTheme", ST_String)
+    cstheme: str | None = OptionalAttribute("w:cstheme", ST_String)
 
 
 class CT_Highlight(BaseOxmlElement):
@@ -81,6 +90,7 @@ class CT_RPr(BaseOxmlElement):
     get_or_add_rFonts: Callable[[], CT_Fonts]
     get_or_add_shd: Callable[[], CT_Shd]
     get_or_add_sz: Callable[[], CT_HpsMeasure]
+    get_or_add_szCs: Callable[[], CT_HpsMeasure]
     get_or_add_vertAlign: Callable[[], CT_VerticalAlignRun]
     get_or_add_w: Callable[[], CT_TextScale]
     _add_rStyle: Callable[..., CT_String]
@@ -91,6 +101,7 @@ class CT_RPr(BaseOxmlElement):
     _remove_rStyle: Callable[[], None]
     _remove_shd: Callable[[], None]
     _remove_sz: Callable[[], None]
+    _remove_szCs: Callable[[], None]
     _remove_u: Callable[[], None]
     _remove_vertAlign: Callable[[], None]
     _remove_w: Callable[[], None]
@@ -157,6 +168,7 @@ class CT_RPr(BaseOxmlElement):
     color: CT_Color | None = ZeroOrOne("w:color", successors=_tag_seq[19:])
     w: CT_TextScale | None = ZeroOrOne("w:w", successors=_tag_seq[21:])
     sz: CT_HpsMeasure | None = ZeroOrOne("w:sz", successors=_tag_seq[24:])
+    szCs: CT_HpsMeasure | None = ZeroOrOne("w:szCs", successors=_tag_seq[25:])
     highlight: CT_Highlight | None = ZeroOrOne("w:highlight", successors=_tag_seq[26:])
     u: CT_Underline | None = ZeroOrOne("w:u", successors=_tag_seq[27:])
     shd: CT_Shd | None = ZeroOrOne("w:shd", successors=_tag_seq[30:])
@@ -225,6 +237,54 @@ class CT_RPr(BaseOxmlElement):
             return
         rFonts = self.get_or_add_rFonts()
         rFonts.hAnsi = value
+
+    @property
+    def rFonts_eastAsia(self) -> str | None:
+        """The value of `w:rFonts/@w:eastAsia` or |None| if not present.
+
+        The typeface Word uses for East Asian characters in the run.
+        """
+        rFonts = self.rFonts
+        if rFonts is None:
+            return None
+        return rFonts.eastAsia
+
+    @rFonts_eastAsia.setter
+    def rFonts_eastAsia(self, value: str | None):
+        if value is None and self.rFonts is None:
+            return
+        self.get_or_add_rFonts().eastAsia = value
+
+    @property
+    def rFonts_cs(self) -> str | None:
+        """The value of `w:rFonts/@w:cs` or |None| if not present.
+
+        The typeface Word uses for complex-script characters in the run.
+        """
+        rFonts = self.rFonts
+        if rFonts is None:
+            return None
+        return rFonts.cs
+
+    @rFonts_cs.setter
+    def rFonts_cs(self, value: str | None):
+        if value is None and self.rFonts is None:
+            return
+        self.get_or_add_rFonts().cs = value
+
+    @property
+    def rFonts_hint(self) -> WD_FONT_HINT | None:
+        """The value of `w:rFonts/@w:hint` or |None| if not present."""
+        rFonts = self.rFonts
+        if rFonts is None:
+            return None
+        return rFonts.hint
+
+    @rFonts_hint.setter
+    def rFonts_hint(self, value: WD_FONT_HINT | None):
+        if value is None and self.rFonts is None:
+            return
+        self.get_or_add_rFonts().hint = value
 
     @property
     def rFonts_asciiTheme(self) -> str | None:
@@ -376,6 +436,26 @@ class CT_RPr(BaseOxmlElement):
             return
         sz = self.get_or_add_sz()
         sz.val = value
+
+    @property
+    def szCs_val(self) -> Length | None:
+        """The value of `w:szCs/@w:val` or |None| if not present.
+
+        This is the font size applied to complex-script text, which Word tracks
+        separately from `w:sz`.
+        """
+        szCs = self.szCs
+        if szCs is None:
+            return None
+        return szCs.val
+
+    @szCs_val.setter
+    def szCs_val(self, value: Length | None):
+        if value is None:
+            self._remove_szCs()
+            return
+        szCs = self.get_or_add_szCs()
+        szCs.val = value
 
     @property
     def u_val(self) -> WD_UNDERLINE | None:
