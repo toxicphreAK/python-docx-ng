@@ -95,6 +95,10 @@ from .coreprops import CT_CoreProperties
 
 register_element_cls("cp:coreProperties", CT_CoreProperties)
 
+from .extendedprops import CT_ExtendedProperties
+
+register_element_cls("ep:Properties", CT_ExtendedProperties)
+
 from .document import CT_Body, CT_Document
 
 register_element_cls("w:body", CT_Body)

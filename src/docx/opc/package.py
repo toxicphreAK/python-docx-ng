@@ -8,6 +8,7 @@ from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.opc.packuri import PACKAGE_URI, PackURI
 from docx.opc.part import PartFactory
 from docx.opc.parts.coreprops import CorePropertiesPart
+from docx.opc.parts.extendedprops import ExtendedPropertiesPart
 from docx.opc.pkgreader import PackageReader
 from docx.opc.pkgwriter import PackageWriter
 from docx.opc.rel import Relationships
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from docx.opc.coreprops import CoreProperties
+    from docx.opc.extendedprops import ExtendedProperties
     from docx.opc.part import Part
     from docx.opc.rel import _Relationship  # pyright: ignore[reportPrivateUsage]
 
@@ -42,6 +44,12 @@ class OpcPackage:
         """|CoreProperties| object providing read/write access to the Dublin Core
         properties for this document."""
         return self._core_properties_part.core_properties
+
+    @property
+    def extended_properties(self) -> ExtendedProperties:
+        """|ExtendedProperties| object providing read/write access to the
+        application-specific properties for this document."""
+        return self._extended_properties_part.extended_properties
 
     def iter_rels(self) -> Iterator[_Relationship]:
         """Generate exactly one reference to each relationship in the package by
@@ -177,6 +185,21 @@ class OpcPackage:
             core_properties_part = CorePropertiesPart.default(self)
             self.relate_to(core_properties_part, RT.CORE_PROPERTIES)
             return core_properties_part
+
+    @property
+    def _extended_properties_part(self) -> ExtendedPropertiesPart:
+        """|ExtendedPropertiesPart| object related to this package.
+
+        Creates a default extended properties part if one is not present.
+        """
+        try:
+            return cast(
+                ExtendedPropertiesPart, self.part_related_by(RT.EXTENDED_PROPERTIES)
+            )
+        except KeyError:
+            extended_properties_part = ExtendedPropertiesPart.default(self)
+            self.relate_to(extended_properties_part, RT.EXTENDED_PROPERTIES)
+            return extended_properties_part
 
 
 class Unmarshaller:

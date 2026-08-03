@@ -168,6 +168,12 @@ class Document(ElementProxy):
         return self._part.core_properties
 
     @property
+    def extended_properties(self):
+        """An |ExtendedProperties| object providing the application-specific properties
+        of the document, such as word count and producing application."""
+        return self._part.package.extended_properties
+
+    @property
     def inline_shapes(self):
         """The |InlineShapes| collection for this document.
 
