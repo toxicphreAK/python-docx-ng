@@ -5,12 +5,17 @@ from __future__ import annotations
 from typing import IO, TYPE_CHECKING, Iterator, cast
 
 from docx.drawing import Drawing
+from docx.enum.shape import (
+    WD_ANCHOR_RELATIVE_FROM_H,
+    WD_ANCHOR_RELATIVE_FROM_V,
+    WD_WRAP_TYPE,
+)
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_BREAK
 from docx.oxml.deletion import delete_element
 from docx.oxml.drawing import CT_Drawing
 from docx.oxml.text.pagebreak import CT_LastRenderedPageBreak
-from docx.shape import InlineShape
+from docx.shape import FloatingShape, InlineShape
 from docx.shared import StoryChild
 from docx.styles.style import CharacterStyle
 from docx.text.font import Font
@@ -104,6 +109,73 @@ class Run(StoryChild):
         )
         self._r.add_drawing(inline)
         return InlineShape(inline)
+
+    def add_float_picture(
+        self,
+        image_path_or_stream: str | IO[bytes],
+        width: int | Length | None = None,
+        height: int | Length | None = None,
+        left: Length | int = 0,
+        top: Length | int = 0,
+        wrap_type: WD_WRAP_TYPE = WD_WRAP_TYPE.SQUARE,
+        behind_text: bool = False,
+        relative_from_h: WD_ANCHOR_RELATIVE_FROM_H = WD_ANCHOR_RELATIVE_FROM_H.COLUMN,
+        relative_from_v: WD_ANCHOR_RELATIVE_FROM_V = WD_ANCHOR_RELATIVE_FROM_V.PARAGRAPH,
+        description: str | None = None,
+        title: str | None = None,
+        svg_fallback: str | IO[bytes] | None = None,
+    ) -> FloatingShape:
+        """Return a |FloatingShape| for a picture that text flows around.
+
+        Where :meth:`add_picture` puts the image in the text flow like a character, this
+        detaches it: the image is positioned against something on the page and text
+        wraps around it, which is what a logo in a corner or a figure beside a paragraph
+        needs::
+
+            from docx.shared import Cm
+            from docx.enum.shape import WD_ANCHOR_RELATIVE_FROM_H, WD_WRAP_TYPE
+
+            run.add_float_picture(
+                "logo.png",
+                width=Cm(3),
+                left=Cm(1),
+                top=Cm(1),
+                relative_from_h=WD_ANCHOR_RELATIVE_FROM_H.PAGE,
+                wrap_type=WD_WRAP_TYPE.SQUARE,
+            )
+
+        `image_path_or_stream`, `width`, `height`, `description`, `title` and
+        `svg_fallback` behave exactly as they do for :meth:`add_picture`.
+
+        `left` and `top` are the offset from `relative_from_h` and `relative_from_v`,
+        which default to the column and the paragraph — where Word puts a picture
+        converted from inline to floating. Assign :attr:`.FloatingShape.horizontal_align`
+        afterwards to align the shape instead of offsetting it.
+
+        `wrap_type` selects how text flows around the shape. `behind_text` puts the
+        shape behind the text rather than over it, which is only meaningful together
+        with `WD_WRAP_TYPE.NONE`.
+
+        The shape is anchored to this run's paragraph. A floating shape must be anchored
+        to a paragraph in the text flow: Word positions it relative to where the anchor
+        falls, so an anchor in a paragraph that moves takes the shape with it.
+        """
+        anchor = self.part.new_pic_anchor(
+            image_path_or_stream,
+            width,
+            height,
+            pos_x=left,
+            pos_y=top,
+            description=description,
+            title=title,
+            svg_fallback=svg_fallback,
+        )
+        anchor.wrap_type = wrap_type
+        anchor.behindDoc = bool(behind_text)
+        anchor.positionH.relativeFrom = relative_from_h
+        anchor.positionV.relativeFrom = relative_from_v
+        self._r.add_drawing(anchor)
+        return FloatingShape(anchor)
 
     def add_tab(self) -> None:
         """Add a ``<w:tab/>`` element at the end of the run, which Word interprets as a

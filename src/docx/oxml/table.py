@@ -276,9 +276,7 @@ class CT_Row(BaseOxmlElement):
 
         Includes the grid positions this row leaves unpopulated at either end.
         """
-        return (
-            self.grid_before + sum(tc.grid_span for tc in self.tc_lst) + self.grid_after
-        )
+        return self.grid_before + sum(tc.grid_span for tc in self.tc_lst) + self.grid_after
 
     def delete_grid_column(self, grid_offset: int, part=None) -> None:
         """Remove this row's occupancy of layout-grid column `grid_offset`.
@@ -332,9 +330,7 @@ class CT_Row(BaseOxmlElement):
             tc._move_content_to(tc_below)
             # -- the cell below is the origin now; it keeps "restart" only if the span
             # -- continues past it --
-            tc_below.vMerge = (
-                ST_Merge.RESTART if tc_below.bottom > tc_below._tr_idx + 1 else None
-            )
+            tc_below.vMerge = ST_Merge.RESTART if tc_below.bottom > tc_below._tr_idx + 1 else None
 
     @property
     def _tr_below(self) -> CT_Row | None:

@@ -215,9 +215,7 @@ class OpcPackage:
         Creates a default extended properties part if one is not present.
         """
         try:
-            return cast(
-                ExtendedPropertiesPart, self.part_related_by(RT.EXTENDED_PROPERTIES)
-            )
+            return cast(ExtendedPropertiesPart, self.part_related_by(RT.EXTENDED_PROPERTIES))
         except KeyError:
             extended_properties_part = ExtendedPropertiesPart.default(self)
             self.relate_to(extended_properties_part, RT.EXTENDED_PROPERTIES)

@@ -50,8 +50,7 @@ def _not_a_package_error(pkg_file):
             " cannot be read" % (name,)
         )
     return PackageNotFoundError(
-        "Package '%s' is not a valid Open XML package; it may be corrupt or truncated"
-        % (name,)
+        "Package '%s' is not a valid Open XML package; it may be corrupt or truncated" % (name,)
     )
 
 

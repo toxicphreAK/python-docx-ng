@@ -21,9 +21,7 @@ element_class_lookup = etree.ElementNamespaceClassLookup()
 # -- long `r:embed` chains, and the default parser rejects those files outright with
 # -- "AttValue length too long". Entity resolution stays off, which is the part of
 # -- `huge_tree` that would otherwise carry a billion-laughs risk. --
-oxml_parser = etree.XMLParser(
-    remove_blank_text=True, resolve_entities=False, huge_tree=True
-)
+oxml_parser = etree.XMLParser(remove_blank_text=True, resolve_entities=False, huge_tree=True)
 oxml_parser.set_element_class_lookup(element_class_lookup)
 
 

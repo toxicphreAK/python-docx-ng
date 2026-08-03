@@ -20,7 +20,9 @@ from docx.oxml.shape import (
     CT_Picture,
     CT_PictureNonVisual,
     CT_Point2D,
+    CT_PosH,
     CT_PositiveSize2D,
+    CT_PosV,
     CT_ShapeProperties,
     CT_SvgBlip,
     CT_Transform2D,
@@ -70,6 +72,9 @@ register_element_cls("wp:anchor", CT_Anchor)
 register_element_cls("wp:docPr", CT_NonVisualDrawingProps)
 register_element_cls("wp:extent", CT_PositiveSize2D)
 register_element_cls("wp:inline", CT_Inline)
+register_element_cls("wp:positionH", CT_PosH)
+register_element_cls("wp:positionV", CT_PosV)
+register_element_cls("wp:simplePos", CT_Point2D)
 
 # ---------------------------------------------------------------------------
 # hyperlink-related elements

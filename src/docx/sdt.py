@@ -61,11 +61,7 @@ class ContentControl(Parented):
         if sdtContent is None:
             return
         for element in iter_block_content(sdtContent):
-            yield (
-                Paragraph(element, self)
-                if isinstance(element, CT_P)
-                else Table(element, self)
-            )
+            yield (Paragraph(element, self) if isinstance(element, CT_P) else Table(element, self))
 
     @property
     def paragraphs(self) -> List[Paragraph]:

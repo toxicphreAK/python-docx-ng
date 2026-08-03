@@ -271,6 +271,18 @@ class ST_DrawingElementId(XsdUnsignedInt):
     pass
 
 
+class ST_WrapDistance(XsdUnsignedInt):
+    """Distance in EMU held clear of a floating shape when text wraps around it.
+
+    The `distT`, `distB`, `distL` and `distR` attributes of `wp:anchor`. Exchanged as
+    |Length| so it composes with `Pt()`, `Inches()` and the rest.
+    """
+
+    @classmethod
+    def convert_from_xml(cls, str_value: str) -> Length:
+        return Emu(int(str_value))
+
+
 class ST_EighthPointMeasure(XsdUnsignedLong):
     """Measure in eighths of a point, e.g. `"4"` is half a point.
 

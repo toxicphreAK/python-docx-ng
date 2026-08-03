@@ -67,9 +67,7 @@ class CustomProperties(MutableMapping[str, "str | int | float | bool | dt.dateti
     def __repr__(self) -> str:
         return "%s(%r)" % (type(self).__name__, dict(self))
 
-    def __setitem__(
-        self, name: str, value: str | int | float | bool | dt.datetime | None
-    ) -> None:
+    def __setitem__(self, name: str, value: str | int | float | bool | dt.datetime | None) -> None:
         property = self._element.get_by_name(name)
         if property is None:
             self._element.add_named_property(name, value)

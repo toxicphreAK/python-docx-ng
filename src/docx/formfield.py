@@ -305,9 +305,7 @@ class FormField(StoryChild):
     def _result_text(self) -> str:
         """The text Word last rendered as the value of this field."""
         _, result_elms, _ = self._field_runs()
-        return "".join(
-            str(t) for elm in result_elms for t in elm.xpath(".//w:t", namespaces=nsmap)
-        )
+        return "".join(str(t) for elm in result_elms for t in elm.xpath(".//w:t", namespaces=nsmap))
 
     def _require_text_field(self, prop_name: str) -> None:
         field_type = self.type

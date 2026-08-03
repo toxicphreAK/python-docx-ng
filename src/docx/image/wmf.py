@@ -36,18 +36,15 @@ class Wmf(BaseImageHeader):
         if len(header) < _APM_HEADER_LENGTH:
             raise InvalidImageStreamError("unexpected end of WMF image stream")
 
-        key, _hwmf, left, top, right, bottom, inch, _reserved, _checksum = (
-            _APM_HEADER.unpack(header)
+        key, _hwmf, left, top, right, bottom, inch, _reserved, _checksum = _APM_HEADER.unpack(
+            header
         )
         if key != _APM_KEY:
             raise InvalidImageStreamError(
-                "WMF image has no Aldus Placeable Metafile header, so its display size"
-                " is unknown"
+                "WMF image has no Aldus Placeable Metafile header, so its display size is unknown"
             )
         if inch == 0:
-            raise InvalidImageStreamError(
-                "WMF image declares zero metafile units per inch"
-            )
+            raise InvalidImageStreamError("WMF image declares zero metafile units per inch")
 
         # -- the bounding box is in metafile units, `inch` of them to the inch --
         inch_width = abs(right - left) / inch

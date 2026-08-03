@@ -66,8 +66,7 @@ class AltChunkPart(Part):
         used_numbers = {
             part.partname.idx
             for part in package.iter_parts()
-            if part.partname.baseURI == "/word"
-            and part.partname.filename.startswith("afchunk")
+            if part.partname.baseURI == "/word" and part.partname.filename.startswith("afchunk")
         }
         n = 1
         while n in used_numbers:

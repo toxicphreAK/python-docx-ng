@@ -59,8 +59,7 @@ class Webp(BaseImageHeader):
         if fourcc == b"VP8X":
             return cls._dimensions_from_extended(stream)
         raise InvalidImageStreamError(
-            "unrecognized WebP bitstream chunk %r, expected 'VP8 ', 'VP8L' or 'VP8X'"
-            % fourcc
+            "unrecognized WebP bitstream chunk %r, expected 'VP8 ', 'VP8L' or 'VP8X'" % fourcc
         )
 
     @classmethod

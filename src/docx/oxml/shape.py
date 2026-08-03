@@ -2,17 +2,28 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
-from docx.oxml.ns import nsdecls
-from docx.oxml.parser import parse_xml
+from docx.enum.shape import (
+    WD_ANCHOR_ALIGN_H,
+    WD_ANCHOR_ALIGN_V,
+    WD_ANCHOR_RELATIVE_FROM_H,
+    WD_ANCHOR_RELATIVE_FROM_V,
+    WD_WRAP_TYPE,
+)
+from docx.exceptions import InvalidXmlError
+from docx.oxml.ns import nsdecls, qn
+from docx.oxml.parser import OxmlElement, parse_xml
 from docx.oxml.simpletypes import (
     ST_Coordinate,
     ST_DrawingElementId,
     ST_PositiveCoordinate,
     ST_RelationshipId,
+    ST_WrapDistance,
+    XsdBoolean,
     XsdString,
     XsdToken,
+    XsdUnsignedInt,
 )
 from docx.oxml.xmlchemy import (
     BaseOxmlElement,
@@ -21,13 +32,234 @@ from docx.oxml.xmlchemy import (
     RequiredAttribute,
     ZeroOrOne,
 )
-
-if TYPE_CHECKING:
-    from docx.shared import Length
+from docx.shared import Emu, Length
 
 
 class CT_Anchor(BaseOxmlElement):
-    """`<wp:anchor>` element, container for a "floating" shape."""
+    """`<wp:anchor>` element, container for a "floating" shape.
+
+    Where `wp:inline` puts a picture in the text flow like a character, `wp:anchor`
+    detaches it: the picture is positioned against the page, the margin, the column or
+    the paragraph, and text wraps around it.
+
+    The schema type is an `xsd:sequence` and Word refuses to open a document whose
+    children are out of order, so the `successors` bookkeeping below matters more than
+    usual. The wrap element is one of an `xsd:choice` — exactly one must be present —
+    which is why it is reached through :attr:`wrap_type` rather than as five separate
+    declared children.
+    """
+
+    _tag_seq = (
+        "wp:simplePos",
+        "wp:positionH",
+        "wp:positionV",
+        "wp:extent",
+        "wp:effectExtent",
+        "wp:wrapNone",
+        "wp:wrapSquare",
+        "wp:wrapTight",
+        "wp:wrapThrough",
+        "wp:wrapTopAndBottom",
+        "wp:docPr",
+        "wp:cNvGraphicFramePr",
+        "a:graphic",
+    )
+    # -- the five wrap elements are alternatives, so each is followed by everything
+    # -- after the whole choice --
+    _WRAP_SUCCESSORS = _tag_seq[10:]
+
+    positionH: CT_PosH = OneAndOnlyOne("wp:positionH")  # pyright: ignore[reportAssignmentType]
+    positionV: CT_PosV = OneAndOnlyOne("wp:positionV")  # pyright: ignore[reportAssignmentType]
+    extent: CT_PositiveSize2D = OneAndOnlyOne("wp:extent")  # pyright: ignore[reportAssignmentType]
+    docPr: CT_NonVisualDrawingProps = OneAndOnlyOne(  # pyright: ignore[reportAssignmentType]
+        "wp:docPr"
+    )
+    graphic: CT_GraphicalObject = OneAndOnlyOne(  # pyright: ignore[reportAssignmentType]
+        "a:graphic"
+    )
+
+    distT: int | None = OptionalAttribute("distT", ST_WrapDistance)  # pyright: ignore
+    distB: int | None = OptionalAttribute("distB", ST_WrapDistance)  # pyright: ignore
+    distL: int | None = OptionalAttribute("distL", ST_WrapDistance)  # pyright: ignore
+    distR: int | None = OptionalAttribute("distR", ST_WrapDistance)  # pyright: ignore
+    simplePos: bool | None = OptionalAttribute("simplePos", XsdBoolean)  # pyright: ignore
+    relativeHeight: int = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
+        "relativeHeight", XsdUnsignedInt
+    )
+    behindDoc: bool = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
+        "behindDoc", XsdBoolean
+    )
+    locked: bool = RequiredAttribute("locked", XsdBoolean)  # pyright: ignore
+    layoutInCell: bool = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
+        "layoutInCell", XsdBoolean
+    )
+    allowOverlap: bool = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
+        "allowOverlap", XsdBoolean
+    )
+    hidden: bool | None = OptionalAttribute("hidden", XsdBoolean)  # pyright: ignore
+
+    @property
+    def wrap_type(self) -> WD_WRAP_TYPE:
+        """Member of :ref:`WdWrapType` describing how text wraps around this shape."""
+        for member in WD_WRAP_TYPE:
+            if self.find(qn(f"wp:{member.xml_value}")) is not None:
+                return member
+        raise InvalidXmlError(
+            "`wp:anchor` has none of the five wrap elements; the schema requires"
+            " exactly one and Word will not open a document without it"
+        )
+
+    @wrap_type.setter
+    def wrap_type(self, value: WD_WRAP_TYPE):
+        for member in WD_WRAP_TYPE:
+            existing = self.find(qn(f"wp:{member.xml_value}"))
+            if existing is not None:
+                self.remove(existing)
+        wrap = OxmlElement(f"wp:{value.xml_value}")
+        self.insert_element_before(wrap, *self._WRAP_SUCCESSORS)
+
+    @classmethod
+    def new_pic_anchor(
+        cls,
+        shape_id: int,
+        rId: str,
+        filename: str,
+        cx: Length,
+        cy: Length,
+        pos_x: Length,
+        pos_y: Length,
+        description: str | None = None,
+        title: str | None = None,
+        svg_rId: str | None = None,
+    ) -> CT_Anchor:
+        """Create a `wp:anchor` element containing a `pic:pic` element.
+
+        The shape is positioned `pos_x` right of and `pos_y` below the column and
+        paragraph it is anchored to, which is where Word puts a picture converted from
+        inline to floating, and text wraps around its bounding rectangle.
+        """
+        pic_id = 0  # -- as with an inline picture, Word does not appear to use this --
+        pic = CT_Picture.new(pic_id, filename, rId, cx, cy, svg_rId=svg_rId)
+        anchor = cast(CT_Anchor, parse_xml(cls._anchor_xml()))
+        anchor.extent.cx = cx
+        anchor.extent.cy = cy
+        anchor.positionH.offset = pos_x
+        anchor.positionV.offset = pos_y
+        anchor.docPr.id = shape_id
+        anchor.docPr.name = "Picture %d" % shape_id
+        if description is not None:
+            anchor.docPr.descr = description
+        if title is not None:
+            anchor.docPr.title = title
+        anchor.graphic.graphicData.uri = "http://schemas.openxmlformats.org/drawingml/2006/picture"
+        anchor.graphic.graphicData._insert_pic(pic)  # pyright: ignore[reportPrivateUsage]
+        return anchor
+
+    @classmethod
+    def _anchor_xml(cls) -> str:
+        """A minimum viable `wp:anchor`, with every required attribute present.
+
+        `relativeHeight` is the z-order; 0 puts a new shape at the bottom of the
+        floating stack, which Word then adjusts as shapes are added. `simplePos="0"`
+        tells Word to use `wp:positionH` and `wp:positionV` rather than the
+        `wp:simplePos` coordinate, which Word itself never uses but the schema requires
+        to be present.
+        """
+        return (
+            "<wp:anchor %s\n"
+            '           distT="0" distB="0" distL="114300" distR="114300"\n'
+            '           simplePos="0" relativeHeight="0" behindDoc="0" locked="0"\n'
+            '           layoutInCell="1" allowOverlap="1">\n'
+            '  <wp:simplePos x="0" y="0"/>\n'
+            '  <wp:positionH relativeFrom="column">\n'
+            "    <wp:posOffset>0</wp:posOffset>\n"
+            "  </wp:positionH>\n"
+            '  <wp:positionV relativeFrom="paragraph">\n'
+            "    <wp:posOffset>0</wp:posOffset>\n"
+            "  </wp:positionV>\n"
+            '  <wp:extent cx="914400" cy="914400"/>\n'
+            '  <wp:effectExtent l="0" t="0" r="0" b="0"/>\n'
+            '  <wp:wrapSquare wrapText="bothSides"/>\n'
+            '  <wp:docPr id="666" name="unnamed"/>\n'
+            "  <wp:cNvGraphicFramePr>\n"
+            '    <a:graphicFrameLocks noChangeAspect="1"/>\n'
+            "  </wp:cNvGraphicFramePr>\n"
+            "  <a:graphic>\n"
+            '    <a:graphicData uri="URI not set"/>\n'
+            "  </a:graphic>\n"
+            "</wp:anchor>" % nsdecls("wp", "a", "pic", "r")
+        )
+
+
+class _CT_PosBase(BaseOxmlElement):
+    """Common behavior of `wp:positionH` and `wp:positionV`.
+
+    Both hold an `xsd:choice` of `wp:align` or `wp:posOffset` — a named alignment such
+    as "center", or an absolute distance in EMU. Setting one removes the other, since
+    the schema allows only one to be present and Word ignores a document that has both.
+    """
+
+    _align_enum: type[WD_ANCHOR_ALIGN_H] | type[WD_ANCHOR_ALIGN_V]
+
+    @property
+    def align(self):
+        """The named alignment of this position, or |None| when an offset is used."""
+        align = self.find(qn("wp:align"))
+        if align is None or not align.text:
+            return None
+        return self._align_enum.from_xml(align.text.strip())
+
+    @align.setter
+    def align(self, value: WD_ANCHOR_ALIGN_H | WD_ANCHOR_ALIGN_V | None):
+        self._remove_choice()
+        if value is None:
+            return
+        align = OxmlElement("wp:align")
+        align.text = self._align_enum.to_xml(value)
+        self.append(align)
+
+    @property
+    def offset(self) -> Length | None:
+        """The absolute offset of this position, or |None| when an alignment is used."""
+        posOffset = self.find(qn("wp:posOffset"))
+        if posOffset is None or not posOffset.text:
+            return None
+        return Emu(int(posOffset.text))
+
+    @offset.setter
+    def offset(self, value: Length | int | None):
+        self._remove_choice()
+        if value is None:
+            return
+        posOffset = OxmlElement("wp:posOffset")
+        posOffset.text = str(int(value))
+        self.append(posOffset)
+
+    def _remove_choice(self) -> None:
+        for tag in ("wp:align", "wp:posOffset"):
+            child = self.find(qn(tag))
+            if child is not None:
+                self.remove(child)
+
+
+class CT_PosH(_CT_PosBase):
+    """`<wp:positionH>` element, the horizontal position of a floating shape."""
+
+    _align_enum = WD_ANCHOR_ALIGN_H
+
+    relativeFrom: WD_ANCHOR_RELATIVE_FROM_H = RequiredAttribute(  # pyright: ignore
+        "relativeFrom", WD_ANCHOR_RELATIVE_FROM_H
+    )
+
+
+class CT_PosV(_CT_PosBase):
+    """`<wp:positionV>` element, the vertical position of a floating shape."""
+
+    _align_enum = WD_ANCHOR_ALIGN_V
+
+    relativeFrom: WD_ANCHOR_RELATIVE_FROM_V = RequiredAttribute(  # pyright: ignore
+        "relativeFrom", WD_ANCHOR_RELATIVE_FROM_V
+    )
 
 
 class CT_Blip(BaseOxmlElement):

@@ -7,8 +7,8 @@ from typing import IO, TYPE_CHECKING, Tuple, cast
 from docx.image.constants import MIME_TYPE
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.opc.part import XmlPart
-from docx.oxml.shape import CT_Inline
-from docx.shared import Length, lazyproperty
+from docx.oxml.shape import CT_Anchor, CT_Inline
+from docx.shared import Emu, Length, lazyproperty
 
 if TYPE_CHECKING:
     from docx.enum.style import WD_STYLE_TYPE
@@ -86,16 +86,7 @@ class StoryPart(XmlPart):
         alternative text of the picture. `svg_fallback` is the raster image to show in
         place of an SVG where the SVG cannot be rendered.
         """
-        rId, image = self.get_or_add_image(image_descriptor)
-        svg_rId = None
-        if image.content_type == MIME_TYPE.SVG:
-            # -- the vector source goes on the extension; the raster blip alongside it
-            # -- is what a consumer that does not understand the extension renders --
-            svg_rId = rId
-            if svg_fallback is not None:
-                rId, _ = self.get_or_add_image(svg_fallback)
-        # -- dimensions always come from the SVG, which is what states the intended
-        # -- display size; the fallback is only ever a rendering of it --
+        rId, image, svg_rId = self._image_rIds(image_descriptor, svg_fallback)
         cx, cy = image.scaled_dimensions(width, height)
         shape_id, filename = self.next_id, image.filename
         return CT_Inline.new_pic_inline(
@@ -108,6 +99,55 @@ class StoryPart(XmlPart):
             title=title,
             svg_rId=svg_rId,
         )
+
+    def new_pic_anchor(
+        self,
+        image_descriptor: str | IO[bytes],
+        width: int | Length | None = None,
+        height: int | Length | None = None,
+        pos_x: Length | int = 0,
+        pos_y: Length | int = 0,
+        description: str | None = None,
+        title: str | None = None,
+        svg_fallback: str | IO[bytes] | None = None,
+    ) -> CT_Anchor:
+        """Return a newly-created `wp:anchor` element for a floating picture.
+
+        The arguments match :meth:`new_pic_inline`, with `pos_x` and `pos_y` giving the
+        offset from the column and paragraph the shape is anchored to.
+        """
+        rId, image, svg_rId = self._image_rIds(image_descriptor, svg_fallback)
+        cx, cy = image.scaled_dimensions(width, height)
+        return CT_Anchor.new_pic_anchor(
+            self.next_id,
+            rId,
+            image.filename,
+            cx,
+            cy,
+            Emu(int(pos_x)),
+            Emu(int(pos_y)),
+            description=description,
+            title=title,
+            svg_rId=svg_rId,
+        )
+
+    def _image_rIds(
+        self, image_descriptor: str | IO[bytes], svg_fallback: str | IO[bytes] | None
+    ) -> Tuple[str, Image, str | None]:
+        """`(rId, image, svg_rId)` for `image_descriptor`.
+
+        For an SVG the vector source goes on the extension and the raster blip alongside
+        it is what a consumer that does not understand the extension renders. Dimensions
+        always come from the SVG, which is what states the intended display size; the
+        fallback is only ever a rendering of it.
+        """
+        rId, image = self.get_or_add_image(image_descriptor)
+        svg_rId = None
+        if image.content_type == MIME_TYPE.SVG:
+            svg_rId = rId
+            if svg_fallback is not None:
+                rId, _ = self.get_or_add_image(svg_fallback)
+        return rId, image, svg_rId
 
     @property
     def next_id(self) -> int:

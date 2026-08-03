@@ -26,6 +26,7 @@ FMTID_USER_DEFINED = "{D5CDD505-2E9C-101B-9397-08002B2CF9AE}"
 # -- `pid` values 0 and 1 are reserved, so user properties start here --
 _FIRST_PID = 2
 
+
 class CT_Property(BaseOxmlElement):
     """`<property>` element, one custom document property.
 
@@ -129,9 +130,7 @@ class CT_CustomProperties(BaseOxmlElement):
 # -- the `vt:` variants that carry an integer or a floating-point value. Only `i4` and
 # -- `r8` are ever written, but any of these can be read from a document written by
 # -- something else. --
-_INT_VARIANTS = frozenset(
-    ("i1", "i2", "i4", "i8", "int", "ui1", "ui2", "ui4", "ui8", "uint")
-)
+_INT_VARIANTS = frozenset(("i1", "i2", "i4", "i8", "int", "ui1", "ui2", "ui4", "ui8", "uint"))
 _FLOAT_VARIANTS = frozenset(("r4", "r8", "decimal"))
 
 

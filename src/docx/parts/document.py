@@ -14,7 +14,7 @@ from docx.parts.numbering import NumberingPart
 from docx.parts.settings import SettingsPart
 from docx.parts.story import StoryPart
 from docx.parts.styles import StylesPart
-from docx.shape import InlineShapes
+from docx.shape import FloatingShapes, InlineShapes
 from docx.shared import lazyproperty
 
 if TYPE_CHECKING:
@@ -121,6 +121,11 @@ class DocumentPart(StoryPart):
     def header_part(self, rId: str):
         """Return |HeaderPart| related by `rId`."""
         return self.related_parts[rId]
+
+    @lazyproperty
+    def floating_shapes(self):
+        """The |FloatingShapes| instance containing the anchored shapes in the document."""
+        return FloatingShapes(self._element.body, self)
 
     @lazyproperty
     def inline_shapes(self):

@@ -281,6 +281,17 @@ class Document(ElementProxy):
         return list(iter_form_fields(self._element, self._part))
 
     @property
+    def floating_shapes(self):
+        """The |FloatingShapes| collection for this document.
+
+        A floating shape is anchored rather than inline: it is positioned against the
+        page, the margin, the column or the paragraph, and text wraps around it. These
+        do not appear in :attr:`inline_shapes`, whose position properties would be
+        meaningless for them.
+        """
+        return self._part.floating_shapes
+
+    @property
     def inline_shapes(self):
         """The |InlineShapes| collection for this document.
 
