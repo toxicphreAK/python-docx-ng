@@ -22,7 +22,9 @@ class DescribeStyleFactory:
     def it_constructs_the_right_type_of_style(self, factory_fixture):
         style_elm, StyleCls_, style_ = factory_fixture
         style = StyleFactory(style_elm)
-        StyleCls_.assert_called_once_with(style_elm)
+        # -- the second argument is the document part, which a style needs to find its
+        # -- own numbering when copied into another document; None when not supplied --
+        StyleCls_.assert_called_once_with(style_elm, None)
         assert style is style_
 
     # fixtures -------------------------------------------------------

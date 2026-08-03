@@ -163,15 +163,22 @@ class DescribeDocumentPart:
         assert document_part.settings is settings_
 
     def it_provides_access_to_the_document_styles(
-        self, _styles_part_prop_: Mock, styles_part_: Mock, styles_: Mock, package_: Mock
+        self, _styles_part_prop_: Mock, styles_part_: Mock, package_: Mock
     ):
-        styles_part_.styles = styles_
+        styles_elm = element("w:styles")
+        styles_part_.element = styles_elm
         _styles_part_prop_.return_value = styles_part_
         document_part = DocumentPart(
             PackURI("/word/document.xml"), CT.WML_DOCUMENT, element("w:document"), package_
         )
 
-        assert document_part.styles is styles_
+        styles = document_part.styles
+
+        assert isinstance(styles, Styles)
+        assert styles._element is styles_elm
+        # -- the collection is told which document it belongs to, so a style taken out
+        # -- of it can find its own numbering when copied into another document --
+        assert styles._doc_part is document_part
 
     def it_provides_access_to_its_core_properties(self, package_: Mock, core_properties_: Mock):
         document_part = DocumentPart(

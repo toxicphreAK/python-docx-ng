@@ -53,7 +53,7 @@ class DescribeStyles:
         style = styles.add_style(name, style_type, builtin)
 
         styles._element.add_style_of_type.assert_called_once_with(name_, style_type, builtin)
-        StyleFactory_.assert_called_once_with(style_elm_)
+        StyleFactory_.assert_called_once_with(style_elm_, None)
         assert style is style_
 
     def it_raises_when_style_name_already_used(self, add_raises_fixture):
@@ -209,7 +209,7 @@ class DescribeStyles:
         styles_cxml, is_defined, style_type = request.param
         styles_elm = element(styles_cxml)
         styles = Styles(styles_elm)
-        StyleFactory_calls = [call(styles_elm[-1])] if is_defined else []
+        StyleFactory_calls = [call(styles_elm[-1], None)] if is_defined else []
         StyleFactory_.return_value = style_
         expected_value = style_ if is_defined else None
         return (styles, style_type, StyleFactory_, StyleFactory_calls, expected_value)
@@ -239,7 +239,7 @@ class DescribeStyles:
         style_elm = styles_elm[0]
         styles = Styles(styles_elm)
         default_calls = [] if style_id == "Foo" else [call(styles, style_type)]
-        StyleFactory_calls = [call(style_elm)] if style_id == "Foo" else []
+        StyleFactory_calls = [call(style_elm, None)] if style_id == "Foo" else []
         default_.return_value = StyleFactory_.return_value = style_
         return (
             styles,
@@ -332,7 +332,7 @@ class DescribeStyles:
         styles_cxml, expected_count = request.param
         styles_elm = element(styles_cxml)
         styles = Styles(styles_elm)
-        expected_calls = [call(style_elm) for style_elm in styles_elm]
+        expected_calls = [call(style_elm, None) for style_elm in styles_elm]
         StyleFactory_.return_value = style_
         return styles, expected_count, style_, StyleFactory_, expected_calls
 

@@ -16,6 +16,7 @@ from docx.parts.story import StoryPart
 from docx.parts.styles import StylesPart
 from docx.shape import FloatingShapes, InlineShapes
 from docx.shared import lazyproperty
+from docx.styles.styles import Styles
 
 if TYPE_CHECKING:
     from docx.comments import Comments
@@ -173,8 +174,12 @@ class DocumentPart(StoryPart):
     @property
     def styles(self):
         """A |Styles| object providing access to the styles in the styles part of this
-        document."""
-        return self._styles_part.styles
+        document.
+
+        The collection is told which document part it belongs to, so a style taken out
+        of it can find its own numbering definitions when copied into another document.
+        """
+        return Styles(self._styles_part.element, self)
 
     @property
     def _comments_part(self) -> CommentsPart:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Type
+from typing import TYPE_CHECKING, Type
 
 from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml.styles import CT_Style
@@ -11,8 +11,11 @@ from docx.styles import BabelFish
 from docx.text.font import Font
 from docx.text.parfmt import ParagraphFormat
 
+if TYPE_CHECKING:
+    from docx.parts.document import DocumentPart
 
-def StyleFactory(style_elm: CT_Style) -> BaseStyle:
+
+def StyleFactory(style_elm: CT_Style, part: DocumentPart | None = None) -> BaseStyle:
     """Return `Style` object of appropriate |BaseStyle| subclass for `style_elm`."""
     style_cls: Type[BaseStyle] = {
         WD_STYLE_TYPE.PARAGRAPH: ParagraphStyle,
@@ -21,7 +24,7 @@ def StyleFactory(style_elm: CT_Style) -> BaseStyle:
         WD_STYLE_TYPE.LIST: _NumberingStyle,
     }[style_elm.type]
 
-    return style_cls(style_elm)
+    return style_cls(style_elm, part)
 
 
 class BaseStyle(ElementProxy):
@@ -31,9 +34,20 @@ class BaseStyle(ElementProxy):
     These properties and methods are inherited by all style objects.
     """
 
-    def __init__(self, style_elm: CT_Style):
+    def __init__(self, style_elm: CT_Style, part: DocumentPart | None = None):
         super().__init__(style_elm)
         self._style_elm = style_elm
+        self._doc_part = part
+
+    @property
+    def document_part(self) -> DocumentPart | None:
+        """The |DocumentPart| this style belongs to, |None| when it is not known.
+
+        A style reached through :attr:`.Document.styles` knows its document, which is
+        what lets a style copied out of it carry its numbering with it. One constructed
+        directly from an element does not.
+        """
+        return self._doc_part
 
     @property
     def builtin(self):

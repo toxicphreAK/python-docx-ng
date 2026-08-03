@@ -119,6 +119,7 @@ class CT_Style(BaseOxmlElement):
     name = ZeroOrOne("w:name", successors=_tag_seq[1:])
     basedOn = ZeroOrOne("w:basedOn", successors=_tag_seq[3:])
     next = ZeroOrOne("w:next", successors=_tag_seq[4:])
+    link = ZeroOrOne("w:link", successors=_tag_seq[5:])
     uiPriority = ZeroOrOne("w:uiPriority", successors=_tag_seq[8:])
     semiHidden = ZeroOrOne("w:semiHidden", successors=_tag_seq[9:])
     unhideWhenUsed = ZeroOrOne("w:unhideWhenUsed", successors=_tag_seq[10:])
@@ -198,6 +199,63 @@ class CT_Style(BaseOxmlElement):
         if value is not None:
             name = self._add_name()
             name.val = value
+
+    @property
+    def link_val(self):
+        """Value of `w:link/@w:val` or |None| if not present.
+
+        The id of the paired style of the other kind: a paragraph style's `w:link` names
+        the character style holding its run formatting, and vice versa. Copying one
+        without the other leaves a dangling pair.
+        """
+        link = self.link
+        if link is None:
+            return None
+        return link.val
+
+    @link_val.setter
+    def link_val(self, value):
+        if value is None:
+            self._remove_link()
+        else:
+            self.get_or_add_link().val = value
+
+    @property
+    def next_val(self):
+        """Value of `w:next/@w:val` or |None| if not present."""
+        next = self.next
+        if next is None:
+            return None
+        return next.val
+
+    @next_val.setter
+    def next_val(self, value):
+        if value is None:
+            self._remove_next()
+        else:
+            self.get_or_add_next().val = value
+
+    @property
+    def numId_val(self) -> int | None:
+        """Value of `./w:pPr/w:numPr/w:numId/@w:val`, or |None| if not present.
+
+        A numbering reference points into the numbering part, so it means nothing on its
+        own in another document.
+        """
+        pPr = self.pPr
+        if pPr is None or pPr.numPr is None:
+            return None
+        return pPr.numPr.numId_val
+
+    @numId_val.setter
+    def numId_val(self, value: int | None):
+        pPr = self.pPr
+        if pPr is None:
+            if value is None:
+                return
+            pPr = self.get_or_add_pPr()
+        numPr = pPr.get_or_add_numPr()
+        numPr.numId_val = value
 
     @property
     def next_style(self):
