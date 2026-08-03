@@ -69,8 +69,17 @@ class Part:
 
     @property
     def content_type(self):
-        """Content type of this part."""
+        """Content type of this part.
+
+        Writable, because a part can legitimately change what it is without its bytes
+        changing — a Word document and a Word template hold identical markup and differ
+        only here.
+        """
         return self._content_type
+
+    @content_type.setter
+    def content_type(self, value: str):
+        self._content_type = value
 
     def drop_rel(self, rId: str):
         """Remove the relationship identified by `rId` if its reference count is less

@@ -15,12 +15,15 @@ if TYPE_CHECKING:
     from docx.document import Document as DocumentObject
     from docx.parts.document import DocumentPart
 
-# -- content types whose main part is a Word document body. `.docm` uses a distinct
-# -- content type from `.docx` but the same WordprocessingML markup; the macro storage
-# -- it adds lives in a separate part that round-trips untouched. --
+# -- content types whose main part is a Word document body. Each of `.docm`, `.dotx`
+# -- and `.dotm` uses a distinct content type from `.docx` but the same
+# -- WordprocessingML markup; the macro storage the macro-enabled forms add lives in a
+# -- separate part that round-trips untouched. --
 _WORD_MAIN_CONTENT_TYPES = (
     CT.WML_DOCUMENT_MAIN,
     CT.WML_DOCUMENT_MACRO_ENABLED_MAIN,
+    CT.WML_TEMPLATE_MAIN,
+    CT.WML_TEMPLATE_MACRO_ENABLED_MAIN,
 )
 
 
@@ -28,8 +31,13 @@ def Document(docx: str | IO[bytes] | None = None) -> DocumentObject:
     """Return a |Document| object loaded from `docx`, where `docx` can be either a path
     to a ``.docx`` file (a string) or a file-like object.
 
-    Macro-enabled ``.docm`` files are also accepted. Their macro storage is preserved
-    when the document is saved, but this library provides no API to read or modify it.
+    Macro-enabled ``.docm`` files and Word templates — ``.dotx`` and ``.dotm`` — are
+    also accepted. Their macro storage is preserved when the document is saved, but this
+    library provides no API to read or modify it.
+
+    A template opened this way is still a template when saved; pass
+    ``as_template=False`` to :meth:`.Document.save` to write it out as an ordinary
+    document instead.
 
     If `docx` is missing or ``None``, the built-in default document "template" is
     loaded.

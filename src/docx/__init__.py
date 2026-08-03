@@ -52,6 +52,10 @@ PartFactory.part_type_for[CT.WML_HEADER] = HeaderPart
 PartFactory.part_type_for[CT.WML_NUMBERING] = NumberingPart
 PartFactory.part_type_for[CT.WML_SETTINGS] = SettingsPart
 PartFactory.part_type_for[CT.WML_STYLES] = StylesPart
+# -- a Word template holds the same main part as a document; only Word's treatment of
+# -- the file differs --
+PartFactory.part_type_for[CT.WML_TEMPLATE_MAIN] = DocumentPart
+PartFactory.part_type_for[CT.WML_TEMPLATE_MACRO_ENABLED_MAIN] = DocumentPart
 
 del (
     CT,

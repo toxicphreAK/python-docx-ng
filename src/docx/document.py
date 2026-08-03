@@ -10,6 +10,7 @@ from typing import IO, TYPE_CHECKING, Iterator, List, Sequence
 from docx.blkcntnr import BlockItemContainer
 from docx.enum.section import WD_SECTION
 from docx.enum.text import WD_BREAK
+from docx.opc.constants import CONTENT_TYPE as CT
 from docx.section import Section, Sections
 from docx.shared import ElementProxy, Emu, Inches, Length
 from docx.text.run import Run
@@ -213,12 +214,38 @@ class Document(ElementProxy):
         """The |DocumentPart| object of this document."""
         return self._part
 
-    def save(self, path_or_stream: str | IO[bytes]):
+    @property
+    def is_template(self) -> bool:
+        """|True| when this document is a Word template, a ``.dotx`` or ``.dotm``.
+
+        A template holds the same markup as a document and differs only in the content
+        type of its main part, which is what tells Word to start a new document from it
+        rather than open it for editing.
+        """
+        return self._part.content_type in (
+            CT.WML_TEMPLATE_MAIN,
+            CT.WML_TEMPLATE_MACRO_ENABLED_MAIN,
+        )
+
+    def save(self, path_or_stream: str | IO[bytes], as_template: bool | None = None):
         """Save this document to `path_or_stream`.
 
         `path_or_stream` can be either a path to a filesystem location (a string) or a
         file-like object.
+
+        `as_template` selects whether the result is a Word template (``.dotx`` /
+        ``.dotm``) or an ordinary document (``.docx`` / ``.docm``). The default of
+        |None| keeps whichever this document already is, so a template opened and saved
+        is still a template. Pass ``False`` to generate a document from a template, or
+        ``True`` to turn a document into one. Macro-enabled input stays macro-enabled
+        either way.
+
+        Note this sets the content type; it does not choose the file extension for you.
         """
+        if as_template is not None:
+            self._part.content_type = _document_content_type(
+                self._part.content_type, as_template=as_template
+            )
         self._part.save(path_or_stream)
 
     @property
@@ -281,3 +308,29 @@ class _Body(BlockItemContainer):
         """
         self._body.clear_content()
         return self
+
+
+# -- the content type of a main document part, paired with its template counterpart.
+# -- The two forms of each pair hold identical markup; only Word's treatment differs. --
+_TEMPLATE_CONTENT_TYPE_BY_DOCUMENT = {
+    CT.WML_DOCUMENT_MAIN: CT.WML_TEMPLATE_MAIN,
+    CT.WML_DOCUMENT_MACRO_ENABLED_MAIN: CT.WML_TEMPLATE_MACRO_ENABLED_MAIN,
+}
+_DOCUMENT_CONTENT_TYPE_BY_TEMPLATE = {
+    template: document
+    for document, template in _TEMPLATE_CONTENT_TYPE_BY_DOCUMENT.items()
+}
+
+
+def _document_content_type(content_type: str, as_template: bool) -> str:
+    """The `content_type` counterpart that is or is not a template, per `as_template`.
+
+    Returns `content_type` unchanged when it is already the requested form, so a
+    macro-enabled document stays macro-enabled.
+    """
+    mapping = (
+        _TEMPLATE_CONTENT_TYPE_BY_DOCUMENT
+        if as_template
+        else _DOCUMENT_CONTENT_TYPE_BY_TEMPLATE
+    )
+    return mapping.get(content_type, content_type)
