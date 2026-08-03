@@ -244,11 +244,95 @@ class Paragraph(StoryChild):
                 else Hyperlink(r_or_hlink, self)
             )
 
+    def isolate_run(self, start: int, end: int) -> Run:
+        """Return the character range `[start, end)` of this paragraph as a single run.
+
+        The runs covering the range are split as needed so that the range is exactly one
+        run, which can then be formatted independently of the text around it::
+
+            paragraph.text = "the important part matters"
+            paragraph.isolate_run(4, 13).bold = True
+
+        Offsets are measured against :attr:`text`, so a tab counts as one character and
+        a line break as one newline.
+
+        Word splits a paragraph into runs for reasons unrelated to formatting, so the
+        range being asked for is very often not a run already; that is what this is for.
+        Where the range already lies within one run and covers all of it, that run is
+        returned unchanged.
+
+        When the range spans runs with different formatting they are merged, and the
+        formatting of the run containing `start` applies to the whole range. Raises
+        |ValueError| if the range spans a hyperlink boundary, where merging would move
+        text into or out of the link: replace or format the parts separately, or use
+        :meth:`replace_text`, which handles such a range without merging.
+        """
+        from docx.oxml.text.isolate import isolate_range
+
+        runs = isolate_range(self._p, start, end)
+        if not runs:
+            raise ValueError(
+                f"character range ({start}, {end}) is empty or lies beyond the end of"
+                " the paragraph text"
+            )
+
+        first = runs[0]
+        parent = first.getparent()
+        if any(r.getparent() is not parent for r in runs[1:]):
+            raise ValueError(
+                f"character range ({start}, {end}) spans a hyperlink or similar"
+                " boundary and cannot be isolated into a single run"
+            )
+
+        for r in runs[1:]:
+            for element in r.xpath("./*[not(self::w:rPr)]"):
+                first.append(element)
+            parent.remove(r)
+
+        return Run(first, self)
+
     @property
     def paragraph_format(self):
         """The |ParagraphFormat| object providing access to the formatting properties
         for this paragraph, such as line spacing and indentation."""
         return ParagraphFormat(self._element)
+
+    def replace_text(
+        self,
+        old: str,
+        new: str,
+        *,
+        count: int = -1,
+        regex: bool = False,
+        flags: int = 0,
+    ) -> int:
+        """Replace occurrences of `old` with `new` in this paragraph; return how many.
+
+        The match is made against :attr:`text`, so it succeeds whether or not Word split
+        the text across runs — which it routinely does, for spell-check state, language
+        tagging and revision marks. This is why assigning to `run.text` so often appears
+        to do nothing.
+
+        `new` takes the formatting of the run holding the first replaced character. When
+        the match spans runs formatted differently, the rest of the matched text is
+        removed along with its formatting; the runs themselves stay, so a hyperlink,
+        bookmark, comment range or field only partly covered keeps its structure.
+
+        `count` limits the number of replacements, -1 meaning all of them. Set `regex`
+        to treat `old` as a regular expression, in which case `new` may refer to capture
+        groups as ``\\1`` or ``\\g<name>``; `flags` is passed to :func:`re.compile`.
+        Without `regex`, `old` is matched literally however many metacharacters it
+        contains.
+
+        Text inside a content control is replaced too, and a control showing its
+        placeholder is marked as holding a real value, since that is what it now holds.
+        A field instruction (`w:instrText`) is never matched or altered — it is not
+        document text, and editing one breaks the field.
+        """
+        from docx.text.search import compile_pattern, replace_in_paragraph
+
+        pattern = compile_pattern(old, regex, flags)
+        return replace_in_paragraph(self._p, pattern, new, count, regex)
 
     @property
     def rendered_page_breaks(self) -> List[RenderedPageBreak]:

@@ -174,6 +174,23 @@ class Section:
     def footer_distance(self, value: int | Length | None):
         self._sectPr.footer = value
 
+    def iter_headers_footers(self) -> Iterator[_Header | _Footer]:
+        """Generate all six header and footer objects of this section.
+
+        The default, first-page and even-page header come first, then the three footers.
+        All six are generated whether or not they are in use: whether a first-page
+        header is shown depends on :attr:`different_first_page_header_footer`, and
+        whether it is defined here or inherited from the prior section is
+        :attr:`~._BaseHeaderFooter.is_linked_to_previous`. This is for code that needs
+        to visit each of them, such as a document-wide search.
+        """
+        yield self.header
+        yield self.first_page_header
+        yield self.even_page_header
+        yield self.footer
+        yield self.first_page_footer
+        yield self.even_page_footer
+
     @property
     def gutter(self) -> Length | None:
         """|Length| object representing page gutter size in English Metric Units.

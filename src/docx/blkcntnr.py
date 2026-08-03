@@ -91,6 +91,21 @@ class BlockItemContainer(StoryChild):
 
         return [ContentControl(sdt, self) for sdt in self._element.xpath(".//w:sdt")]
 
+    def iter_paragraphs(self, tables: bool = True) -> Iterator[Paragraph]:
+        """Generate every |Paragraph| in this container, in document order.
+
+        Unlike :attr:`paragraphs`, this descends into tables when `tables` is |True|,
+        including tables nested inside other tables, so it reaches every paragraph in
+        the container rather than only the top-level ones.
+        """
+        for item in self.iter_inner_content():
+            if isinstance(item, Paragraph):
+                yield item
+            elif tables:
+                for row in item.rows:
+                    for cell in row.cells:
+                        yield from cell.iter_paragraphs(tables=True)
+
     @property
     def paragraphs(self):
         """A list containing the paragraphs in this container, in document order.
@@ -98,10 +113,45 @@ class BlockItemContainer(StoryChild):
         Includes paragraphs wrapped in a `w:sdt` (content control). Read-only.
         """
         return [
-            Paragraph(p, self)
-            for p in self._element.inner_content_elements
-            if isinstance(p, CT_P)
+            Paragraph(p, self) for p in self._element.inner_content_elements if isinstance(p, CT_P)
         ]
+
+    def replace_text(
+        self,
+        old: str,
+        new: str,
+        *,
+        count: int = -1,
+        regex: bool = False,
+        flags: int = 0,
+        tables: bool = True,
+    ) -> int:
+        """Replace occurrences of `old` with `new` in this container; return how many.
+
+        Each paragraph is replaced in as described by :meth:`.Paragraph.replace_text`,
+        which is where the details of matching and formatting are documented. Tables are
+        included unless `tables` is |False|; `count` of -1 replaces every match and any
+        other value is a limit on the total across the whole container.
+        """
+        from docx.text.search import compile_pattern, replace_in_paragraph
+
+        if count == 0:
+            return 0
+
+        pattern = compile_pattern(old, regex, flags)
+        replaced = 0
+        for paragraph in self.iter_paragraphs(tables=tables):
+            remaining = -1 if count < 0 else count - replaced
+            replaced += replace_in_paragraph(
+                paragraph._p,  # pyright: ignore[reportPrivateUsage]
+                pattern,
+                new,
+                remaining,
+                regex,
+            )
+            if count >= 0 and replaced >= count:
+                break
+        return replaced
 
     @property
     def tables(self):

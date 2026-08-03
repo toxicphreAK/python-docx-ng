@@ -68,6 +68,20 @@ class DocumentPart(StoryPart):
         return self._footnotes_part.footnotes
 
     @property
+    def has_footnotes_part(self) -> bool:
+        """|True| when this document already has a footnotes part.
+
+        Reading :attr:`footnotes` creates the part when it is absent, so code that only
+        wants to look at footnotes that exist — a document-wide search, say — asks this
+        first rather than adding `/word/footnotes.xml` to every document it touches.
+        """
+        try:
+            self.part_related_by(RT.FOOTNOTES)
+        except KeyError:
+            return False
+        return True
+
+    @property
     def core_properties(self) -> CoreProperties:
         """A |CoreProperties| object providing read/write access to the core properties
         of this document."""

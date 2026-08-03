@@ -305,6 +305,73 @@ class Document(ElementProxy):
         """The |DocumentPart| object of this document."""
         return self._part
 
+    def replace_text(
+        self,
+        old: str,
+        new: str,
+        *,
+        count: int = -1,
+        regex: bool = False,
+        flags: int = 0,
+        tables: bool = True,
+        headers_footers: bool = False,
+        footnotes: bool = False,
+    ) -> int:
+        """Replace occurrences of `old` with `new` in this document; return how many.
+
+        The match is made against each paragraph's text as a whole, so it succeeds
+        whether or not Word split the text across runs; see
+        :meth:`.Paragraph.replace_text` for what happens to formatting.
+
+        What gets searched is explicit rather than incidental, because "replace it
+        everywhere" means different things to different callers and getting it wrong is
+        invisible until someone reads the header::
+
+            document.replace_text("{{name}}", "Ada")                        # body only
+            document.replace_text("{{name}}", "Ada", headers_footers=True)  # and those
+
+        The document body, including tables unless `tables` is |False|, is always
+        searched. Headers and footers of every section — default, first-page and
+        even-page alike — are searched when `headers_footers` is |True|, and footnotes
+        and endnotes when `footnotes` is |True|. Comments are never searched: a comment
+        is somebody's remark about the document rather than part of it.
+
+        `count` of -1 replaces every match; any other value limits the total across
+        everything searched, in the order given above. `regex` and `flags` are as for
+        :meth:`.Paragraph.replace_text`.
+        """
+        if count == 0:
+            return 0
+
+        containers: List[BlockItemContainer] = [self._body]
+        if headers_footers:
+            for section in self.sections:
+                # -- a header that inherits from the prior section has no definition of
+                # -- its own; searching it would visit the inherited one a second time,
+                # -- and merely reaching for it would create a part in the first section
+                containers.extend(
+                    hdrftr
+                    for hdrftr in section.iter_headers_footers()
+                    if not hdrftr.is_linked_to_previous
+                )
+        if footnotes and self._part.has_footnotes_part:
+            containers.extend(self.footnotes)
+
+        replaced = 0
+        for container in containers:
+            replaced += container.replace_text(
+                old,
+                new,
+                count=-1 if count < 0 else count - replaced,
+                regex=regex,
+                flags=flags,
+                tables=tables,
+            )
+            if count >= 0 and replaced >= count:
+                break
+
+        return replaced
+
     @property
     def is_template(self) -> bool:
         """|True| when this document is a Word template, a ``.dotx`` or ``.dotm``.
@@ -408,8 +475,7 @@ _TEMPLATE_CONTENT_TYPE_BY_DOCUMENT = {
     CT.WML_DOCUMENT_MACRO_ENABLED_MAIN: CT.WML_TEMPLATE_MACRO_ENABLED_MAIN,
 }
 _DOCUMENT_CONTENT_TYPE_BY_TEMPLATE = {
-    template: document
-    for document, template in _TEMPLATE_CONTENT_TYPE_BY_DOCUMENT.items()
+    template: document for document, template in _TEMPLATE_CONTENT_TYPE_BY_DOCUMENT.items()
 }
 
 
@@ -420,9 +486,7 @@ def _document_content_type(content_type: str, as_template: bool) -> str:
     macro-enabled document stays macro-enabled.
     """
     mapping = (
-        _TEMPLATE_CONTENT_TYPE_BY_DOCUMENT
-        if as_template
-        else _DOCUMENT_CONTENT_TYPE_BY_TEMPLATE
+        _TEMPLATE_CONTENT_TYPE_BY_DOCUMENT if as_template else _DOCUMENT_CONTENT_TYPE_BY_TEMPLATE
     )
     return mapping.get(content_type, content_type)
 
