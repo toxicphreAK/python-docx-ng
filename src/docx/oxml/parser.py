@@ -16,7 +16,14 @@ if TYPE_CHECKING:
 
 # -- configure XML parser --
 element_class_lookup = etree.ElementNamespaceClassLookup()
-oxml_parser = etree.XMLParser(remove_blank_text=True, resolve_entities=False)
+# -- `huge_tree` lifts libxml2's 10MB cap on a single attribute value. Word writes
+# -- attributes past that limit in the wild, notably `w:instrText` field results and
+# -- long `r:embed` chains, and the default parser rejects those files outright with
+# -- "AttValue length too long". Entity resolution stays off, which is the part of
+# -- `huge_tree` that would otherwise carry a billion-laughs risk. --
+oxml_parser = etree.XMLParser(
+    remove_blank_text=True, resolve_entities=False, huge_tree=True
+)
 oxml_parser.set_element_class_lookup(element_class_lookup)
 
 

@@ -36,6 +36,30 @@ class DescribeOxmlParser:
         xml_text = etree.tostring(element, encoding="unicode")
         assert xml_text == stripped_xml_text
 
+    def it_parses_an_attribute_value_longer_than_the_default_10MB_limit(self):
+        """Word writes attribute values libxml2 rejects by default.
+
+        Without `huge_tree`, parsing raises "AttValue length too long".
+        """
+        attr_value = "x" * (12 * 1024 * 1024)
+        xml_text = '<foo bar="%s"/>' % attr_value
+
+        element = etree.fromstring(xml_text.encode("utf-8"), oxml_parser)
+
+        assert element.get("bar") == attr_value
+
+    def it_does_not_resolve_entities(self):
+        """`huge_tree` must not re-enable entity expansion."""
+        xml_text = (
+            '<?xml version="1.0"?>'
+            "<!DOCTYPE foo [<!ENTITY xxe 'expanded'>]>"
+            "<foo><bar>&xxe;</bar></foo>"
+        )
+
+        element = etree.fromstring(xml_text.encode("utf-8"), oxml_parser)
+
+        assert element[0].text != "expanded"
+
     # fixtures -------------------------------------------------------
 
     @pytest.fixture

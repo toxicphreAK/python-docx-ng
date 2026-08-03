@@ -142,7 +142,11 @@ class RGBColor(Tuple[int, int, int]):
 
     @classmethod
     def from_string(cls, rgb_hex_str: str) -> RGBColor:
-        """Return a new instance from an RGB color hex string like ``'3C2F80'``."""
+        """Return a new instance from an RGB color hex string like ``'3C2F80'``.
+
+        A leading "#" is accepted, so CSS-style values like ``'#3C2F80'`` also work.
+        """
+        rgb_hex_str = rgb_hex_str.lstrip("#")
         r = int(rgb_hex_str[:2], 16)
         g = int(rgb_hex_str[2:4], 16)
         b = int(rgb_hex_str[4:], 16)

@@ -113,6 +113,9 @@ class DescribeRGBColor:
         rgb = RGBColor.from_string("123456")
         assert rgb == RGBColor(0x12, 0x34, 0x56)
 
+    def it_accepts_a_leading_hash_on_a_hex_string_rgb_value(self):
+        assert RGBColor.from_string("#123456") == RGBColor(0x12, 0x34, 0x56)
+
     def it_can_provide_a_hex_string_rgb_value(self):
         assert str(RGBColor(0xF3, 0x8A, 0x56)) == "F38A56"
 
