@@ -15,17 +15,28 @@ if TYPE_CHECKING:
     from docx.document import Document as DocumentObject
     from docx.parts.document import DocumentPart
 
+# -- content types whose main part is a Word document body. `.docm` uses a distinct
+# -- content type from `.docx` but the same WordprocessingML markup; the macro storage
+# -- it adds lives in a separate part that round-trips untouched. --
+_WORD_MAIN_CONTENT_TYPES = (
+    CT.WML_DOCUMENT_MAIN,
+    CT.WML_DOCUMENT_MACRO_ENABLED_MAIN,
+)
+
 
 def Document(docx: str | IO[bytes] | None = None) -> DocumentObject:
     """Return a |Document| object loaded from `docx`, where `docx` can be either a path
     to a ``.docx`` file (a string) or a file-like object.
+
+    Macro-enabled ``.docm`` files are also accepted. Their macro storage is preserved
+    when the document is saved, but this library provides no API to read or modify it.
 
     If `docx` is missing or ``None``, the built-in default document "template" is
     loaded.
     """
     docx = _default_docx_path() if docx is None else docx
     document_part = cast("DocumentPart", Package.open(docx).main_document_part)
-    if document_part.content_type != CT.WML_DOCUMENT_MAIN:
+    if document_part.content_type not in _WORD_MAIN_CONTENT_TYPES:
         tmpl = "file '%s' is not a Word file, content type is '%s'"
         raise ValueError(tmpl % (docx, document_part.content_type))
     return document_part.document

@@ -132,6 +132,7 @@ class CONTENT_TYPE:
     WML_DOCUMENT_GLOSSARY = (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document.glossary+xml"
     )
+    WML_DOCUMENT_MACRO_ENABLED_MAIN = "application/vnd.ms-word.document.macroEnabled.main+xml"
     WML_DOCUMENT_MAIN = (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
     )
