@@ -121,6 +121,10 @@ rst_epilog = """
 
 .. |FormField| replace:: :class:`.FormField`
 
+.. |Footnote| replace:: :class:`.Footnote`
+
+.. |Footnotes| replace:: :class:`.Footnotes`
+
 .. |_Footer| replace:: :class:`._Footer`
 
 .. |FooterPart| replace:: :class:`.FooterPart`

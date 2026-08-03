@@ -21,6 +21,7 @@ from docx.text.run import Run
 if TYPE_CHECKING:
     import docx.types as t
     from docx.comments import Comment, Comments
+    from docx.footnotes import Footnotes
     from docx.opc.customprops import CustomProperties
     from docx.oxml.document import CT_Body, CT_Document
     from docx.parts.document import DocumentPart
@@ -245,6 +246,15 @@ class Document(ElementProxy):
         """An |ExtendedProperties| object providing the application-specific properties
         of the document, such as word count and producing application."""
         return self._part.package.extended_properties
+
+    @property
+    def footnotes(self) -> Footnotes:
+        """A |Footnotes| object providing access to the footnotes of this document.
+
+        The footnotes part is created the first time this is used, so a document that
+        never touches it gains no `/word/footnotes.xml`.
+        """
+        return self._part.footnotes
 
     @property
     def form_fields(self) -> List[FormField]:

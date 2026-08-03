@@ -135,6 +135,15 @@ from .extendedprops import CT_ExtendedProperties
 
 register_element_cls("ep:Properties", CT_ExtendedProperties)
 
+from .footnotes import CT_Footnotes, CT_FtnEdn, CT_FtnEdnRef
+
+# -- `w:footnote` is also the tag of the `CT_FtnEdnSepRef` children of `w:footnotePr` in
+# -- a section or in the settings part. Those carry only a `w:id` attribute, which
+# -- `CT_FtnEdn` reads the same way, so sharing the class costs nothing. --
+register_element_cls("w:footnote", CT_FtnEdn)
+register_element_cls("w:footnoteReference", CT_FtnEdnRef)
+register_element_cls("w:footnotes", CT_Footnotes)
+
 from .document import CT_AltChunk, CT_Body, CT_Document
 
 register_element_cls("w:altChunk", CT_AltChunk)

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     import docx.types as t
     from docx.bookmark import Bookmark
     from docx.enum.text import WD_UNDERLINE
+    from docx.footnotes import Footnote
     from docx.oxml.text.run import CT_R, CT_Text
     from docx.shared import Length
 
@@ -218,6 +219,25 @@ class Run(StoryChild):
         bookmarkStart = self._r.insert_bookmark_start_above(id, name)
         last_run._r.insert_bookmark_end_below(id)
         return Bookmark(bookmarkStart, self)
+
+    def add_footnote_reference(self, footnote: Footnote) -> None:
+        """Add a reference to `footnote` at the end of this run.
+
+        Word renders the reference as the footnote number, superscripted, and places
+        the footnote itself at the foot of the page it falls on. A footnote no run
+        references does not appear in the rendered document at all.
+
+        The "FootnoteReference" character style is applied to this run when it has no
+        character style of its own, since that style is what raises the mark to a
+        superscript. Give the run a style beforehand to prevent that, or add the
+        reference to a run of its own to keep it off surrounding text::
+
+            footnote = document.footnotes.add_footnote("See Smith (2019).")
+            paragraph.add_run().add_footnote_reference(footnote)
+        """
+        if self._r.style is None:
+            self._r.style = "FootnoteReference"
+        self._r.add_footnoteReference().id = footnote.footnote_id
 
     def mark_comment_range(self, last_run: Run, comment_id: int) -> None:
         """Mark the range of runs from this run to `last_run` (inclusive) as belonging to a comment.

@@ -313,6 +313,17 @@ class ST_FldCharType(XsdStringEnumeration):
     _members = (BEGIN, SEPARATE, END)
 
 
+class ST_FtnEdn(XsdStringEnumeration):
+    """Valid values for the `w:footnote/@w:type` and `w:endnote/@w:type` attributes."""
+
+    NORMAL = "normal"
+    SEPARATOR = "separator"
+    CONTINUATION_SEPARATOR = "continuationSeparator"
+    CONTINUATION_NOTICE = "continuationNotice"
+
+    _members = (NORMAL, SEPARATOR, CONTINUATION_SEPARATOR, CONTINUATION_NOTICE)
+
+
 class ST_HexColor(BaseStringType):
     @classmethod
     def convert_from_xml(  # pyright: ignore[reportIncompatibleMethodOverride]

@@ -6,6 +6,7 @@ import pytest
 
 from docx.comments import Comments
 from docx.enum.style import WD_STYLE_TYPE
+from docx.footnotes import Footnotes
 from docx.opc.constants import CONTENT_TYPE as CT
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.opc.coreprops import CoreProperties
@@ -14,6 +15,7 @@ from docx.package import Package
 from docx.parts.altchunk import AltChunkPart
 from docx.parts.comments import CommentsPart
 from docx.parts.document import DocumentPart
+from docx.parts.footnotes import FootnotesPart
 from docx.parts.hdrftr import FooterPart, HeaderPart
 from docx.parts.numbering import NumberingPart
 from docx.parts.settings import SettingsPart
@@ -138,6 +140,17 @@ class DescribeDocumentPart:
 
         assert document_part.comments is comments_
 
+    def it_provides_access_to_the_footnotes_of_the_document(
+        self, _footnotes_part_prop_: Mock, footnotes_part_: Mock, footnotes_: Mock, package_: Mock
+    ):
+        footnotes_part_.footnotes = footnotes_
+        _footnotes_part_prop_.return_value = footnotes_part_
+        document_part = DocumentPart(
+            PackURI("/word/document.xml"), CT.WML_DOCUMENT, element("w:document"), package_
+        )
+
+        assert document_part.footnotes is footnotes_
+
     def it_provides_access_to_the_document_settings(
         self, _settings_part_prop_: Mock, settings_part_: Mock, settings_: Mock, package_: Mock
     ):
@@ -242,6 +255,39 @@ class DescribeDocumentPart:
 
         styles_.get_style_id.assert_called_once_with(style_, WD_STYLE_TYPE.CHARACTER)
         assert style_id == "BodyCharacter"
+
+    def it_provides_access_to_its_footnotes_part_to_help(
+        self, package_: Mock, part_related_by_: Mock, footnotes_part_: Mock
+    ):
+        part_related_by_.return_value = footnotes_part_
+        document_part = DocumentPart(
+            PackURI("/word/document.xml"), CT.WML_DOCUMENT, element("w:document"), package_
+        )
+
+        footnotes_part = document_part._footnotes_part
+
+        part_related_by_.assert_called_once_with(document_part, RT.FOOTNOTES)
+        assert footnotes_part is footnotes_part_
+
+    def and_it_creates_a_default_footnotes_part_if_not_present(
+        self,
+        package_: Mock,
+        part_related_by_: Mock,
+        FootnotesPart_: Mock,
+        footnotes_part_: Mock,
+        relate_to_: Mock,
+    ):
+        part_related_by_.side_effect = KeyError
+        FootnotesPart_.default.return_value = footnotes_part_
+        document_part = DocumentPart(
+            PackURI("/word/document.xml"), CT.WML_DOCUMENT, element("w:document"), package_
+        )
+
+        footnotes_part = document_part._footnotes_part
+
+        FootnotesPart_.default.assert_called_once_with(package_)
+        relate_to_.assert_called_once_with(document_part, footnotes_part_, RT.FOOTNOTES)
+        assert footnotes_part is footnotes_part_
 
     def it_provides_access_to_its_comments_part_to_help(
         self, package_: Mock, part_related_by_: Mock, comments_part_: Mock
@@ -371,6 +417,22 @@ class DescribeDocumentPart:
     @pytest.fixture
     def alt_chunk_part_(self, request: FixtureRequest):
         return instance_mock(request, AltChunkPart)
+
+    @pytest.fixture
+    def FootnotesPart_(self, request: FixtureRequest):
+        return class_mock(request, "docx.parts.document.FootnotesPart")
+
+    @pytest.fixture
+    def footnotes_(self, request: FixtureRequest):
+        return instance_mock(request, Footnotes)
+
+    @pytest.fixture
+    def footnotes_part_(self, request: FixtureRequest):
+        return instance_mock(request, FootnotesPart)
+
+    @pytest.fixture
+    def _footnotes_part_prop_(self, request: FixtureRequest):
+        return property_mock(request, DocumentPart, "_footnotes_part")
 
     @pytest.fixture
     def drop_rel_(self, request: FixtureRequest):

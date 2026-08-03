@@ -8,6 +8,7 @@ from docx.document import Document
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.parts.altchunk import AltChunkPart
 from docx.parts.comments import CommentsPart
+from docx.parts.footnotes import FootnotesPart
 from docx.parts.hdrftr import FooterPart, HeaderPart
 from docx.parts.numbering import NumberingPart
 from docx.parts.settings import SettingsPart
@@ -19,6 +20,7 @@ from docx.shared import lazyproperty
 if TYPE_CHECKING:
     from docx.comments import Comments
     from docx.enum.style import WD_STYLE_TYPE
+    from docx.footnotes import Footnotes
     from docx.opc.coreprops import CoreProperties
     from docx.settings import Settings
     from docx.styles.style import BaseStyle
@@ -59,6 +61,11 @@ class DocumentPart(StoryPart):
     def comments(self) -> Comments:
         """|Comments| object providing access to the comments added to this document."""
         return self._comments_part.comments
+
+    @property
+    def footnotes(self) -> Footnotes:
+        """|Footnotes| object providing access to the footnotes of this document."""
+        return self._footnotes_part.footnotes
 
     @property
     def core_properties(self) -> CoreProperties:
@@ -149,6 +156,21 @@ class DocumentPart(StoryPart):
             comments_part = CommentsPart.default(self.package)
             self.relate_to(comments_part, RT.COMMENTS)
             return comments_part
+
+    @property
+    def _footnotes_part(self) -> FootnotesPart:
+        """A |FootnotesPart| object providing access to the footnotes of this document.
+
+        Creates a default footnotes part if one is not present.
+        """
+        try:
+            return cast(FootnotesPart, self.part_related_by(RT.FOOTNOTES))
+        except KeyError:
+            package = self.package
+            assert package is not None
+            footnotes_part = FootnotesPart.default(package)
+            self.relate_to(footnotes_part, RT.FOOTNOTES)
+            return footnotes_part
 
     @property
     def _settings_part(self) -> SettingsPart:

@@ -14,6 +14,7 @@ from docx.shared import TextAccumulator
 
 if TYPE_CHECKING:
     from docx.oxml.bookmark import CT_BookmarkEnd, CT_BookmarkStart
+    from docx.oxml.footnotes import CT_FtnEdnRef
     from docx.oxml.shape import CT_Anchor, CT_Inline
     from docx.oxml.text.pagebreak import CT_LastRenderedPageBreak
     from docx.oxml.text.parfmt import CT_TabStop
@@ -26,6 +27,7 @@ class CT_R(BaseOxmlElement):
     """`<w:r>` element, containing the properties and text for a run."""
 
     add_br: Callable[[], CT_Br]
+    add_footnoteReference: Callable[[], CT_FtnEdnRef]
     add_tab: Callable[[], CT_TabStop]
     get_or_add_rPr: Callable[[], CT_RPr]
     _add_drawing: Callable[[], CT_Drawing]
@@ -35,6 +37,7 @@ class CT_R(BaseOxmlElement):
     br = ZeroOrMore("w:br")
     cr = ZeroOrMore("w:cr")
     drawing = ZeroOrMore("w:drawing")
+    footnoteReference = ZeroOrMore("w:footnoteReference")
     t = ZeroOrMore("w:t")
     tab = ZeroOrMore("w:tab")
 

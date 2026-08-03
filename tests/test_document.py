@@ -15,6 +15,7 @@ from docx.comments import Comment, Comments
 from docx.document import Document, _Body
 from docx.enum.section import WD_SECTION
 from docx.enum.text import WD_BREAK
+from docx.footnotes import Footnotes
 from docx.opc.coreprops import CoreProperties
 from docx.oxml.document import CT_Body, CT_Document
 from docx.parts.document import DocumentPart
@@ -77,6 +78,12 @@ class DescribeDocument:
         assert document._element.xml == xml(
             "w:document{r:a=b}/w:body/(w:p,w:altChunk{r:id=rId7},w:sectPr)"
         )
+
+    def it_provides_access_to_its_footnotes(self, document_part_: Mock, footnotes_: Mock):
+        document_part_.footnotes = footnotes_
+        document = Document(cast(CT_Document, element("w:document")), document_part_)
+
+        assert document.footnotes is footnotes_
 
     def it_provides_access_to_its_alt_chunks(self, document_part_: Mock):
         body_cxml = "w:document/w:body/(w:altChunk{r:id=rId4},w:p,w:altChunk{r:id=rId5})"
@@ -369,6 +376,10 @@ class DescribeDocument:
     @pytest.fixture
     def comments_prop_(self, request: FixtureRequest):
         return property_mock(request, Document, "comments")
+
+    @pytest.fixture
+    def footnotes_(self, request: FixtureRequest):
+        return instance_mock(request, Footnotes)
 
     @pytest.fixture
     def core_properties_(self, request: FixtureRequest):
