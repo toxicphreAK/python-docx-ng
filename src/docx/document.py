@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from docx.comments import Comment, Comments
     from docx.fields import Field
     from docx.footnotes import Footnotes
+    from docx.numbering import Numbering
     from docx.opc.customprops import CustomProperties
     from docx.oxml.document import CT_Body, CT_Document
     from docx.parts.document import DocumentPart
@@ -315,6 +316,39 @@ class Document(ElementProxy):
     def iter_inner_content(self) -> Iterator[Paragraph | Table]:
         """Generate each `Paragraph` or `Table` in this document in document order."""
         return self._body.iter_inner_content()
+
+    @property
+    def numbering(self) -> Numbering:
+        """A |Numbering| object providing access to the list definitions of this document.
+
+        The numbering part is created the first time this is used, so a document that
+        never touches it gains no `/word/numbering.xml`.
+        """
+        from docx.numbering import Numbering
+
+        return Numbering(self._part.numbering_part.element, self._part)
+
+    @property
+    def list_numbers(self) -> List[tuple[Paragraph, str]]:
+        """`(paragraph, number)` for each list paragraph in the body, in document order.
+
+        The number is what a reader sees — "1.", "a)", "iii." — which Word computes from
+        `numbering.xml` at display time rather than storing in the body::
+
+            for paragraph, number in document.list_numbers:
+                print(number, paragraph.text)
+
+        Paragraphs inside tables are included, since they count towards the same lists.
+        This walks the document once, which is why it exists alongside
+        :attr:`.Paragraph.list_number`: reading that for every paragraph is quadratic.
+        """
+        from docx.numbering import compute_list_numbers, iter_story_paragraphs
+        from docx.text.paragraph import Paragraph
+
+        return [
+            (Paragraph(p, self._body), number)
+            for p, number in compute_list_numbers(iter_story_paragraphs(self._element), self._part)
+        ]
 
     @property
     def paragraphs(self) -> List[Paragraph]:

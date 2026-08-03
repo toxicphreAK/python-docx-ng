@@ -163,6 +163,16 @@ class StoryPart(XmlPart):
             return 1
         return max(used_ids) + 1
 
+    @property
+    def document_part(self) -> DocumentPart:
+        """The |DocumentPart| of this package.
+
+        A story part is not always the document part — a header or footnote is a story
+        too — but the parts they share, styles and numbering among them, hang off the
+        document part. This is how a paragraph in any story reaches them.
+        """
+        return self._document_part
+
     @lazyproperty
     def _document_part(self) -> DocumentPart:
         """|DocumentPart| object for this package."""

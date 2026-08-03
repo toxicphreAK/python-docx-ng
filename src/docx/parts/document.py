@@ -132,6 +132,20 @@ class DocumentPart(StoryPart):
         """The |InlineShapes| instance containing the inline shapes in the document."""
         return InlineShapes(self._element.body, self)
 
+    @property
+    def has_numbering_part(self) -> bool:
+        """|True| when this document already has a numbering part.
+
+        Reading :attr:`numbering_part` creates one when it is absent, so code that only
+        wants to look at numbering that exists asks this first rather than adding an
+        empty `/word/numbering.xml` to every document it touches.
+        """
+        try:
+            self.part_related_by(RT.NUMBERING)
+        except KeyError:
+            return False
+        return True
+
     @lazyproperty
     def numbering_part(self) -> NumberingPart:
         """A |NumberingPart| object providing access to the numbering definitions for this document.

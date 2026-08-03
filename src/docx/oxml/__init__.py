@@ -155,10 +155,15 @@ register_element_cls("w:altChunk", CT_AltChunk)
 register_element_cls("w:body", CT_Body)
 register_element_cls("w:document", CT_Document)
 
-from .numbering import CT_Num, CT_Numbering, CT_NumLvl, CT_NumPr
+from .numbering import CT_AbstractNum, CT_Lvl, CT_Num, CT_Numbering, CT_NumLvl, CT_NumPr
 
+register_element_cls("w:abstractNum", CT_AbstractNum)
 register_element_cls("w:abstractNumId", CT_DecimalNumber)
 register_element_cls("w:ilvl", CT_DecimalNumber)
+# -- `w:lvl` is CT_Lvl everywhere it appears. Its leaf children are deliberately not
+# -- registered: `w:start` is already a table-cell border, and lxml resolves an element
+# -- class by tag name alone, so claiming it here would retype every table border. --
+register_element_cls("w:lvl", CT_Lvl)
 register_element_cls("w:lvlOverride", CT_NumLvl)
 register_element_cls("w:num", CT_Num)
 register_element_cls("w:numId", CT_DecimalNumber)

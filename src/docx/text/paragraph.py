@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from docx.bookmark import Bookmark
     from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
     from docx.fields import Field
+    from docx.numbering import ParagraphNumbering
     from docx.oxml.text.form import CT_FldChar, CT_SimpleField
     from docx.oxml.text.paragraph import CT_P
     from docx.sdt import ContentControl
@@ -370,6 +371,140 @@ class Paragraph(StoryChild):
             parent.remove(r)
 
         return Run(first, self)
+
+    @property
+    def numbering(self) -> ParagraphNumbering | None:
+        """The list membership of this paragraph, |None| when it is not in a list.
+
+        Exposes the list this paragraph belongs to and its level within it::
+
+            if paragraph.numbering:
+                print(paragraph.numbering.num_id, paragraph.numbering.level)
+
+        Numbering applied by the paragraph's style is resolved too — that is how the
+        built-in "List Number" and "List Bullet" styles number a paragraph carrying no
+        numbering markup of its own — and :attr:`.ParagraphNumbering.from_style` says
+        which it was.
+        """
+        from docx.numbering import Numbering, ParagraphNumbering, get_paragraph_numbering
+
+        part = self.part.document_part
+        resolved = get_paragraph_numbering(self._p, part)
+        if resolved is None:
+            return None
+        num_id, level, from_style = resolved
+        if not part.has_numbering_part:
+            return None
+        return ParagraphNumbering(
+            num_id, level, Numbering(part.numbering_part.element, part), from_style
+        )
+
+    def set_numbering(self, num_id: int, level: int = 0) -> None:
+        """Put this paragraph in the list `num_id` at `level`.
+
+        This is how a paragraph joins an existing list, or starts one, without editing
+        the numbering part by hand::
+
+            first = document.add_paragraph("one", style="List Number")
+            second = document.add_paragraph("two")
+            second.set_numbering(first.numbering.num_id)
+
+        `num_id` must name a list already defined in the numbering part; use
+        :attr:`.Document.numbering` to find one. Applying numbering directly like this
+        overrides whatever the paragraph's style would apply.
+        """
+        numPr = self._p.get_or_add_pPr().get_or_add_numPr()
+        numPr.numId_val = num_id
+        numPr.ilvl_val = level
+
+    def remove_numbering(self) -> None:
+        """Take this paragraph out of any list it is in.
+
+        Where the numbering comes from the paragraph's style rather than the paragraph,
+        a `w:numId` of 0 is written, which is how Word switches numbering off for one
+        paragraph without changing its style.
+        """
+        pPr = self._p.pPr
+        if pPr is None:
+            return
+        if self.numbering is not None and self.numbering.from_style:
+            numPr = pPr.get_or_add_numPr()
+            numPr.numId_val = 0
+            numPr.ilvl_val = None
+            return
+        pPr._remove_numPr()  # pyright: ignore[reportPrivateUsage]
+
+    def restart_numbering(self, start: int = 1) -> int:
+        """Restart the list this paragraph is in, so it begins again at `start`.
+
+        Returns the `num_id` of the new list. Raises |ValueError| when this paragraph is
+        not in a list.
+
+        In OOXML a list is not restarted by resetting a counter — there is no counter to
+        reset. A second `w:num` is created on the same abstract definition, carrying a
+        `w:startOverride`, and the paragraphs that should begin again are pointed at it.
+        This paragraph and every later one in the same list are repointed, which is what
+        Word's own "Restart at 1" does; paragraphs before it keep the original sequence.
+        """
+        from docx.numbering import Numbering
+
+        numbering_info = self.numbering
+        if numbering_info is None:
+            raise ValueError("this paragraph is not in a list, so has no numbering to restart")
+
+        part = self.part.document_part
+        numbering = Numbering(part.numbering_part.element, part)
+        new_definition = numbering.restart(
+            numbering_info.num_id, ilvl=numbering_info.level, start=start
+        )
+
+        # -- each repointed paragraph keeps its own level; a restart changes which list
+        # -- a paragraph is in, not how deeply nested it is --
+        for p, ilvl in self._following_paragraphs_in_list(numbering_info.num_id):
+            Paragraph(p, self._parent).set_numbering(new_definition.num_id, ilvl)
+
+        return new_definition.num_id
+
+    def _following_paragraphs_in_list(self, num_id: int) -> List[tuple[CT_P, int]]:
+        """`(paragraph, level)` for this paragraph and each later one in list `num_id`."""
+        from docx.numbering import get_paragraph_numbering, iter_story_paragraphs
+
+        part = self.part.document_part
+        found: List[tuple[CT_P, int]] = []
+        reached_self = False
+        for p in iter_story_paragraphs(part.element):
+            if p is self._p:
+                reached_self = True
+            if not reached_self:
+                continue
+            resolved = get_paragraph_numbering(p, part)
+            if resolved is not None and resolved[0] == num_id:
+                found.append((p, resolved[1]))
+        return found
+
+    @property
+    def list_number(self) -> str | None:
+        """The number this paragraph displays as a list item, e.g. `"2."` or `"a)"`.
+
+        |None| when the paragraph is not in a list. The number is nowhere in the
+        document body — Word computes it from `numbering.xml` at display time — so it is
+        computed here the same way, honouring the level, the start value, `w:lvlRestart`
+        and any `w:startOverride`.
+
+        Computing it means walking every paragraph before this one, because a list
+        number depends on all of them. Reading this for every paragraph of a document is
+        therefore quadratic; use :attr:`.Document.list_numbers`, which walks once.
+
+        A level whose format is one of the locale-specific ones falls back to decimal;
+        see :attr:`.NumberingLevel.is_renderable`.
+        """
+        from docx.numbering import compute_list_numbers, iter_story_paragraphs
+
+        part = self.part.document_part
+        for p, number in compute_list_numbers(iter_story_paragraphs(part.element), part):
+            if p is self._p:
+                return number
+        return None
 
     @property
     def paragraph_format(self):
