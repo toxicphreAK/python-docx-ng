@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import cast
 
 import pytest
@@ -72,17 +73,12 @@ class DescribeTable:
         columns = table.columns
         assert isinstance(columns, _Columns)
 
-    def it_provides_access_to_the_cells_in_a_column(
-        self, _cells_: Mock, _column_count_: Mock, document_: Mock
-    ):
-        table = Table(cast(CT_Tbl, element("w:tbl")), document_)
-        _cells_.return_value = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-        _column_count_.return_value = 3
-        column_idx = 1
+    def it_provides_access_to_the_cells_in_a_column(self, document_: Mock):
+        table = Table(CT_Tbl.new_tbl(3, 3, Inches(3)), document_)
 
-        column_cells = table.column_cells(column_idx)
+        column_cells = table.column_cells(1)
 
-        assert column_cells == [1, 4, 7]
+        assert [c._tc for c in column_cells] == [tr.tc_lst[1] for tr in table._tbl.tr_lst]
 
     def it_provides_access_to_the_cells_in_a_row(
         self, _cells_: Mock, _column_count_: Mock, document_: Mock
@@ -294,6 +290,49 @@ class DescribeTable:
         column_count = table._column_count
 
         assert column_count == expected_value
+
+    def it_locates_a_cell_without_materializing_the_whole_grid(self, document_: Mock):
+        """Regression guard for the quadratic `Table.cell()`.
+
+        Reading every cell of a 60x8 table built the 480-cell grid 480 times, once per
+        `.cell()` call. The ceiling here is generous; the defect exceeded it by orders
+        of magnitude.
+        """
+        table = Table(CT_Tbl.new_tbl(60, 8, Inches(6)), document_)
+
+        start = time.perf_counter()
+        for row_idx in range(60):
+            for col_idx in range(8):
+                table.cell(row_idx, col_idx)
+        elapsed = time.perf_counter() - start
+
+        assert elapsed < 2.0, "reading 480 cells took %.1fs" % elapsed
+
+    def it_can_locate_a_cell_by_negative_index(self, document_: Mock):
+        table = Table(CT_Tbl.new_tbl(3, 3, Inches(3)), document_)
+        table.cell(2, 2).text = "bottom-right"
+
+        assert table.cell(-1, -1).text == "bottom-right"
+
+    @pytest.mark.parametrize(("row_idx", "col_idx"), [(3, 0), (0, 3), (-4, 0)])
+    def it_raises_on_a_cell_index_out_of_range(
+        self, row_idx: int, col_idx: int, document_: Mock
+    ):
+        table = Table(CT_Tbl.new_tbl(3, 3, Inches(3)), document_)
+
+        with pytest.raises(IndexError, match="out of range"):
+            table.cell(row_idx, col_idx)
+
+    def it_returns_the_span_origin_cell_for_every_grid_position_it_covers(
+        self, document_: Mock
+    ):
+        table = Table(CT_Tbl.new_tbl(3, 3, Inches(3)), document_)
+        table.cell(0, 0).merge(table.cell(1, 1))
+        table.cell(0, 0).text = "merged"
+
+        # -- all four covered positions resolve to the cell holding the content --
+        assert [table.cell(r, c).text for r in (0, 1) for c in (0, 1)] == ["merged"] * 4
+        assert table.cell(2, 2).text == ""
 
     # fixtures -------------------------------------------------------
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 from typing import Dict
 
 nsmap = {
@@ -99,12 +100,15 @@ def nspfxmap(*nspfxs: str) -> Dict[str, str]:
     return {pfx: nsmap[pfx] for pfx in nspfxs}
 
 
+@functools.lru_cache(maxsize=None)
 def qn(tag: str) -> str:
     """Stands for "qualified name".
 
     This utility function converts a familiar namespace-prefixed tag name like "w:p"
     into a Clark-notation qualified tag name for lxml. For example, `qn("w:p")` returns
     "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p".
+
+    Memoized; `nsmap` is a fixed table and this is called for every element access.
     """
     prefix, tagroot = tag.split(":")
     uri = nsmap[prefix]

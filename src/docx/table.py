@@ -9,7 +9,6 @@ from typing_extensions import TypeAlias
 from docx.blkcntnr import BlockItemContainer
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
-from docx.oxml.simpletypes import ST_Merge
 from docx.oxml.table import CT_TblGridCol
 from docx.shared import Inches, Parented, StoryChild, lazyproperty
 
@@ -85,16 +84,45 @@ class Table(StoryChild):
     def cell(self, row_idx: int, col_idx: int) -> _Cell:
         """|_Cell| at `row_idx`, `col_idx` intersection.
 
-        (0, 0) is the top, left-most cell.
+        (0, 0) is the top, left-most cell. Negative indices count back from the end, as
+        for a sequence.
+
+        Raises |IndexError| if `row_idx` is out of range, or if the row does not occupy
+        layout-grid column `col_idx` — Word allows a row to start late or end early.
+
+        The target cell is located directly, without materializing the whole layout
+        grid, so reading a table cell-by-cell costs time proportional to the number of
+        cells rather than to its square.
         """
-        cell_idx = col_idx + (row_idx * self._column_count)
-        return self._cells[cell_idx]
+        tr = self._tbl.tr_at_idx(row_idx)
+
+        if col_idx < 0:
+            col_idx += self._column_count
+        try:
+            tc = tr.tc_covering_grid_offset(col_idx)
+        except ValueError:
+            raise IndexError("table column index [%d] is out of range" % col_idx) from None
+
+        # -- a continuation cell of a vertical span holds no content; the cell the span
+        # -- starts at does --
+        return _Cell(tc.top_tc, self)
 
     def column_cells(self, column_idx: int) -> list[_Cell]:
-        """Sequence of cells in the column at `column_idx` in this table."""
-        cells = self._cells
-        idxs = range(column_idx, len(cells), self._column_count)
-        return [cells[idx] for idx in idxs]
+        """Sequence of cells in the column at `column_idx` in this table.
+
+        A row that does not occupy `column_idx`, because it starts late or ends early,
+        contributes no cell.
+        """
+
+        def iter_column_cells() -> Iterator[_Cell]:
+            for tr in self._tbl.tr_lst:
+                try:
+                    tc = tr.tc_covering_grid_offset(column_idx)
+                except ValueError:
+                    continue
+                yield _Cell(tc.top_tc, self)
+
+        return list(iter_column_cells())
 
     @lazyproperty
     def columns(self):
@@ -167,16 +195,16 @@ class Table(StoryChild):
         If the table contains a span, one or more |_Cell| object references are
         repeated.
         """
-        col_count = self._column_count
         cells: list[_Cell] = []
+        cell_by_tc: dict[CT_Tc, _Cell] = {}
         for tc in self._tbl.iter_tcs():
-            for grid_span_idx in range(tc.grid_span):
-                if tc.vMerge == ST_Merge.CONTINUE:
-                    cells.append(cells[-col_count])
-                elif grid_span_idx > 0:
-                    cells.append(cells[-1])
-                else:
-                    cells.append(_Cell(tc, self))
+            # -- a continuation cell of a vertical span repeats the cell the span starts
+            # -- at; callers depend on getting the same object back --
+            top_tc = tc.top_tc
+            cell = cell_by_tc.get(top_tc)
+            if cell is None:
+                cell = cell_by_tc[top_tc] = _Cell(top_tc, self)
+            cells.extend([cell] * tc.grid_span)
         return cells
 
     @property

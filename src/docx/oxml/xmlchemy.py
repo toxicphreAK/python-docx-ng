@@ -377,8 +377,12 @@ class _BaseChildElement:
         if not present.
         """
 
+        # -- resolve the qualified name once, at class-creation time; these getters are
+        # -- on the hot path of every element access --
+        nsptag = qn(self._nsptagname)
+
         def get_child_element(obj: BaseOxmlElement):
-            return obj.find(qn(self._nsptagname))
+            return obj.find(nsptag)
 
         get_child_element.__doc__ = (
             "``<%s>`` child element or |None| if not present." % self._nsptagname
@@ -394,8 +398,10 @@ class _BaseChildElement:
         """Return a function object suitable for the "get" side of a list property
         descriptor."""
 
+        nsptag = qn(self._nsptagname)
+
         def get_child_element_list(obj: BaseOxmlElement):
-            return obj.findall(qn(self._nsptagname))
+            return obj.findall(nsptag)
 
         get_child_element_list.__doc__ = (
             "A list containing each of the ``<%s>`` child elements, in the o"

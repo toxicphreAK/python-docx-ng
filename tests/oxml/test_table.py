@@ -12,6 +12,7 @@ from docx.exceptions import InvalidSpanError
 from docx.oxml.parser import parse_xml
 from docx.oxml.table import CT_Row, CT_Tbl, CT_Tc
 from docx.oxml.text.paragraph import CT_P
+from docx.shared import Twips
 
 from ..unitutil.cxml import element, xml
 from ..unitutil.file import snippet_seq
@@ -386,3 +387,113 @@ class DescribeCT_Tc:
     @pytest.fixture
     def tr_(self, request: FixtureRequest):
         return instance_mock(request, CT_Row)
+
+
+class DescribeCT_Tbl:
+    """Unit-test suite for `docx.oxml.table.CT_Tbl`."""
+
+    def it_synthesizes_a_missing_tblGrid_from_the_widest_row(self):
+        """`w:tblGrid` is required by the schema, but Word reads a table without one."""
+        tbl = cast(
+            CT_Tbl,
+            element(
+                "w:tbl/(w:tblPr,"
+                "w:tr/(w:tc/(w:tcPr/w:tcW{w:w=1440,w:type=dxa},w:p),"
+                "w:tc/(w:tcPr/(w:tcW{w:w=2880,w:type=dxa},w:gridSpan{w:val=2}),w:p)),"
+                "w:tr/w:tc/w:p)"
+            ),
+        )
+
+        tblGrid = tbl.tblGrid
+
+        # -- the widest row occupies three grid columns; the merged cell's width is
+        # -- divided evenly between the two it spans --
+        assert [gridCol.w for gridCol in tblGrid.gridCol_lst] == [
+            Twips(1440),
+            Twips(1440),
+            Twips(1440),
+        ]
+        assert tbl.col_count == 3
+
+    def it_inserts_the_synthesized_tblGrid_in_schema_position(self):
+        """Reading such a table repairs it, so saving writes a valid table back out."""
+        tbl = cast(CT_Tbl, element("w:tbl/(w:tblPr,w:tr/w:tc/w:p)"))
+
+        tbl.tblGrid
+
+        assert tbl.xml == xml("w:tbl/(w:tblPr,w:tblGrid/w:gridCol,w:tr/w:tc/w:p)")
+
+    def it_synthesizes_a_tblGrid_for_a_table_with_no_tblPr(self):
+        tbl = cast(CT_Tbl, element("w:tbl/w:tr/w:tc/w:p"))
+
+        tbl.tblGrid
+
+        assert tbl.xml == xml("w:tbl/(w:tblGrid/w:gridCol,w:tr/w:tc/w:p)")
+
+    def it_omits_the_width_of_a_column_whose_cell_has_none(self):
+        tbl = cast(CT_Tbl, element("w:tbl/(w:tblPr,w:tr/(w:tc/w:p,w:tc/w:p))"))
+
+        assert [gridCol.w for gridCol in tbl.tblGrid.gridCol_lst] == [None, None]
+
+    def it_counts_the_grid_columns_a_row_leaves_unpopulated(self):
+        """A row can start late or end early; those positions are still grid columns."""
+        tbl = cast(
+            CT_Tbl,
+            element(
+                "w:tbl/(w:tblPr,"
+                "w:tr/(w:trPr/(w:gridBefore{w:val=1},w:gridAfter{w:val=2}),w:tc/w:p))"
+            ),
+        )
+
+        assert tbl.tr_lst[0].grid_width() == 4
+        assert tbl.col_count == 4
+
+    def it_leaves_an_existing_tblGrid_alone(self):
+        """Including a short one; it reports what the document actually says."""
+        tbl_cxml = "w:tbl/(w:tblPr,w:tblGrid/w:gridCol,w:tr/(w:tc/w:p,w:tc/w:p))"
+        tbl = cast(CT_Tbl, element(tbl_cxml))
+
+        tbl.tblGrid
+
+        assert tbl.xml == xml(tbl_cxml)
+
+    def it_can_get_a_row_by_index_without_building_the_row_list(self):
+        tbl = cast(CT_Tbl, element("w:tbl/(w:tblPr,w:tr/w:tc/w:p,w:tr/w:tc/w:p)"))
+
+        assert tbl.tr_at_idx(0) is tbl.tr_lst[0]
+        assert tbl.tr_at_idx(1) is tbl.tr_lst[1]
+        assert tbl.tr_at_idx(-1) is tbl.tr_lst[-1]
+        with pytest.raises(IndexError, match="out of range"):
+            tbl.tr_at_idx(2)
+
+
+class DescribeCT_Row_grid_offsets:
+    """Unit-test suite for resolving a `w:tc` by layout-grid column."""
+
+    @pytest.mark.parametrize(
+        ("grid_offset", "expected_tc_idx"), [(0, 0), (1, 1), (2, 1), (3, 2)]
+    )
+    def it_returns_the_covering_tc_for_a_spanned_grid_offset(
+        self, grid_offset: int, expected_tc_idx: int
+    ):
+        tr = cast(
+            CT_Row,
+            element(
+                "w:tr/(w:tc/w:p,"
+                "w:tc/(w:tcPr/w:gridSpan{w:val=2},w:p),"
+                "w:tc/w:p)"
+            ),
+        )
+
+        assert tr.tc_covering_grid_offset(grid_offset) is tr.tc_lst[expected_tc_idx]
+
+    @pytest.mark.parametrize("grid_offset", [0, 3, 4])
+    def it_raises_for_a_grid_offset_the_row_does_not_populate(self, grid_offset: int):
+        """Word allows a row to start late or end early."""
+        tr = cast(
+            CT_Row,
+            element("w:tr/(w:trPr/(w:gridBefore{w:val=1},w:gridAfter{w:val=1}),w:tc/w:p,w:tc/w:p)"),
+        )
+
+        with pytest.raises(ValueError, match="does not populate"):
+            tr.tc_covering_grid_offset(grid_offset)

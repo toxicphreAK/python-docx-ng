@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from itertools import islice
 from typing import TYPE_CHECKING, Callable, cast
 
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_ROW_HEIGHT_RULE, WD_TABLE_DIRECTION
 from docx.exceptions import InvalidSpanError
 from docx.oxml.ns import nsdecls, qn
-from docx.oxml.parser import parse_xml
+from docx.oxml.parser import OxmlElement, parse_xml
 from docx.oxml.shared import CT_DecimalNumber
 from docx.oxml.simpletypes import (
     ST_Merge,
@@ -75,6 +76,35 @@ class CT_Row(BaseOxmlElement):
         if trPr is None:
             return 0
         return trPr.grid_before
+
+    def grid_width(self) -> int:
+        """The count of layout-grid columns this row occupies.
+
+        Includes the grid positions this row leaves unpopulated at either end.
+        """
+        return (
+            self.grid_before + sum(tc.grid_span for tc in self.tc_lst) + self.grid_after
+        )
+
+    def tc_covering_grid_offset(self, grid_offset: int) -> CT_Tc:
+        """The `w:tc` element in this tr occupying layout-grid column `grid_offset`.
+
+        Unlike `.tc_at_grid_offset()`, a horizontally merged cell is returned for every
+        grid column it spans, not only for the one it starts at.
+
+        Raises |ValueError| when this row does not populate `grid_offset`, which happens
+        when the row starts late or ends early.
+        """
+        remaining_offset = grid_offset - self.grid_before
+
+        if remaining_offset >= 0:
+            for tc in self.tc_lst:
+                grid_span = tc.grid_span
+                if remaining_offset < grid_span:
+                    return tc
+                remaining_offset -= grid_span
+
+        raise ValueError(f"row does not populate grid_offset={grid_offset}")
 
     def tc_at_grid_offset(self, grid_offset: int) -> CT_Tc:
         """The `tc` element in this tr at exact `grid offset`.
@@ -165,8 +195,37 @@ class CT_Tbl(BaseOxmlElement):
     tr_lst: list[CT_Row]
 
     tblPr: CT_TblPr = OneAndOnlyOne("w:tblPr")  # pyright: ignore[reportAssignmentType]
-    tblGrid: CT_TblGrid = OneAndOnlyOne("w:tblGrid")  # pyright: ignore[reportAssignmentType]
     tr = ZeroOrMore("w:tr")
+
+    @property
+    def tblGrid(self) -> CT_TblGrid:
+        """The `w:tblGrid` child of this table, synthesized when absent.
+
+        `w:tblGrid` is required by the schema, but Word opens a table without one by
+        reconstructing the grid from the row contents, and enough generators emit such a
+        table that refusing to read one is harsher than the situation warrants.
+
+        Note the synthesized element is *inserted into the tree*, so saving a document
+        read this way repairs the table. This is deliberate; the alternative is an
+        `add_column()` that silently does nothing and a save that writes the invalid
+        table straight back out.
+
+        A `w:tblGrid` that is present but has fewer `w:gridCol` children than the widest
+        row is left alone. Nothing in this library depends on the grid to locate a cell,
+        so the short grid affects only `len(table.columns)`, which reports what the
+        document actually says.
+        """
+        tblGrid = cast("CT_TblGrid | None", self.find(qn("w:tblGrid")))
+        if tblGrid is not None and len(tblGrid) > 0:
+            return tblGrid
+        if tblGrid is None:
+            tblGrid = cast("CT_TblGrid", OxmlElement("w:tblGrid"))
+            self._insert_tblGrid(tblGrid)
+        for width in self._synthesized_gridCol_widths():
+            gridCol = tblGrid.add_gridCol()
+            if width is not None:
+                gridCol.w = width
+        return tblGrid
 
     @property
     def bidiVisual_val(self) -> bool | None:
@@ -191,6 +250,20 @@ class CT_Tbl(BaseOxmlElement):
     def col_count(self):
         """The number of grid columns in this table."""
         return len(self.tblGrid.gridCol_lst)
+
+    def tr_at_idx(self, idx: int) -> CT_Row:
+        """The `w:tr` child of this table at `idx`, counting from zero.
+
+        Raises |IndexError| when `idx` is out of range. Locating the row this way avoids
+        materializing the full row list, which is what makes reading a table row by row
+        cost time proportional to its size rather than to its square.
+        """
+        if idx < 0:
+            return self.tr_lst[idx]
+        tr = next(islice(self.iterchildren(qn("w:tr")), idx, idx + 1), None)
+        if tr is None:
+            raise IndexError("table row index [%d] is out of range" % idx)
+        return cast(CT_Row, tr)
 
     def iter_tcs(self):
         """Generate each of the `w:tc` elements in this table, left to right and top to
@@ -230,6 +303,33 @@ class CT_Tbl(BaseOxmlElement):
         if styleId is None:
             return
         tblPr._add_tblStyle().val = styleId  # pyright: ignore[reportPrivateUsage]
+
+    def _insert_tblGrid(self, tblGrid: CT_TblGrid) -> None:
+        """Place `tblGrid` in schema position, immediately after `w:tblPr`."""
+        tblPr = self.find(qn("w:tblPr"))
+        if tblPr is None:
+            self.insert(0, tblGrid)
+        else:
+            tblPr.addnext(tblGrid)
+
+    def _synthesized_gridCol_widths(self) -> list[Length | None]:
+        """Column widths derived from the row occupying the most layout-grid columns.
+
+        A width is |None| where the contributing cell has no explicit width. The width
+        of a horizontally merged cell is divided evenly between the columns it spans.
+        """
+        widest: list[Length | None] = []
+        for tr in self.tr_lst:
+            widths: list[Length | None] = [None] * tr.grid_before
+            for tc in tr.tc_lst:
+                grid_span = tc.grid_span
+                tc_w = tc.width
+                col_w = Emu(tc_w // grid_span) if tc_w is not None else None
+                widths.extend([col_w] * grid_span)
+            widths.extend([None] * tr.grid_after)
+            if len(widths) > len(widest):
+                widest = widths
+        return widest
 
     @classmethod
     def _tbl_xml(cls, rows: int, cols: int, width: Length) -> str:
@@ -552,6 +652,18 @@ class CT_Tc(BaseOxmlElement):
         if self.vMerge is None or self.vMerge == ST_Merge.RESTART:
             return self._tr_idx
         return self._tc_above.top
+
+    @property
+    def top_tc(self) -> CT_Tc:
+        """The `w:tc` element holding the content of this cell's vertical span.
+
+        This is this element itself unless it is a continuation cell (`w:vMerge` of
+        "continue"), in which case it is the cell the span starts at.
+        """
+        tc = self
+        while tc.vMerge == ST_Merge.CONTINUE:
+            tc = tc._tc_above
+        return tc
 
     @property
     def vMerge(self) -> str | None:
