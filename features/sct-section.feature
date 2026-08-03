@@ -148,3 +148,26 @@ Feature: Access and change section properties
       | header      |  0.25  |
       | footer      |  0.5   |
       | gutter      |  0.25  |
+
+
+  Scenario: Get the column layout of a single-column section
+    Given a blank document
+     Then section.column_count is 1
+      And section.column_widths is empty
+
+
+  Scenario: Lay a section out in equal-width columns
+    Given a blank document
+     When I set the section column count to 2
+      And I set the section column spacing to 0.25 inches
+      And I turn on the section column separator
+     Then section.column_count is 2
+      And the reported column spacing is 0.25 inches
+      And section.column_separator is True
+
+
+  Scenario: Lay a section out in columns of unequal width
+    Given a blank document
+     When I give the section columns of 2.0 and 4.0 inches
+     Then section.column_count is 2
+      And section.column_widths is 2.0 and 4.0 inches

@@ -116,6 +116,8 @@ register_element_cls("w:numbering", CT_Numbering)
 register_element_cls("w:startOverride", CT_DecimalNumber)
 
 from .section import (
+    CT_Column,
+    CT_Columns,
     CT_HdrFtr,
     CT_HdrFtrRef,
     CT_PageMar,
@@ -123,6 +125,9 @@ from .section import (
     CT_SectPr,
     CT_SectType,
 )
+
+register_element_cls("w:col", CT_Column)
+register_element_cls("w:cols", CT_Columns)
 
 register_element_cls("w:footerReference", CT_HdrFtrRef)
 register_element_cls("w:ftr", CT_HdrFtr)

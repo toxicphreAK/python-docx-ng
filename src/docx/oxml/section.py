@@ -12,7 +12,13 @@ from docx.enum.section import WD_HEADER_FOOTER, WD_ORIENTATION, WD_SECTION_START
 from docx.oxml.ns import nsmap
 from docx.oxml.sdt import iter_block_content
 from docx.oxml.shared import CT_OnOff
-from docx.oxml.simpletypes import ST_SignedTwipsMeasure, ST_TwipsMeasure, XsdString
+from docx.oxml.simpletypes import (
+    ST_DecimalNumber,
+    ST_OnOff,
+    ST_SignedTwipsMeasure,
+    ST_TwipsMeasure,
+    XsdString,
+)
 from docx.oxml.table import CT_Tbl
 from docx.oxml.text.paragraph import CT_P
 from docx.oxml.xmlchemy import (
@@ -59,6 +65,48 @@ class CT_HdrFtrRef(BaseOxmlElement):
     rId: str = RequiredAttribute("r:id", XsdString)  # pyright: ignore[reportAssignmentType]
 
 
+class CT_Column(BaseOxmlElement):
+    """`w:col` element, one column of an unequal-width multi-column layout."""
+
+    w: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:w", ST_TwipsMeasure
+    )
+    space: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:space", ST_TwipsMeasure
+    )
+
+
+class CT_Columns(BaseOxmlElement):
+    """`w:cols` element, the multi-column layout of a section.
+
+    `w:col` children appear only when the columns are of unequal width; the common
+    equal-width case is described entirely by the attributes here.
+    """
+
+    add_col: Callable[[], CT_Column]
+    col_lst: List[CT_Column]
+
+    col = ZeroOrMore("w:col", successors=())
+
+    num: int | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:num", ST_DecimalNumber
+    )
+    space: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:space", ST_TwipsMeasure
+    )
+    sep: bool | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:sep", ST_OnOff
+    )
+    equalWidth: bool | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:equalWidth", ST_OnOff
+    )
+
+    def clear_cols(self) -> None:
+        """Remove all `w:col` children, restoring equal-width columns."""
+        for col in self.col_lst:
+            self.remove(col)
+
+
 class CT_PageMar(BaseOxmlElement):
     """``<w:pgMar>`` element, defining page margins."""
 
@@ -102,6 +150,7 @@ class CT_PageSz(BaseOxmlElement):
 class CT_SectPr(BaseOxmlElement):
     """`w:sectPr` element, the container element for section properties."""
 
+    get_or_add_cols: Callable[[], CT_Columns]
     get_or_add_pgMar: Callable[[], CT_PageMar]
     get_or_add_pgSz: Callable[[], CT_PageSz]
     get_or_add_titlePg: Callable[[], CT_OnOff]
@@ -143,6 +192,9 @@ class CT_SectPr(BaseOxmlElement):
     )
     pgMar: CT_PageMar | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:pgMar", successors=_tag_seq[5:]
+    )
+    cols: CT_Columns | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:cols", successors=_tag_seq[10:]
     )
     titlePg: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:titlePg", successors=_tag_seq[14:]

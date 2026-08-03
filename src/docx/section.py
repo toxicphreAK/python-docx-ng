@@ -46,6 +46,65 @@ class Section:
         self._sectPr.bottom_margin = value
 
     @property
+    def column_count(self) -> int:
+        """Read/write. The number of text columns in this section.
+
+        1 for an ordinary single-column section, which is also what an absent `w:cols`
+        element means. Assigning a count leaves the columns of equal width; use
+        :meth:`.set_column_widths` for unequal ones.
+        """
+        cols = self._sectPr.cols
+        if cols is None or cols.num is None:
+            return 1
+        return cols.num
+
+    @column_count.setter
+    def column_count(self, value: int):
+        if value < 1:
+            raise ValueError("column count must be at least 1, got %d" % value)
+        cols = self._sectPr.get_or_add_cols()
+        cols.num = value
+        # -- explicit widths describe a different column count and are now stale --
+        cols.clear_cols()
+        cols.equalWidth = None
+
+    @property
+    def column_separator(self) -> bool:
+        """Read/write. |True| if a vertical rule is drawn between the columns."""
+        cols = self._sectPr.cols
+        return False if cols is None else bool(cols.sep)
+
+    @column_separator.setter
+    def column_separator(self, value: bool):
+        self._sectPr.get_or_add_cols().sep = bool(value)
+
+    @property
+    def column_spacing(self) -> Length | None:
+        """Read/write. The space between columns, in EMU, or |None| if not specified.
+
+        For columns of unequal width this is the fallback; each column can carry its own
+        spacing, given through :meth:`.set_column_widths`.
+        """
+        cols = self._sectPr.cols
+        return None if cols is None else cols.space
+
+    @column_spacing.setter
+    def column_spacing(self, value: int | Length | None):
+        self._sectPr.get_or_add_cols().space = value
+
+    @property
+    def column_widths(self) -> tuple[Length | None, ...]:
+        """The width of each column, when the columns are of unequal width.
+
+        An empty tuple for equal-width columns, whose width Word derives from the page
+        width, the margins and the column spacing rather than stating.
+        """
+        cols = self._sectPr.cols
+        if cols is None:
+            return ()
+        return tuple(col.w for col in cols.col_lst)
+
+    @property
     def different_first_page_header_footer(self) -> bool:
         """True if this section displays a distinct first-page header and footer.
 
@@ -228,6 +287,37 @@ class Section:
     @right_margin.setter
     def right_margin(self, value: Length | None):
         self._sectPr.right_margin = value
+
+    def set_column_widths(
+        self, widths: Sequence[Length], spacings: Sequence[Length] | None = None
+    ) -> None:
+        """Lay this section out in columns of the given `widths`.
+
+        `spacings` gives the space following each column and defaults to the section's
+        `.column_spacing` for every column. It must be the same length as `widths` when
+        given; the value for the last column is written but has no visible effect.
+
+        The equal-width case is the common one and is better expressed by assigning
+        `.column_count`, which this replaces. Pass a single width to go back to one
+        column.
+        """
+        if not widths:
+            raise ValueError("at least one column width is required")
+        if spacings is not None and len(spacings) != len(widths):
+            raise ValueError(
+                "spacings must have one value per column, got %d for %d columns"
+                % (len(spacings), len(widths))
+            )
+
+        cols = self._sectPr.get_or_add_cols()
+        cols.clear_cols()
+        cols.num = len(widths)
+        cols.equalWidth = False
+        for idx, width in enumerate(widths):
+            col = cols.add_col()
+            col.w = width
+            if spacings is not None:
+                col.space = spacings[idx]
 
     @property
     def start_type(self) -> WD_SECTION_START:

@@ -263,3 +263,51 @@ def then_the_reported_section_start_type_is_type(context: Context, start_type: s
         "ODD_PAGE": WD_SECTION.ODD_PAGE,
     }[start_type]
     assert context.section.start_type == expected_start_type
+
+
+@when("I set the section column count to {count}")
+def when_set_section_column_count(context: Context, count: str):
+    context.document.sections[0].column_count = int(count)
+
+
+@when("I set the section column spacing to {inches} inches")
+def when_set_section_column_spacing(context: Context, inches: str):
+    context.document.sections[0].column_spacing = Inches(float(inches))
+
+
+@when("I turn on the section column separator")
+def when_turn_on_section_column_separator(context: Context):
+    context.document.sections[0].column_separator = True
+
+
+@when("I give the section columns of {first} and {second} inches")
+def when_give_the_section_unequal_columns(context: Context, first: str, second: str):
+    context.document.sections[0].set_column_widths(
+        [Inches(float(first)), Inches(float(second))]
+    )
+
+
+@then("section.column_count is {count}")
+def then_section_column_count_is(context: Context, count: str):
+    assert context.document.sections[0].column_count == int(count)
+
+
+@then("section.column_separator is True")
+def then_section_column_separator_is_true(context: Context):
+    assert context.document.sections[0].column_separator is True
+
+
+@then("section.column_widths is empty")
+def then_section_column_widths_is_empty(context: Context):
+    assert context.document.sections[0].column_widths == ()
+
+
+@then("section.column_widths is {first} and {second} inches")
+def then_section_column_widths_is(context: Context, first: str, second: str):
+    expected = (Inches(float(first)), Inches(float(second)))
+    assert context.document.sections[0].column_widths == expected
+
+
+@then("the reported column spacing is {inches} inches")
+def then_the_reported_column_spacing_is(context: Context, inches: str):
+    assert context.document.sections[0].column_spacing == Inches(float(inches))

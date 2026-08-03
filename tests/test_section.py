@@ -120,6 +120,118 @@ class DescribeSection:
     @pytest.mark.parametrize(
         ("sectPr_cxml", "expected_value"),
         [
+            # -- an absent `w:cols` means a single column --
+            ("w:sectPr", 1),
+            ("w:sectPr/w:cols", 1),
+            ("w:sectPr/w:cols{w:num=1}", 1),
+            ("w:sectPr/w:cols{w:num=3}", 3),
+        ],
+    )
+    def it_knows_how_many_columns_it_has(
+        self, sectPr_cxml: str, expected_value: int, document_part_: Mock
+    ):
+        section = Section(cast(CT_SectPr, element(sectPr_cxml)), document_part_)
+
+        assert section.column_count == expected_value
+
+    @pytest.mark.parametrize(
+        ("sectPr_cxml", "value", "expected_cxml"),
+        [
+            # -- `w:cols` goes between `w:pgNumType` and `w:formProt` in the sequence --
+            (
+                "w:sectPr/(w:pgNumType,w:formProt)",
+                2,
+                "w:sectPr/(w:pgNumType,w:cols{w:num=2},w:formProt)",
+            ),
+            ("w:sectPr", 3, "w:sectPr/w:cols{w:num=3}"),
+            ("w:sectPr/w:cols{w:num=3}", 1, "w:sectPr/w:cols{w:num=1}"),
+        ],
+    )
+    def it_can_change_how_many_columns_it_has(
+        self, sectPr_cxml: str, value: int, expected_cxml: str, document_part_: Mock
+    ):
+        section = Section(cast(CT_SectPr, element(sectPr_cxml)), document_part_)
+
+        section.column_count = value
+
+        assert section._sectPr.xml == xml(expected_cxml)
+
+    def it_raises_on_a_column_count_below_one(self, document_part_: Mock):
+        section = Section(cast(CT_SectPr, element("w:sectPr")), document_part_)
+
+        with pytest.raises(ValueError, match="at least 1"):
+            section.column_count = 0
+
+    @pytest.mark.parametrize(
+        ("sectPr_cxml", "expected_spacing", "expected_separator"),
+        [
+            ("w:sectPr", None, False),
+            ("w:sectPr/w:cols", None, False),
+            ("w:sectPr/w:cols{w:space=720}", Inches(0.5), False),
+            ("w:sectPr/w:cols{w:space=720,w:sep=1}", Inches(0.5), True),
+            ("w:sectPr/w:cols{w:sep=0}", None, False),
+        ],
+    )
+    def it_knows_its_column_spacing_and_separator(
+        self,
+        sectPr_cxml: str,
+        expected_spacing: Length | None,
+        expected_separator: bool,
+        document_part_: Mock,
+    ):
+        section = Section(cast(CT_SectPr, element(sectPr_cxml)), document_part_)
+
+        assert section.column_spacing == expected_spacing
+        assert section.column_separator is expected_separator
+
+    def it_can_change_its_column_spacing_and_separator(self, document_part_: Mock):
+        section = Section(cast(CT_SectPr, element("w:sectPr")), document_part_)
+
+        section.column_spacing = Inches(0.5)
+        section.column_separator = True
+
+        assert section._sectPr.xml == xml("w:sectPr/w:cols{w:space=720,w:sep=1}")
+
+    def it_can_lay_itself_out_in_columns_of_unequal_width(self, document_part_: Mock):
+        section = Section(cast(CT_SectPr, element("w:sectPr")), document_part_)
+
+        section.set_column_widths([Inches(2), Inches(4)], [Inches(0.5), Inches(0)])
+
+        assert section._sectPr.xml == xml(
+            "w:sectPr/w:cols{w:num=2,w:equalWidth=0}/"
+            "(w:col{w:w=2880,w:space=720},w:col{w:w=5760,w:space=0})"
+        )
+        assert section.column_widths == (Inches(2), Inches(4))
+        assert section.column_count == 2
+
+    def it_reports_no_column_widths_for_equal_width_columns(self, document_part_: Mock):
+        """Word derives an equal width from the page rather than stating it."""
+        section = Section(cast(CT_SectPr, element("w:sectPr/w:cols{w:num=3}")), document_part_)
+
+        assert section.column_widths == ()
+
+    def it_discards_stale_column_widths_when_the_count_changes(self, document_part_: Mock):
+        sectPr_cxml = (
+            "w:sectPr/w:cols{w:num=2,w:equalWidth=0}/(w:col{w:w=2880},w:col{w:w=5760})"
+        )
+        section = Section(cast(CT_SectPr, element(sectPr_cxml)), document_part_)
+
+        section.column_count = 3
+
+        assert section._sectPr.xml == xml("w:sectPr/w:cols{w:num=3}")
+        assert section.column_widths == ()
+
+    def it_raises_on_column_widths_and_spacings_of_different_lengths(
+        self, document_part_: Mock
+    ):
+        section = Section(cast(CT_SectPr, element("w:sectPr")), document_part_)
+
+        with pytest.raises(ValueError, match="one value per column"):
+            section.set_column_widths([Inches(2), Inches(4)], [Inches(0.5)])
+
+    @pytest.mark.parametrize(
+        ("sectPr_cxml", "expected_value"),
+        [
             ("w:sectPr", False),
             ("w:sectPr/w:titlePg", True),
             ("w:sectPr/w:titlePg{w:val=0}", False),
