@@ -89,6 +89,9 @@ Added
 - ``_Row.dont_split``, and the merge extent and origin of a table cell
 - Byte-reproducible output — the same document data serializes to identical bytes
 - Custom namespace prefixes in ``xpath()`` calls
+- ``Document()`` and ``Document.save()`` accept an ``os.PathLike`` — a ``pathlib.Path``
+  no longer has to be wrapped in ``str()``. A path-like pointing at an extracted package
+  directory is now detected as one, and a missing or corrupt path is reported by name.
 
 Fixed
 ~~~~~

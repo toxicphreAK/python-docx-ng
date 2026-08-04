@@ -86,8 +86,10 @@ class PhysPkgWriter:
     """Factory for physical package writer objects."""
 
     def __new__(cls, pkg_file: str | os.PathLike[str] | IO[bytes]):
-        if isinstance(pkg_file, os.PathLike):
-            pkg_file = os.fspath(pkg_file)
+        # -- `pkg_file` is not normalized here. `__new__` only selects the class;
+        # -- Python then calls `__init__` with the original argument, so rebinding it
+        # -- would have no effect. `_ZipPkgWriter` hands it to `ZipFile()`, which
+        # -- accepts a path-like object directly. --
         return super(PhysPkgWriter, cls).__new__(_ZipPkgWriter)
 
 
