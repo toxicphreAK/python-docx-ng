@@ -32,7 +32,7 @@ jobs:
       - name: Build site
         run: uv run mkdocs build
         env:
-          DISABLE_MKDOCS_2_WARNING: "true"
+          NO_MKDOCS_2_WARNING: "true"
 
       - name: Upload artifact
         if: github.ref == 'refs/heads/main'

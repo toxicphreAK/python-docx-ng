@@ -1,0 +1,31 @@
+# Keeps the lockfile and the workflow action versions from drifting. Updates are
+# grouped into one pull request per ecosystem — ungrouped, the dev group alone
+# would open around forty.
+version: 2
+
+updates:
+  # -- pyproject.toml and uv.lock --
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore"
+
+  # -- the action versions pinned in .github/workflows --
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"

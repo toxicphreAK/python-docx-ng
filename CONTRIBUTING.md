@@ -87,7 +87,7 @@ at import. Every module in the package has the import; keep it that way. This on
 bottom of each `Describe*` class. Inserting a class into the middle of a file orphans
 them, and every test in the class above then errors with "fixture not found".
 
-**pyright is not a passing gate.** The code inherited from upstream has roughly 1900
+**pyright is not a passing gate.** The code inherited from upstream has roughly 8,900
 strict-mode errors against the pinned `types-lxml` stubs. CI reports the count without
 failing on it. Annotate new code properly, but do not expect a clean run, and do not
 "fix" inherited errors as a side quest — it makes the diff unreviewable.

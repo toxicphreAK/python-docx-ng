@@ -61,7 +61,7 @@ class DescribeDirPkgReader:
     def pkg_file_(self, request):
         return loose_mock(request)
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture
     def dir_reader(self):
         return _DirPkgReader(dir_pkg_path)
 
@@ -165,7 +165,7 @@ class DescribeZipPkgReader:
 
     # fixtures ---------------------------------------------
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture
     def phys_reader(self):
         phys_reader = _ZipPkgReader(zip_pkg_path)
         yield phys_reader
