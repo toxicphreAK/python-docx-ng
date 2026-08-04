@@ -6,7 +6,9 @@ import os
 from typing import IO, TYPE_CHECKING, cast
 
 from docx.document import Document
+from docx.exceptions import StrictOoxmlNotSupportedError
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from docx.oxml.ns import is_strict_ooxml_tag
 from docx.parts.altchunk import AltChunkPart
 from docx.parts.comments import CommentsPart
 from docx.parts.footnotes import FootnotesPart
@@ -91,7 +93,17 @@ class DocumentPart(StoryPart):
 
     @property
     def document(self):
-        """A |Document| object providing access to the content of this document."""
+        """A |Document| object providing access to the content of this document.
+
+        Raises |StrictOoxmlNotSupportedError| if the package is an ISO Strict document.
+        """
+        if is_strict_ooxml_tag(self._element.tag):
+            raise StrictOoxmlNotSupportedError(
+                "this document is in the ISO/IEC 29500 Strict format, which is not"
+                " supported. Its markup uses the Strict namespaces"
+                " (http://purl.oclc.org/ooxml/...) rather than the Transitional ones."
+                ' Re-save it from Word as "Word Document (.docx)" to convert it.'
+            )
         return Document(self._element, self)
 
     def drop_header_part(self, rId: str) -> None:

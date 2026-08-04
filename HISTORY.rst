@@ -96,6 +96,10 @@ Added
 Fixed
 ~~~~~
 
+- An ISO/IEC 29500 Strict document now raises ``StrictOoxmlNotSupportedError``, naming
+  the format and how to convert it, rather than ``AttributeError: 'lxml.etree._Element'
+  object has no attribute 'body'``. Strict is an option in Word's Save As dialogue and
+  the default in some regulated environments; reading it is still not supported.
 - Style and latent-style lookup now accepts names and style IDs containing quotes and
   other XPath metacharacters.
 - Documents with oversized attribute values, which the default ``lxml`` parser rejects,
