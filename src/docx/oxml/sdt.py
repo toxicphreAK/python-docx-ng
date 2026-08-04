@@ -44,9 +44,21 @@ _CONTROL_TYPE_TAGS = (
 )
 
 
+# -- Wrappers that contribute nothing of their own and whose `w:r` children are ordinary
+# -- runs one level down. `w:smartTag` is what Word puts around a recognised entity — a
+# -- date, a name, a place; Word 2003 wrote them freely and they still round-trip
+# -- through modern Word. `w:customXml` has the same shape. Both are transparent under
+# -- either reading of a revised document, so they are shared with the original-text
+# -- walk in `docx.oxml.revision` rather than listed twice. --
+TRANSPARENT_WRAPPER_TAGS = (qn("w:smartTag"), qn("w:customXml"))
+
 # -- run-level wrappers whose children are part of the text as the document now reads:
 # -- a field's cached result, and an insertion --
-_LOOK_THROUGH_TAGS = (qn("w:fldSimple"), qn("w:ins"), qn("w:moveTo"))
+_LOOK_THROUGH_TAGS = (
+    qn("w:fldSimple"),
+    qn("w:ins"),
+    qn("w:moveTo"),
+) + TRANSPARENT_WRAPPER_TAGS
 
 # -- and one whose children are not: deleted text --
 _SKIP_TAGS = (qn("w:del"), qn("w:moveFrom"))

@@ -71,6 +71,36 @@ class DescribeRunContentWalking:
 
         assert actual == expected
 
+    @pytest.mark.parametrize(
+        ("p_cxml", "expected"),
+        [
+            # -- the runs Word wraps around a recognised date, name or place --
+            ("w:p/(w:r,w:smartTag/w:r,w:r)", ["r", "r", "r"]),
+            ("w:p/w:smartTag/(w:r,w:r)", ["r", "r"]),
+            # -- Word does nest them --
+            ("w:p/w:smartTag/w:smartTag/w:r", ["r"]),
+            # -- `w:customXml` has the same shape --
+            ("w:p/(w:r,w:customXml/w:r)", ["r", "r"]),
+            ("w:p/w:customXml/w:smartTag/w:r", ["r"]),
+            # -- a hyperlink inside one is still a hyperlink --
+            ("w:p/w:smartTag/w:hyperlink", ["hyperlink"]),
+            # -- composes with the wrappers already looked through --
+            ("w:p/w:smartTag/w:sdt/w:sdtContent/w:r", ["r"]),
+            ("w:p/w:smartTag/w:ins/w:r", ["r"]),
+            # -- and a deletion inside one is still skipped --
+            ("w:p/w:smartTag/w:del/w:r", []),
+        ],
+    )
+    def it_looks_through_a_smart_tag_and_custom_xml_wrapper(
+        self, p_cxml: str, expected: list[str]
+    ):
+        """`w:smartTag` and `w:customXml` are transparent; their runs are ordinary runs."""
+        p = cast(BaseOxmlElement, element(p_cxml))
+
+        actual = [e.tag.split("}")[1] for e in iter_run_content(p)]
+
+        assert actual == expected
+
 
 class DescribeCT_Sdt:
     """Unit-test suite for `docx.oxml.sdt.CT_Sdt`."""
