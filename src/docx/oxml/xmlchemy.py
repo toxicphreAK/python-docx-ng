@@ -691,7 +691,10 @@ class BaseOxmlElement(etree.ElementBase, metaclass=MetaOxmlElement):
         return serialize_for_reading(self)
 
     def xpath(  # pyright: ignore[reportIncompatibleMethodOverride]
-        self, xpath_str: str, namespaces: Dict[str, str] | None = None
+        self,
+        xpath_str: str,
+        namespaces: Dict[str, str] | None = None,
+        **variables: Any,
     ) -> Any:
         """Override of `lxml` _Element.xpath() method.
 
@@ -700,10 +703,12 @@ class BaseOxmlElement(etree.ElementBase, metaclass=MetaOxmlElement):
         `namespaces` adds prefixes not in the standard mapping, which is needed to
         query elements from vendor or custom namespaces. Entries override the standard
         mapping where the prefixes collide.
+
+        `variables` binds values to XPath variables, avoiding unsafe string
+        interpolation for user-supplied values.
         """
-        if namespaces is None:
-            return super().xpath(xpath_str, namespaces=nsmap)
-        return super().xpath(xpath_str, namespaces={**nsmap, **namespaces})
+        namespace_map = nsmap if namespaces is None else {**nsmap, **namespaces}
+        return super().xpath(xpath_str, namespaces=namespace_map, **variables)
 
     @property
     def _nsptag(self) -> str:

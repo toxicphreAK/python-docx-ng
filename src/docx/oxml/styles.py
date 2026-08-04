@@ -54,7 +54,7 @@ class CT_LatentStyles(BaseOxmlElement):
 
     def get_by_name(self, name):
         """Return the `w:lsdException` child having `name`, or |None| if not found."""
-        found = self.xpath('w:lsdException[@w:name="%s"]' % name)
+        found = self.xpath("w:lsdException[@w:name=$name]", name=name)
         if not found:
             return None
         return found[0]
@@ -362,16 +362,14 @@ class CT_Styles(BaseOxmlElement):
 
         |None| if not found.
         """
-        xpath = f'w:style[@w:styleId="{styleId}"]'
-        return next(iter(self.xpath(xpath)), None)
+        return next(iter(self.xpath("w:style[@w:styleId=$style_id]", style_id=styleId)), None)
 
     def get_by_name(self, name: str) -> CT_Style | None:
         """`w:style` child with `w:name` grandchild having value `name`.
 
         |None| if not found.
         """
-        xpath = 'w:style[w:name/@w:val="%s"]' % name
-        return next(iter(self.xpath(xpath)), None)
+        return next(iter(self.xpath("w:style[w:name/@w:val=$name]", name=name)), None)
 
     def _iter_styles(self):
         """Generate each of the `w:style` child elements in document order."""

@@ -68,6 +68,22 @@ class DescribeBaseOxmlElement:
         # -- "w" normally resolves to the wordprocessingml namespace --
         assert len(element.xpath("w:r", namespaces={"w": other_ns})) == 1
 
+    def it_binds_xpath_variables_while_preserving_additional_namespaces(self):
+        vendor_ns = "http://example.com/vendor/2024"
+        value = 'He said "it\'s fine" [today]'
+        element = parse_xml(
+            '<w:p %s xmlns:acme="%s"><acme:custom value="He said &quot;it\'s fine&quot; '
+            '[today]"/></w:p>' % (nsdecls("w"), vendor_ns)
+        )
+
+        matches = element.xpath(
+            "acme:custom[@value=$value]",
+            namespaces={"acme": vendor_ns},
+            value=value,
+        )
+
+        assert len(matches) == 1
+
     # fixtures ---------------------------------------------
 
     @pytest.fixture(
