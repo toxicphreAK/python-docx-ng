@@ -7,12 +7,14 @@ on:
     tags:
       - '*'
 
-permissions:
-  contents: write
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: pypi
+
+    permissions:
+      contents: write   # -- attach the built distributions to the GitHub release --
+      id-token: write   # -- mint the OIDC token PyPI trusted publishing exchanges --
 
     steps:
       - uses: actions/checkout@v4
@@ -50,6 +52,3 @@ jobs:
 
       - name: Publish package
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
