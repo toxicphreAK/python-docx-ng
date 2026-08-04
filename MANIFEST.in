@@ -1,10 +1,8 @@
-include HISTORY.rst LICENSE README.rst tox.ini
-include requirements*.txt
+include HISTORY.rst LICENSE tox.ini
 graft src/docx/templates
 graft features
 graft tests
 graft docs
-prune docs/.build
 global-exclude .DS_Store
 global-exclude __pycache__
 global-exclude *.py[co]
