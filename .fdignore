@@ -1,7 +1,7 @@
-.tox
-Session.vim
+.venv
 build/
-docs/.build
+dist/
+site/
 features/_scratch
 __pycache__/
 src/*.egg-info

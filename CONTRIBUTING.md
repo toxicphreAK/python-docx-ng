@@ -52,6 +52,8 @@ uv run behave --format progress --tags=-wip       # acceptance tests
 uv run ruff check .                               # lint — blocking in CI
 uv run ruff format .                              # formatting
 uv run pyright                                    # type check — informational, see below
+make docs                                         # build the documentation into site/
+make opendocs                                     # serve it with live reload
 ```
 
 Before opening a pull request, run the unit tests, the acceptance tests and `ruff check`.
@@ -62,6 +64,9 @@ Before opening a pull request, run the unit tests, the acceptance tests and `ruf
 uv run --python 3.9 pytest tests -q
 uv sync --python 3.12          # switch back afterwards
 ```
+
+That is also how the version matrix is covered locally — `uv run --python 3.11 pytest -q`
+and so on. There is no tox configuration; CI runs the same command across 3.9 to 3.13.
 
 ## Things that will bite you
 

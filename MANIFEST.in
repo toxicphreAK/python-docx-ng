@@ -1,4 +1,4 @@
-include HISTORY.rst LICENSE tox.ini
+include HISTORY.rst LICENSE
 graft src/docx/templates
 graft features
 graft tests
