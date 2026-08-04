@@ -11,10 +11,10 @@ help:
 	@echo "  accept       run acceptance tests using behave"
 	@echo "  build        generate both sdist and wheel suitable for upload to PyPI"
 	@echo "  clean        delete intermediate work product and start fresh"
-	@echo "  cleandocs    delete intermediate documentation files"
+	@echo "  cleandocs    delete the built documentation site"
 	@echo "  coverage     run pytest with coverage"
-	@echo "  docs         generate documentation"
-	@echo "  opendocs     open browser to local version of documentation"
+	@echo "  docs         build the documentation site into site/"
+	@echo "  opendocs     serve the documentation with live reload"
 	@echo "  register     update metadata (README.rst) on PyPI"
 	@echo "  sdist        generate a source distribution into dist/"
 	@echo "  test         run unit tests using pytest"
@@ -34,19 +34,19 @@ clean:
 	rm -rf dist *.egg-info .coverage .DS_Store
 
 cleandocs:
-	$(MAKE) -C docs clean
+	rm -rf site
 
 coverage:
 	uv run pytest --cov-report term-missing --cov=docx tests/
 
 docs:
-	$(MAKE) -C docs html
+	uv run mkdocs build
 
 install:
 	pip install -Ue .
 
 opendocs:
-	open docs/.build/html/index.html
+	uv run mkdocs serve
 
 sdist:
 	uv build --sdist
