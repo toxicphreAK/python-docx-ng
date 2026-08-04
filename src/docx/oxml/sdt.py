@@ -70,10 +70,16 @@ def iter_block_content(element: BaseOxmlElement) -> Iterator[CT_P | CT_Tbl]:
     A `w:sdt` child is looked through rather than skipped: the block-level content of
     its `w:sdtContent` is generated in its place, recursively, so a content control
     nested in another content control is seen as well.
+
+    So is a `w:customXml`, which the schema defines in a block-level flavour
+    (`CT_CustomXmlBlock`) as well as the run-level one — it wraps whole paragraphs and
+    tables, and skipping it drops them from the document entirely.
     """
     for child in element.iterchildren():
         if child.tag in (qn("w:p"), qn("w:tbl")):
             yield cast("CT_P | CT_Tbl", child)
+        elif child.tag in TRANSPARENT_WRAPPER_TAGS:
+            yield from iter_block_content(cast("BaseOxmlElement", child))
         elif child.tag == qn("w:sdt"):
             sdtContent = child.find(qn("w:sdtContent"))
             if sdtContent is not None:

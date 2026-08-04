@@ -50,8 +50,11 @@ Breaking changes
   Word writes a ``w:smartTag`` around a recognised date, name or place, and its ``w:r``
   children are ordinary runs one level down — previously invisible, so the text was
   silently dropped and the run missing from ``.runs``. ``Paragraph.original_text``
-  reads them too. Text inside a text box (``w:txbxContent``) is still not included;
-  that is a separate container rather than a transparent wrapper.
+  reads them too. A block-level ``w:customXml``, which wraps whole paragraphs and
+  tables, is looked through as well — its content was previously absent from
+  ``Document.paragraphs`` and ``.tables`` altogether. Text inside a text box
+  (``w:txbxContent``) is still not included; that is a separate container rather than a
+  transparent wrapper.
 
 Added
 ~~~~~
