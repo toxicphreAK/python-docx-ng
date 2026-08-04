@@ -103,6 +103,11 @@ Fixed
   for most of its presets. Shading now carries an explicit ``w:val``, and a ``w:shd``
   with a pattern but no fill reads as |None| rather than raising. A ``w:shd`` written by
   an earlier version, with no ``w:val``, still reads.
+- ``ST_HexColor`` accepts ``"auto"`` on assignment as well as on read. The schema type
+  is a union of an RGB triple and that literal, but only the read direction handled it,
+  so ``font.shading_fill = "auto"`` raised ``ValueError`` on a value the getter
+  documents and returns. ``w:color/@w:val`` is assignable as ``"auto"`` for the same
+  reason.
 - Style and latent-style lookup now accepts names and style IDs containing quotes and
   other XPath metacharacters.
 - Documents with oversized attribute values, which the default ``lxml`` parser rejects,

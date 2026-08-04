@@ -78,6 +78,8 @@ class DescribeParagraphFormat:
             ),
             ("w:p", "#FF0000", "w:p/w:pPr/w:shd{w:val=clear,w:fill=FF0000}"),
             ("w:p/w:pPr/w:shd{w:val=clear,w:fill=C0C0C0}", None, "w:p/w:pPr"),
+            # -- "auto" is half of the ST_HexColor union; readable but not assignable --
+            ("w:p", "auto", "w:p/w:pPr/w:shd{w:val=clear,w:fill=auto}"),
             # -- an existing pattern is preserved, not overwritten with "clear" --
             (
                 "w:p/w:pPr/w:shd{w:val=pct25}",

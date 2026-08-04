@@ -246,6 +246,9 @@ class DescribeFont:
             ("w:r", "00FF00", "w:r/w:rPr/w:shd{w:val=clear,w:fill=00FF00}"),
             ("w:r", "#0000FF", "w:r/w:rPr/w:shd{w:val=clear,w:fill=0000FF}"),
             ("w:r/w:rPr/w:shd{w:val=clear,w:fill=FF0000}", None, "w:r/w:rPr"),
+            # -- "auto" is half of the ST_HexColor union and must survive a round trip;
+            # -- it was readable but not assignable --
+            ("w:r", "auto", "w:r/w:rPr/w:shd{w:val=clear,w:fill=auto}"),
             # -- an existing pattern is preserved, not overwritten with "clear" --
             (
                 "w:r/w:rPr/w:shd{w:val=pct25}",
