@@ -83,7 +83,8 @@ Added
 - ``.docm`` macro-enabled document support, and ``.dotx``/``.dotm`` template support
 - Content controls — reading text wrapped in a ``w:sdt``
 - East Asian and complex-script typefaces, ``w:szCs``, character scaling, theme fonts
-- Paragraph and run shading, and paragraph outline level
+- Paragraph and run shading — ``shading_fill``, plus ``shading_pattern`` and
+  ``shading_color`` and the ``WD_SHADING_PATTERN`` enum — and paragraph outline level
 - Multi-column section layout
 - Alt text on pictures and inline shapes
 - ``_Row.dont_split``, and the merge extent and origin of a table cell
@@ -96,6 +97,12 @@ Added
 Fixed
 ~~~~~
 
+- ``w:shd`` is modelled correctly. The schema requires ``w:val`` and makes ``w:fill``
+  optional; this library required ``w:fill`` and never wrote ``w:val``, so it emitted
+  shading a validating consumer rejects and raised on the pattern shading Word writes
+  for most of its presets. Shading now carries an explicit ``w:val``, and a ``w:shd``
+  with a pattern but no fill reads as |None| rather than raising. A ``w:shd`` written by
+  an earlier version, with no ``w:val``, still reads.
 - Style and latent-style lookup now accepts names and style IDs containing quotes and
   other XPath metacharacters.
 - Documents with oversized attribute values, which the default ``lxml`` parser rejects,

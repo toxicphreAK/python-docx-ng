@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from docx.dml.color import ColorFormat
-from docx.enum.text import WD_FONT_HINT, WD_UNDERLINE
+from docx.enum.text import WD_FONT_HINT, WD_SHADING_PATTERN, WD_UNDERLINE
 from docx.shared import ElementProxy, Emu
 
 if TYPE_CHECKING:
@@ -334,6 +334,44 @@ class Font(ElementProxy):
     def shading_fill(self, value: RGBColor | str | None) -> None:
         rPr = self._element.get_or_add_rPr()
         rPr.shd_fill = value
+
+    @property
+    def shading_pattern(self) -> WD_SHADING_PATTERN | None:
+        """The pattern drawn over the shading behind the text of this run.
+
+        A |WD_SHADING_PATTERN| member, or |None| when no shading is applied. Word writes
+        |WD_SHADING_PATTERN.CLEAR| for an ordinary background color, which is what
+        `.shading_fill` produces on its own.
+
+        Assigning |None| removes the shading entirely, the same as assigning |None| to
+        `.shading_fill`.
+        """
+        rPr = self._element.rPr
+        if rPr is None:
+            return None
+        return rPr.shd_val
+
+    @shading_pattern.setter
+    def shading_pattern(self, value: WD_SHADING_PATTERN | None) -> None:
+        self._element.get_or_add_rPr().shd_val = value
+
+    @property
+    def shading_color(self) -> RGBColor | str | None:
+        """The foreground color of the shading pattern behind the text of this run.
+
+        An |RGBColor| value, the string "auto", or |None|. This is the color the
+        `.shading_pattern` is drawn *in*; `.shading_fill` is the color behind it. For
+        the usual |WD_SHADING_PATTERN.CLEAR| pattern nothing is drawn and this has no
+        visible effect.
+        """
+        rPr = self._element.rPr
+        if rPr is None:
+            return None
+        return rPr.shd_color
+
+    @shading_color.setter
+    def shading_color(self, value: RGBColor | str | None) -> None:
+        self._element.get_or_add_rPr().shd_color = value
 
     @property
     def no_proof(self) -> bool | None:
