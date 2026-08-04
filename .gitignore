@@ -8,3 +8,6 @@
 _scratch/
 Session.vim
 /.tox/
+
+# -- built documentation site --
+site/

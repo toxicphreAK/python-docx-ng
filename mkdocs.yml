@@ -1,0 +1,141 @@
+site_name: python-docx-ng
+site_description: >-
+  A Python library for creating and updating Microsoft Word (.docx) files.
+site_url: https://toxicphreak.github.io/python-docx-ng/
+repo_url: https://github.com/toxicphreAK/python-docx-ng
+repo_name: toxicphreAK/python-docx-ng
+edit_uri: edit/main/docs/
+copyright: Distributed under the MIT licence.
+
+# -- a broken cross-reference or a link to a page that no longer exists fails the
+# -- build rather than scrolling past in the log --
+strict: true
+
+watch:
+  - src/docx
+  - scripts
+
+# -- the upstream design notes under dev/analysis are contributor material written for
+# -- Sphinx; they stay in the repository but out of the site --
+exclude_docs: |
+  dev/
+  _templates/
+  *.rst
+  conf.py
+
+theme:
+  name: material
+  features:
+    - content.action.edit
+    - content.code.copy
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.suggest
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - gen-files:
+      scripts:
+        - scripts/gen_api_pages.py
+  - literate-nav:
+      nav_file: SUMMARY.md
+  - section-index
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            extensions:
+              - scripts/rst_compat.py:RstCompat
+            # -- objects such as _Cell and _Header are private by name but public by
+            # -- use: they are what the API hands back. Document private classes
+            # -- (CapWords) while still hiding private members (lowercase). --
+            filters:
+              - "!^_"
+              - "^_[A-Z]"
+            heading_level: 2
+            members_order: source
+            merge_init_into_class: true
+            separate_signature: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_signature_annotations: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            signature_crossrefs: true
+  - llmstxt:
+      full_output: llms-full.txt
+      markdown_description: >-
+        python-docx-ng is a Python library for creating and updating Microsoft Word
+        (.docx) files. It is a downstream superset of python-docx; the importable
+        package is `docx`.
+      sections:
+        User guide:
+          - index.md
+          - user/*.md
+        API reference:
+          - api/**.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - User guide:
+      - Installing: user/install.md
+      - Quickstart: user/quickstart.md
+      - API basics: user/api-concepts.md
+      - Documents: user/documents.md
+      - Text: user/text.md
+      - Tables: user/tables.md
+      - Sections: user/sections.md
+      - Headers and footers: user/hdrftr.md
+      - Understanding pictures and shapes: user/shapes.md
+      - Comments: user/comments.md
+      - Understanding styles: user/styles-understanding.md
+      - Working with styles: user/styles-using.md
+  - How-to:
+      - Finding and replacing text: user/search-replace.md
+      - Numbered and bulleted lists: user/numbering.md
+      - Fields and tables of contents: user/fields.md
+      - Bookmarks: user/bookmarks.md
+      - Tracked changes: user/revisions.md
+      - Images: user/images.md
+      - Watermarks: user/watermarks.md
+      - Footnotes: user/footnotes.md
+      - Form fields and content controls: user/form-fields.md
+      - Document properties: user/document-properties.md
+      - Templates and embedded files: user/templates.md
+  - Migrating from 0.9.x: user/migrating-from-0-9.md
+  - API reference: api/
