@@ -1351,7 +1351,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "lxml", specifier = ">=3.1.0" },
+    { name = "lxml", specifier = ">=4.5.2" },
     { name = "typing-extensions", specifier = ">=4.9.0" },
 ]
 

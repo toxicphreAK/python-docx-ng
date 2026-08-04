@@ -10,7 +10,8 @@ Restarted from upstream python-docx v1.2.0. The 0.9.x line had diverged from ups
 v0.8.11 in 2021; rather than merge four years of upstream change into that tree, this
 release branches from upstream and re-applies the python-docx-ng features on top.
 
-**This is a breaking release.** See ``docs/user/migrating-from-0-9.rst`` for a migration
+**This is a breaking release.** See
+https://toxicphreak.github.io/python-docx-ng/user/migrating-from-0-9/ for a migration
 path.
 
 Breaking changes
@@ -98,6 +99,18 @@ Fixed
 - Tables with no ``w:tblGrid`` are readable, and cell access is linear rather than
   quadratic
 - ``w:highlight w:val="none"`` and fractional half-point font sizes are accepted
+
+Packaging
+~~~~~~~~~
+
+- The license is declared as an SPDX expression (PEP 639) rather than the deprecated
+  table form, and ``LICENSE`` is declared through ``license-files``
+- ``Typing :: Typed`` is declared; the package has shipped ``py.typed`` since 1.2.0
+- The ``lxml`` floor is ``4.5.2``, the oldest release with wheels for a supported Python
+- The unpacked ``default-docx-template/`` is no longer installed. It is the editable
+  source of ``default.docx``, is read by nothing at run time, and stays in the sdist
+- The ``requirements*.txt`` files are removed. ``[dependency-groups]`` in
+  ``pyproject.toml`` is the single list of development dependencies, and ``tox`` reads it
 
 
 1.2.0 (2025-06-16)

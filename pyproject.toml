@@ -1,5 +1,7 @@
 [build-system]
-requires = ["setuptools>=61.0.0"]
+# -- 77.0.0 is where `project.license` accepts an SPDX expression and
+# -- `project.license-files` exists (PEP 639) --
+requires = ["setuptools>=77.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,12 +10,11 @@ authors = [{name = "toxicphreAK", email = "pentesting.laboratories@gmail.com"}]
 maintainers = [{name = "toxicphreAK", email = "pentesting.laboratories@gmail.com"}]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
-    "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -21,15 +22,20 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Office/Business :: Office Suites",
     "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 dependencies = [
-    "lxml>=3.1.0",
+    # -- 4.5.2 is the oldest release with wheels for any Python this package
+    # -- supports; anything earlier would have to be built from source --
+    "lxml>=4.5.2",
     "typing_extensions>=4.9.0",
 ]
-description = "python-docx-ng is a Python library for creating and updating Microsoft Word (.docx) files."
+description = "Create, read and update Microsoft Word (.docx) files."
 dynamic = ["version"]
 keywords = ["docx", "office", "openxml", "word"]
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.9"
 
@@ -129,4 +135,14 @@ known-local-folder = ["helpers"]
 
 [tool.setuptools.dynamic]
 version = {attr = "docx.__version__"}
+
+# -- `templates/default-docx-template/` is the unpacked form of `default.docx`,
+# -- kept in the repository and the sdist so the template can be edited and
+# -- repacked. No code reads it, so it is not installed. --
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["docx.templates.default-docx-template*"]
+
+[tool.setuptools.exclude-package-data]
+"docx.templates" = ["default-docx-template/*"]
 
