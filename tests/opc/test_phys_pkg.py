@@ -71,6 +71,14 @@ class DescribePhysPkgReader:
         with pytest.raises(PackageNotFoundError):
             PhysPkgReader("foobar")
 
+    def it_uses_zip_reader_when_pkg_is_a_pathlib_path(self):
+        phys_reader = PhysPkgReader(pathlib.Path(zip_pkg_path))
+        assert isinstance(phys_reader, _ZipPkgReader)
+
+    def it_uses_dir_reader_when_pkg_is_a_pathlib_path(self):
+        phys_reader = PhysPkgReader(pathlib.Path(dir_pkg_path))
+        assert isinstance(phys_reader, _DirPkgReader)
+
     @pytest.mark.parametrize(
         "blob",
         [
@@ -118,6 +126,13 @@ class DescribePhysPkgReader:
             PhysPkgReader(str(path))
         with pytest.raises(PackageNotFoundError, match="not found at"):
             PhysPkgReader(str(tmp_path / "absent.docx"))
+
+    def it_formats_a_pathlib_path_in_package_errors(self, tmp_path: pathlib.Path):
+        path = tmp_path / "corrupt.docx"
+        path.write_bytes(b"not a zip file at all")
+
+        with pytest.raises(PackageNotFoundError, match=str(path)):
+            PhysPkgReader(path)
 
 
 class DescribeZipPkgReader:
