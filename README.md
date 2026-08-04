@@ -8,6 +8,7 @@ by [scanny](https://github.com/scanny): everything upstream does, plus features 
 has not adopted. As of 2.0.0 this project tracks upstream v1.2.0 directly, so it builds on
 upstream's typed and tested core rather than a 2021 snapshot of it.
 
+Documentation: <https://toxicphreak.github.io/python-docx-ng/>
 Repo: <https://github.com/toxicphreAK/python-docx-ng>
 Releases: <https://github.com/toxicphreAK/python-docx-ng/releases>
 PyPI: <https://pypi.org/project/python-docx-ng/>
@@ -36,13 +37,37 @@ pip install python-docx-ng
 'It was a dark and stormy night.'
 ```
 
-The [python-docx documentation](https://python-docx.readthedocs.org/en/latest/) covers the
-shared core. Additions specific to this project are documented in
-[docs](https://github.com/toxicphreAK/python-docx-ng/tree/main/docs).
+## Documentation
+
+**<https://toxicphreak.github.io/python-docx-ng/>**
+
+- [User guide](https://toxicphreak.github.io/python-docx-ng/user/quickstart/) — documents,
+  text, tables, sections, styles
+- [How-to pages](https://toxicphreak.github.io/python-docx-ng/user/search-replace/) — the
+  features listed below, each with worked examples
+- [API reference](https://toxicphreak.github.io/python-docx-ng/api/docx/) — every module,
+  generated from the source
+- [Migrating from 0.9.x](https://toxicphreak.github.io/python-docx-ng/user/migrating-from-0-9/)
+
+The [upstream python-docx documentation](https://python-docx.readthedocs.org/en/latest/)
+also covers the shared core.
+
+### For language models
+
+The site publishes [llms.txt](https://toxicphreak.github.io/python-docx-ng/llms.txt) and
+[llms-full.txt](https://toxicphreak.github.io/python-docx-ng/llms-full.txt). Any tool that
+reads the format can consume them — for example
+[mcpdoc](https://github.com/langchain-ai/mcpdoc), which serves them to an editor over MCP:
+
+```commandline
+uvx --from mcpdoc mcpdoc --urls python-docx-ng:https://toxicphreak.github.io/python-docx-ng/llms.txt
+```
 
 ## What this adds over python-docx
 
-*Being ported onto the v1.2.0 base — see [HISTORY.rst](HISTORY.rst) for current status
+*Being ported onto the v1.2.0 base — see
+[HISTORY.rst](https://github.com/toxicphreAK/python-docx-ng/blob/main/HISTORY.rst) for
+current status
 and the [2.0.0 milestone](https://github.com/toxicphreAK/python-docx-ng/milestone/1) for
 what is still to come.*
 
@@ -68,7 +93,7 @@ what is still to come.*
 additions were dropped in favour of upstream implementations of the same features, which
 are better tested and differently shaped — notably comments, hyperlinks, and table cell
 access. Read the
-[migration guide](https://github.com/toxicphreAK/python-docx-ng/blob/main/docs/user/migrating-from-0-9.rst)
+[migration guide](https://toxicphreak.github.io/python-docx-ng/user/migrating-from-0-9/)
 before upgrading.
 
 ## Development
