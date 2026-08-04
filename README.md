@@ -8,10 +8,10 @@ by [scanny](https://github.com/scanny): everything upstream does, plus features 
 has not adopted. As of 2.0.0 this project tracks upstream v1.2.0 directly, so it builds on
 upstream's typed and tested core rather than a 2021 snapshot of it.
 
-Documentation: <https://toxicphreak.github.io/python-docx-ng/>
-Repo: <https://github.com/toxicphreAK/python-docx-ng>
-Releases: <https://github.com/toxicphreAK/python-docx-ng/releases>
-PyPI: <https://pypi.org/project/python-docx-ng/>
+- Documentation: <https://toxicphreak.github.io/python-docx-ng/>
+- Repo: <https://github.com/toxicphreAK/python-docx-ng>
+- Releases: <https://github.com/toxicphreAK/python-docx-ng/releases>
+- PyPI: <https://pypi.org/project/python-docx-ng/>
 
 ## Installation
 
