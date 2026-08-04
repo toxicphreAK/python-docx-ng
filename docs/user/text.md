@@ -275,3 +275,56 @@ When the color type is *MSO_COLOR_TYPE.THEME*, the [theme_color][docx.dml.color.
 >>> font.color.theme_color
 ACCENT_1 (5)
 ```
+
+## East Asian and complex-script typefaces
+
+Word stores up to four typefaces for a run, one per script, and applies whichever matches
+the characters being rendered. [`Font.name`][docx.text.font.Font.name] is the Latin one;
+the others have their own properties:
+
+```python
+font = paragraph.add_run("mixed script text").font
+
+font.name = "Calibri"       # Latin
+font.east_asian_name = "MS Mincho"
+font.complex_script_name = "Arial"
+font.high_ansi_name = "Calibri"
+```
+
+Complex scripts also carry their own size, which is why a run can render at one size in
+Latin and another in Arabic or Hebrew:
+
+```python
+from docx.shared import Pt
+
+font.size = Pt(11)
+font.cs_size = Pt(13)
+```
+
+## Character scaling
+
+Horizontal scaling stretches or condenses the glyphs, as a whole percentage of normal
+width:
+
+```python
+font.scaling = 150   # half again as wide
+font.scaling = 80    # condensed
+font.scaling = None  # inherit from the style hierarchy
+```
+
+## Shading
+
+Shading fills the background behind text. It exists on a run and on a paragraph, and
+takes an RGB hex string:
+
+```python
+font.shading_fill = "FFFF00"
+paragraph.paragraph_format.shading_fill = "EEEEEE"
+```
+
+!!! note
+
+    In 0.9.x, [`Font.highlight_color`][docx.text.font.Font.highlight_color] fell back to
+    reading `w:shd`. It no longer does: it is strictly a
+    [`WD_COLOR_INDEX`][docx.enum.text.WD_COLOR_INDEX] member — Word's highlighter pen,
+    which has a fixed palette — and `shading_fill` is the arbitrary-colour fill.

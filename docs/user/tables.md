@@ -141,3 +141,35 @@ Note this only produces a uniform "matrix" of cells when there are no omitted ce
 Further complicating table processing is their recursive nature. In Word, as in HTML, a table cell can itself include one or more tables.
 
 These can be detected using `_Cell.tables` or `_Cell.iter_inner_content()`. The latter preserves the document order of the table with respect to paragraphs also in the cell.
+
+## Borders
+
+[`Table.borders`][docx.table.Table.borders] and [`_Cell.borders`][docx.table._Cell.borders]
+are mappings keyed by edge name:
+
+```python
+from docx.enum.table import WD_LINE_STYLE
+from docx.shared import Pt, RGBColor
+
+table = document.add_table(rows=2, cols=2)
+
+table.borders["top"].line = WD_LINE_STYLE.SINGLE
+table.borders["top"].size = Pt(1)
+table.borders["top"].color = RGBColor(0xFF, 0x00, 0x00)
+```
+
+A table admits `left`, `right`, `top`, `bottom`, and `insideH` and `insideV` for the
+horizontal and vertical borders *between* its cells. A cell admits the same four edges
+plus the two diagonals, `tl2br` and `tr2bl`:
+
+```python
+cell = table.cell(0, 0)
+cell.borders["bottom"].line = WD_LINE_STYLE.DOUBLE
+```
+
+A border set on a cell takes precedence over the table border at the same edge.
+
+Each edge exposes `line` (a [`WD_LINE_STYLE`][docx.enum.table.WD_LINE_STYLE] member),
+`size` (a [`Length`][docx.shared.Length]), `color` (an
+[`RGBColor`][docx.shared.RGBColor], not a hex string) and `space`. Setting `line` to
+`WD_LINE_STYLE.NONE` removes the border.

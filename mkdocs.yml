@@ -121,9 +121,21 @@ nav:
       - Tables: user/tables.md
       - Sections: user/sections.md
       - Headers and footers: user/hdrftr.md
-      - Pictures and shapes: user/shapes.md
+      - Understanding pictures and shapes: user/shapes.md
       - Comments: user/comments.md
       - Understanding styles: user/styles-understanding.md
       - Working with styles: user/styles-using.md
-      - Migrating from 0.9.x: user/migrating-from-0-9.md
+  - How-to:
+      - Finding and replacing text: user/search-replace.md
+      - Numbered and bulleted lists: user/numbering.md
+      - Fields and tables of contents: user/fields.md
+      - Bookmarks: user/bookmarks.md
+      - Tracked changes: user/revisions.md
+      - Images: user/images.md
+      - Watermarks: user/watermarks.md
+      - Footnotes: user/footnotes.md
+      - Form fields and content controls: user/form-fields.md
+      - Document properties: user/document-properties.md
+      - Templates and embedded files: user/templates.md
+  - Migrating from 0.9.x: user/migrating-from-0-9.md
   - API reference: api/

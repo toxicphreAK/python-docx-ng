@@ -89,3 +89,29 @@ Seven properties on [Section][docx.section.Section] together specify the various
 >>> section.left_margin, section.right_margin
 (1371600, 914400)
 ```
+
+## Multiple text columns
+
+A section can lay its text out in columns, as a newsletter does:
+
+```python
+from docx.shared import Cm
+
+section = document.sections[0]
+section.column_count = 2
+section.column_spacing = Cm(1)
+```
+
+`column_count` is the number of columns, and `column_spacing` the gap between them as a
+[`Length`][docx.shared.Length]; `column_spacing` reads as `None` when the document does
+not specify one, in which case Word applies its own default.
+
+Because this is a section property, changing the number of columns partway through a
+document means starting a new section at that point:
+
+```python
+from docx.enum.section import WD_SECTION
+
+two_up = document.add_section(WD_SECTION.CONTINUOUS)
+two_up.column_count = 2
+```
