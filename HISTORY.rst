@@ -46,6 +46,13 @@ Breaking changes
   ``Paragraph.runs`` likewise now includes runs inside a ``w:ins``.
 - ``Paragraph.text`` also now includes the cached result of a ``w:fldSimple`` — a page
   number or cross-reference displayed by such a field was previously missing from it.
+- Assigning ``Section.orientation`` now exchanges ``page_width`` and ``page_height`` as
+  well, so the page is actually rotated. Previously it set ``w:pgSz/@w:orient`` alone,
+  leaving a section declared landscape at portrait dimensions — which Word renders as
+  portrait. **If your code applies the usual workaround**, swapping the dimensions by
+  hand right after the assignment, remove it: the two swaps now cancel and the page
+  comes out the size it started. Setting the orientation it already has does nothing,
+  and margins are not moved.
 
 Added
 ~~~~~
