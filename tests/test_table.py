@@ -131,6 +131,62 @@ class DescribeTable:
         assert table._tbl.xml == xml(expected_cxml)
 
     @pytest.mark.parametrize(
+        ("property_name", "element_name"),
+        [("title", "tblCaption"), ("description", "tblDescription")],
+    )
+    @pytest.mark.parametrize("expected_value", [None, "Quarterly results"])
+    def it_knows_its_alternative_text(
+        self, property_name: str, element_name: str, expected_value: str | None, document_: Mock
+    ):
+        child_cxml = (
+            "" if expected_value is None else f"/w:{element_name}{{w:val={expected_value}}}"
+        )
+        table = Table(cast(CT_Tbl, element(f"w:tbl/w:tblPr{child_cxml}")), document_)
+
+        assert getattr(table, property_name) == expected_value
+
+    @pytest.mark.parametrize(
+        ("property_name", "element_name"),
+        [("title", "tblCaption"), ("description", "tblDescription")],
+    )
+    @pytest.mark.parametrize(
+        ("tbl_pr_cxml", "new_value"),
+        [
+            ("w:tblPr", "Quarterly results"),
+            ("w:tblPr/w:{element_name}{w:val=Old text}", "Quarterly results"),
+            ("w:tblPr/w:{element_name}{w:val=Old text}", None),
+        ],
+    )
+    def it_can_change_its_alternative_text(
+        self,
+        property_name: str,
+        element_name: str,
+        tbl_pr_cxml: str,
+        new_value: str | None,
+        document_: Mock,
+    ):
+        tbl_pr_cxml = tbl_pr_cxml.replace("{element_name}", element_name)
+        table = Table(cast(CT_Tbl, element(f"w:tbl/{tbl_pr_cxml}")), document_)
+
+        setattr(table, property_name, new_value)
+
+        expected_child = "" if new_value is None else f"/w:{element_name}{{w:val={new_value}}}"
+        assert table._tbl.xml == xml(f"w:tbl/w:tblPr{expected_child}")
+
+    def it_inserts_alternative_text_in_schema_order(self, document_: Mock):
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr/w:tblPrChange")), document_)
+
+        table.description = "Sales by region"
+        table.title = "Quarterly results"
+
+        assert table._tbl.xml == xml(
+            "w:tbl/w:tblPr/("
+            "w:tblCaption{w:val=Quarterly results},"
+            "w:tblDescription{w:val=Sales by region},"
+            "w:tblPrChange)"
+        )
+
+    @pytest.mark.parametrize(
         ("tbl_cxml", "expected_value"),
         [
             ("w:tbl/w:tblPr", True),
