@@ -7,12 +7,30 @@ from docx.enum.style import WD_STYLE_TYPE
 from ..unitutil.cxml import element, xml
 
 
+class DescribeCT_LatentStyles:
+    def it_can_find_a_name_containing_xpath_metacharacters(self):
+        name = 'He said "it\'s fine" [today]'
+        latent_styles = element("w:latentStyles")
+        exception = latent_styles.add_lsdException()
+        exception.name = name
+
+        assert latent_styles.get_by_name(name) is exception
+
+
 class DescribeCT_Styles:
     def it_can_add_a_style_of_type(self, add_fixture):
         styles, name, style_type, builtin, expected_xml = add_fixture
         style = styles.add_style_of_type(name, style_type, builtin)
         assert styles.xml == expected_xml
         assert style is styles[-1]
+
+    def it_can_find_a_name_and_id_containing_xpath_metacharacters(self):
+        name = 'He said "it\'s fine" [today]'
+        styles = element("w:styles")
+        style = styles.add_style_of_type(name, WD_STYLE_TYPE.PARAGRAPH, builtin=False)
+
+        assert styles.get_by_name(name) is style
+        assert styles.get_by_id(style.styleId) is style
 
     # fixtures -------------------------------------------------------
 

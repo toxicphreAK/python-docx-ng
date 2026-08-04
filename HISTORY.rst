@@ -93,6 +93,8 @@ Added
 Fixed
 ~~~~~
 
+- Style and latent-style lookup now accepts names and style IDs containing quotes and
+  other XPath metacharacters.
 - Documents with oversized attribute values, which the default ``lxml`` parser rejects,
   now parse. Entity resolution stays off.
 - Corrupt packages and dangling relationships no longer raise on load

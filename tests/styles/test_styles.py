@@ -41,6 +41,14 @@ class DescribeStyles:
         style = styles[key]
         assert style._element is expected_element
 
+    def it_can_create_and_get_a_style_with_xpath_metacharacters_in_its_name(self):
+        name = 'He said "it\'s fine" [today]'
+        styles = Styles(element("w:styles"))
+
+        added_style = styles.add_style(name, WD_STYLE_TYPE.PARAGRAPH)
+
+        assert styles[name]._element is added_style._element
+
     def it_raises_on_style_not_found(self, get_raises_fixture):
         styles, key = get_raises_fixture
         with pytest.raises(KeyError):
