@@ -27,9 +27,9 @@ _WORD_MAIN_CONTENT_TYPES = (
 )
 
 
-def Document(docx: str | IO[bytes] | None = None) -> DocumentObject:
+def Document(docx: str | os.PathLike[str] | IO[bytes] | None = None) -> DocumentObject:
     """Return a |Document| object loaded from `docx`, where `docx` can be either a path
-    to a ``.docx`` file (a string) or a file-like object.
+    to a ``.docx`` file (a string or ``os.PathLike``) or a file-like object.
 
     Macro-enabled ``.docm`` files and Word templates — ``.dotx`` and ``.dotm`` — are
     also accepted. Their macro storage is preserved when the document is saved, but this
@@ -43,6 +43,8 @@ def Document(docx: str | IO[bytes] | None = None) -> DocumentObject:
     loaded.
     """
     docx = _default_docx_path() if docx is None else docx
+    if isinstance(docx, os.PathLike):
+        docx = os.fspath(docx)
     document_part = cast("DocumentPart", Package.open(docx).main_document_part)
     if document_part.content_type not in _WORD_MAIN_CONTENT_TYPES:
         tmpl = "file '%s' is not a Word file, content type is '%s'"

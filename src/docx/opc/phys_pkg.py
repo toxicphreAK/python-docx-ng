@@ -1,6 +1,9 @@
 """Provides a general interface to a `physical` OPC package, such as a zip file."""
 
+from __future__ import annotations
+
 import os
+from typing import IO
 from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile, ZipInfo, is_zipfile
 
 from docx.opc.exceptions import EncryptedPackageError, PackageNotFoundError
@@ -43,7 +46,11 @@ def _not_a_package_error(pkg_file):
     An encrypted document gets its own error class; telling the caller their file is
     password-protected is a great deal more useful than "not a zip file".
     """
-    name = pkg_file if isinstance(pkg_file, str) else getattr(pkg_file, "name", pkg_file)
+    name = (
+        os.fspath(pkg_file)
+        if isinstance(pkg_file, (str, os.PathLike))
+        else getattr(pkg_file, "name", pkg_file)
+    )
     if _starts_with_ole_signature(pkg_file):
         return EncryptedPackageError(
             "Package '%s' is an encrypted (password-protected) Office document and"
@@ -57,9 +64,10 @@ def _not_a_package_error(pkg_file):
 class PhysPkgReader:
     """Factory for physical package reader objects."""
 
-    def __new__(cls, pkg_file):
-        # if `pkg_file` is a string, treat it as a path
-        if isinstance(pkg_file, str):
+    def __new__(cls, pkg_file: str | os.PathLike[str] | IO[bytes]):
+        # if `pkg_file` is a string or path-like object, treat it as a path
+        if isinstance(pkg_file, (str, os.PathLike)):
+            pkg_file = os.fspath(pkg_file)
             if os.path.isdir(pkg_file):
                 reader_cls = _DirPkgReader
             elif is_zipfile(pkg_file):
@@ -77,7 +85,9 @@ class PhysPkgReader:
 class PhysPkgWriter:
     """Factory for physical package writer objects."""
 
-    def __new__(cls, pkg_file):
+    def __new__(cls, pkg_file: str | os.PathLike[str] | IO[bytes]):
+        if isinstance(pkg_file, os.PathLike):
+            pkg_file = os.fspath(pkg_file)
         return super(PhysPkgWriter, cls).__new__(_ZipPkgWriter)
 
 

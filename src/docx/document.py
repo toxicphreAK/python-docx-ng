@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import IO, TYPE_CHECKING, Iterator, List, Sequence
 
 from docx.altchunk import AltChunk
@@ -449,11 +450,15 @@ class Document(ElementProxy):
             CT.WML_TEMPLATE_MACRO_ENABLED_MAIN,
         )
 
-    def save(self, path_or_stream: str | IO[bytes], as_template: bool | None = None):
+    def save(
+        self,
+        path_or_stream: str | os.PathLike[str] | IO[bytes],
+        as_template: bool | None = None,
+    ):
         """Save this document to `path_or_stream`.
 
-        `path_or_stream` can be either a path to a filesystem location (a string) or a
-        file-like object.
+        `path_or_stream` can be either a path to a filesystem location (a string or
+        ``os.PathLike``) or a file-like object.
 
         `as_template` selects whether the result is a Word template (``.dotx`` /
         ``.dotm``) or an ordinary document (``.docx`` / ``.docm``). The default of
@@ -468,6 +473,8 @@ class Document(ElementProxy):
             self._part.content_type = _document_content_type(
                 self._part.content_type, as_template=as_template
             )
+        if isinstance(path_or_stream, os.PathLike):
+            path_or_stream = os.fspath(path_or_stream)
         self._part.save(path_or_stream)
 
     @property
