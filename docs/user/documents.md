@@ -29,6 +29,18 @@ Things to note:
 - You can open any Word 2007 or later file this way (.doc files from Word 2003 and earlier won't work). While you might not be able to manipulate all the contents yet, whatever is already in there will load and save just fine. The feature set is still being built out, so you can't add or change things like headers or footnotes yet, but if the document has them `python-docx` is polite enough to leave them alone and smart enough to save them without actually understanding what they are.
 - If you use the same filename to open and save the file, `python-docx` will obediently overwrite the original file without a peep. You'll want to make sure that's what you intend.
 
+## Files that cannot be opened
+
+A few kinds of file look like an ordinary `.docx` and are not one. Each raises something
+that says which:
+
+| Raised | Meaning |
+| --- | --- |
+| `PackageNotFoundError` | No file at that path, or the file is not a readable OPC package — a truncated download, or not a zip archive at all. |
+| `EncryptedPackageError` | The document is password-protected. It is an OLE compound file wrapping the encrypted package, so it cannot be read without the password. Subclasses `PackageNotFoundError`. |
+| `StrictOoxmlNotSupportedError` | The document was saved as **Strict Open XML Document**, an option in Word's Save As dialogue and the default in some regulated environments. It uses the same element names in the ISO Strict namespaces rather than the Transitional ones this library reads. Re-saving from Word as "Word Document (.docx)" converts it. |
+| `ValueError` | The package is a valid OPC package but not a Word one — a `.xlsx` or `.pptx`, for instance. |
+
 ## Opening a 'file-like' document
 
 `python-docx` can open a document from a so-called *file-like* object. It can also save to a file-like object. This can be handy when you want to get the source or target document over a network connection or from a database and don't want to (or aren't allowed to) interact with the file system. In practice this means you can pass an open file or StringIO/BytesIO stream object to open or save a document like so:

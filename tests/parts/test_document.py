@@ -6,11 +6,13 @@ import pytest
 
 from docx.comments import Comments
 from docx.enum.style import WD_STYLE_TYPE
+from docx.exceptions import StrictOoxmlNotSupportedError
 from docx.footnotes import Footnotes
 from docx.opc.constants import CONTENT_TYPE as CT
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.opc.coreprops import CoreProperties
 from docx.opc.packuri import PackURI
+from docx.oxml.parser import parse_xml
 from docx.package import Package
 from docx.parts.altchunk import AltChunkPart
 from docx.parts.comments import CommentsPart
@@ -119,6 +121,31 @@ class DescribeDocumentPart:
 
         related_parts_.__getitem__.assert_called_once_with("rId11")
         assert header_part is header_part_
+
+    def it_raises_a_meaningful_error_on_an_iso_strict_document(self, package_: Mock):
+        """Strict uses the same element names in different namespaces.
+
+        Without this the parser's class lookup never matches, `w:document` comes back a
+        plain lxml element, and the first attribute access fails with an AttributeError
+        naming nothing the user did wrong.
+        """
+        strict_document = parse_xml(
+            '<w:document xmlns:w="http://purl.oclc.org/ooxml/wordprocessingml/main">'
+            "<w:body/></w:document>"
+        )
+        document_part = DocumentPart(
+            PackURI("/word/document.xml"), CT.WML_DOCUMENT, strict_document, package_
+        )
+
+        with pytest.raises(StrictOoxmlNotSupportedError, match="ISO/IEC 29500 Strict"):
+            document_part.document
+
+    def but_an_ordinary_transitional_document_is_unaffected(self, package_: Mock):
+        document_part = DocumentPart(
+            PackURI("/word/document.xml"), CT.WML_DOCUMENT, element("w:document"), package_
+        )
+
+        assert document_part.document is not None
 
     def it_can_save_the_package_to_a_file(self, package_: Mock):
         document_part = DocumentPart(
