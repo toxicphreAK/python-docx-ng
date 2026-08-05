@@ -167,6 +167,18 @@ Packaging
 - The ``requirements*.txt`` files are removed. ``[dependency-groups]`` in
   ``pyproject.toml`` is the single list of development dependencies, and ``tox`` reads it
 
+Contributors
+~~~~~~~~~~~~
+
+Thank you to the people who sent patches for this release:
+
+- `@lyydsheep <https://github.com/lyydsheep>`_ — ``os.PathLike`` support throughout
+  document open and save (#130)
+- `@builtbyhuy <https://github.com/builtbyhuy>`_ — XPath variable binding, so style
+  names containing quotes are reachable (#131)
+- `@BortnikMaxim <https://github.com/BortnikMaxim>`_ — table alternative text,
+  ``Table.title`` and ``Table.description`` (#132)
+
 
 1.2.0 (2025-06-16)
 ++++++++++++++++++

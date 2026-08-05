@@ -1,0 +1,217 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: https://toxicphreak.github.io/python-docx-ng/#python-docx-ng
+  - banner [ref=e3]:
+    - navigation "Header" [ref=e4]:
+      - link "python-docx-ng" [ref=e5] [cursor=pointer]:
+        - /url: https://toxicphreak.github.io/python-docx-ng/
+      - generic [ref=e9]:
+        - generic [ref=e10]: python-docx-ng
+        - generic: Home
+      - generic [ref=e12]:
+        - radio "Switch to dark mode"
+        - generic "Switch to dark mode" [ref=e13] [cursor=pointer]
+        - radio "Switch to light mode"
+      - dialog [ref=e16]:
+        - search [ref=e17]:
+          - generic [ref=e18]:
+            - textbox "Search" [ref=e19]
+            - navigation "Search":
+              - button "Clear"
+          - generic: Initializing search
+      - link "toxicphreAK/python-docx-ng" [ref=e24] [cursor=pointer]:
+        - /url: https://github.com/toxicphreAK/python-docx-ng
+  - generic [ref=e29]:
+    - main [ref=e30]:
+      - generic [ref=e31]:
+        - navigation "Navigation" [ref=e35]:
+          - generic [ref=e36]: python-docx-ng
+          - list [ref=e37]:
+            - listitem [ref=e38]:
+              - link "Home" [ref=e39] [cursor=pointer]:
+                - /url: https://toxicphreak.github.io/python-docx-ng/
+            - listitem [ref=e41]:
+              - generic: User guide
+              - navigation "User guide" [ref=e42]:
+                - list [ref=e43]:
+                  - listitem [ref=e44]:
+                    - link "Installing" [ref=e45] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/install/
+                  - listitem [ref=e47]:
+                    - link "Quickstart" [ref=e48] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/quickstart/
+                  - listitem [ref=e50]:
+                    - link "API basics" [ref=e51] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/api-concepts/
+                  - listitem [ref=e53]:
+                    - link "Documents" [ref=e54] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/documents/
+                  - listitem [ref=e56]:
+                    - link "Text" [ref=e57] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/text/
+                  - listitem [ref=e59]:
+                    - link "Tables" [ref=e60] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/tables/
+                  - listitem [ref=e62]:
+                    - link "Sections" [ref=e63] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/sections/
+                  - listitem [ref=e65]:
+                    - link "Headers and footers" [ref=e66] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/hdrftr/
+                  - listitem [ref=e68]:
+                    - link "Understanding pictures and shapes" [ref=e69] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/shapes/
+                  - listitem [ref=e71]:
+                    - link "Comments" [ref=e72] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/comments/
+                  - listitem [ref=e74]:
+                    - link "Understanding styles" [ref=e75] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/styles-understanding/
+                  - listitem [ref=e77]:
+                    - link "Working with styles" [ref=e78] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/styles-using/
+            - listitem [ref=e80]:
+              - generic: How-to
+              - navigation "How-to" [ref=e81]:
+                - list [ref=e82]:
+                  - listitem [ref=e83]:
+                    - link "Finding and replacing text" [ref=e84] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/search-replace/
+                  - listitem [ref=e86]:
+                    - link "Numbered and bulleted lists" [ref=e87] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/numbering/
+                  - listitem [ref=e89]:
+                    - link "Fields and tables of contents" [ref=e90] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/fields/
+                  - listitem [ref=e92]:
+                    - link "Bookmarks" [ref=e93] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/bookmarks/
+                  - listitem [ref=e95]:
+                    - link "Tracked changes" [ref=e96] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/revisions/
+                  - listitem [ref=e98]:
+                    - link "Images" [ref=e99] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/images/
+                  - listitem [ref=e101]:
+                    - link "Watermarks" [ref=e102] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/watermarks/
+                  - listitem [ref=e104]:
+                    - link "Footnotes" [ref=e105] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/footnotes/
+                  - listitem [ref=e107]:
+                    - link "Form fields and content controls" [ref=e108] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/form-fields/
+                  - listitem [ref=e110]:
+                    - link "Document properties" [ref=e111] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/document-properties/
+                  - listitem [ref=e113]:
+                    - link "Templates and embedded files" [ref=e114] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/user/templates/
+            - listitem [ref=e116]:
+              - link "Migrating from 0.9.x" [ref=e117] [cursor=pointer]:
+                - /url: https://toxicphreak.github.io/python-docx-ng/user/migrating-from-0-9/
+            - listitem [ref=e119]:
+              - generic: API reference
+              - navigation "API reference" [ref=e120]:
+                - list [ref=e121]:
+                  - listitem [ref=e122]:
+                    - link "docx" [ref=e124] [cursor=pointer]:
+                      - /url: https://toxicphreak.github.io/python-docx-ng/api/docx/
+        - navigation "Table of contents" [ref=e131]:
+          - list [ref=e133]:
+            - listitem [ref=e134]:
+              - link "What it can do" [ref=e135] [cursor=pointer]:
+                - /url: https://toxicphreak.github.io/python-docx-ng/#what-it-can-do
+            - listitem [ref=e137]:
+              - link "Getting started" [ref=e138] [cursor=pointer]:
+                - /url: https://toxicphreak.github.io/python-docx-ng/#getting-started
+            - listitem [ref=e140]:
+              - link "For language models" [ref=e141] [cursor=pointer]:
+                - /url: https://toxicphreak.github.io/python-docx-ng/#for-language-models
+        - article [ref=e144]:
+          - link "Edit this page" [ref=e145] [cursor=pointer]:
+            - /url: https://github.com/toxicphreAK/python-docx-ng/edit/main/docs/index.md
+          - heading [level=1] [ref=e148]:
+            - text: python-docx-ng
+            - link "¶" [ref=e149] [cursor=pointer]:
+              - /url: https://toxicphreak.github.io/python-docx-ng/#python-docx-ng
+          - paragraph [ref=e150]:
+            - code [ref=e151]: python-docx-ng
+            - text: is a Python library for creating and updating Microsoft Word (
+            - code [ref=e152]: .docx
+            - text: ) files. It is a downstream superset of
+            - link "python-docx" [ref=e153] [cursor=pointer]:
+              - /url: https://github.com/python-openxml/python-docx
+            - text: — the distribution is
+            - code [ref=e154]: python-docx-ng
+            - text: ", but the importable package is"
+            - code [ref=e155]: docx
+            - text: ":"
+          - generic [ref=e157]:
+            - navigation [ref=e158]:
+              - button "Copy to clipboard" [ref=e159] [cursor=pointer]
+            - code [ref=e160]: from docx import Document
+          - paragraph [ref=e161]: The two distributions cannot be installed side by side.
+          - heading [level=2] [ref=e162]:
+            - text: What it can do
+            - link "¶" [ref=e163] [cursor=pointer]:
+              - /url: https://toxicphreak.github.io/python-docx-ng/#what-it-can-do
+          - generic [ref=e165]:
+            - navigation [ref=e166]:
+              - button "Copy to clipboard" [ref=e167] [cursor=pointer]
+            - code [ref=e168]: "from docx import Document from docx.shared import Inches document = Document() document.add_heading(\"Document Title\", 0) p = document.add_paragraph(\"A plain paragraph having some \") p.add_run(\"bold\").bold = True p.add_run(\" and some \") p.add_run(\"italic.\").italic = True document.add_heading(\"Heading, level 1\", level=1) document.add_paragraph(\"Intense quote\", style=\"Intense Quote\") document.add_paragraph(\"first item in unordered list\", style=\"List Bullet\") document.add_paragraph(\"first item in ordered list\", style=\"List Number\") document.add_picture(\"monty-truth.png\", width=Inches(1.25)) records = ( (3, \"101\", \"Spam\"), (7, \"422\", \"Eggs\"), (4, \"631\", \"Spam, spam, eggs, and spam\"), ) table = document.add_table(rows=1, cols=3) hdr_cells = table.rows[0].cells hdr_cells[0].text = \"Qty\" hdr_cells[1].text = \"Id\" hdr_cells[2].text = \"Desc\" for qty, id, desc in records: row_cells = table.add_row().cells row_cells[0].text = str(qty) row_cells[1].text = id row_cells[2].text = desc document.add_page_break() document.save(\"demo.docx\")"
+          - paragraph [ref=e169]:
+            - img "Example output" [ref=e170]
+          - heading [level=2] [ref=e171]:
+            - text: Getting started
+            - link "¶" [ref=e172] [cursor=pointer]:
+              - /url: https://toxicphreak.github.io/python-docx-ng/#getting-started
+          - list [ref=e174]:
+            - listitem [ref=e175]:
+              - strong [ref=e176]:
+                - link "Installation" [ref=e177] [cursor=pointer]:
+                  - /url: https://toxicphreak.github.io/python-docx-ng/user/install/
+              - text: — install from PyPI with
+              - code [ref=e178]: pip
+              - text: or
+              - code [ref=e179]: uv
+              - text: .
+            - listitem [ref=e180]:
+              - strong [ref=e181]:
+                - link "Quickstart" [ref=e182] [cursor=pointer]:
+                  - /url: https://toxicphreak.github.io/python-docx-ng/user/quickstart/
+              - text: — open a document, add content, save it.
+            - listitem [ref=e183]:
+              - strong [ref=e184]:
+                - link "API reference" [ref=e185] [cursor=pointer]:
+                  - /url: https://toxicphreak.github.io/python-docx-ng/api/docx/
+              - text: — every module, class and property.
+            - listitem [ref=e186]:
+              - strong [ref=e187]:
+                - link "Migrating from 0.9" [ref=e188] [cursor=pointer]:
+                  - /url: https://toxicphreak.github.io/python-docx-ng/user/migrating-from-0-9/
+              - text: — what changed in 2.0.0.
+          - heading [level=2] [ref=e189]:
+            - text: For language models
+            - link "¶" [ref=e190] [cursor=pointer]:
+              - /url: https://toxicphreak.github.io/python-docx-ng/#for-language-models
+          - paragraph [ref=e191]:
+            - text: The documentation is published in the
+            - link "llms.txt" [ref=e192] [cursor=pointer]:
+              - /url: https://toxicphreak.github.io/python-docx-ng/llms.txt
+            - text: format, with the full text at
+            - link "llms-full.txt" [ref=e193] [cursor=pointer]:
+              - /url: https://toxicphreak.github.io/python-docx-ng/llms-full.txt
+            - text: . Point any tool that reads
+            - code [ref=e194]: llms.txt
+            - text: at those URLs — for example
+            - link "mcpdoc" [ref=e195] [cursor=pointer]:
+              - /url: https://github.com/langchain-ai/mcpdoc
+            - text: ", which serves them to an editor over MCP."
+      - button "Back to top"
+    - contentinfo [ref=e196]:
+      - generic [ref=e199]:
+        - generic [ref=e200]: Distributed under the MIT licence.
+        - text: Made with
+        - link "Material for MkDocs" [ref=e201] [cursor=pointer]:
+          - /url: https://squidfunk.github.io/mkdocs-material/
