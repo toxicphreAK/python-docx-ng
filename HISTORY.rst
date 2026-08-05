@@ -3,8 +3,14 @@
 Release History
 ---------------
 
-Unreleased
-++++++++++
+2.1.0 (2026-08-05)
+++++++++++++++++++
+
+Twenty-six issues from the 2.0.0 milestone. The theme, endnotes, OMML equations, the
+custom XML data store, the VBA project and embedded OLE objects were all parts a
+document could carry that nothing here could reach; they are reachable now. Styles grew
+a usage closure and the cleanup built on it, numbering became writable, and content
+gained a ``copy_to()`` that repairs what a deep copy breaks.
 
 Behaviour changes
 ~~~~~~~~~~~~~~~~~
@@ -142,6 +148,30 @@ New features
   ``Run.add_picture()``, plus ``.svg_image`` for the vector source of an SVG picture and
   ``Document.images`` for the package-level view. ``.image`` is ``None`` rather than an
   error for a chart, a SmartArt diagram or a linked picture.
+- ``Document.add_custom_xml_part()`` accepts an ``item_id``. The GUID it otherwise
+  generates was the one thing in this library's output that was not a function of its
+  input, which quietly cost byte-reproducibility for any document carrying a data store.
+
+Fixes
+~~~~~
+
+- Every entry point that takes a path now accepts an ``os.PathLike`` as well as a ``str``.
+  ``add_picture()``, ``add_float_picture()``, ``add_image_watermark()``,
+  ``add_alt_chunk()``, ``add_embedded_object()`` and ``Image.from_file()`` tested
+  ``isinstance(x, str)`` and fell through to the stream branch, so a ``pathlib.Path``
+  failed with ``AttributeError: 'PosixPath' object has no attribute 'seek'`` — a message
+  that says nothing about what was wrong. The README claimed this worked; now it does.
+- ``python -m docx`` reports a document it cannot open rather than ending in a traceback.
+  ``PackageNotFoundError`` — what a missing file or a non-package raises, and the most
+  common failure there is — is neither a ``FileNotFoundError`` nor a ``BadZipFile``, so it
+  went uncaught. A password-protected file now says so, and a ``--names`` or ``--keep``
+  naming a style the document does not define is reported rather than raised.
+- ``styles list --used`` and ``--unused`` are mutually exclusive. Passing both matched
+  nothing and printed an empty list, which reads as an answer rather than as the
+  contradiction it is.
+- ``copy_to()`` keeps a copied drawing's ``wp:docPr/@name``. Only ``@id`` has to be
+  unique; the name is the shape's own — the source file name for a picture — and
+  overwriting it discarded information and labelled a copied chart "Picture 3".
 
 2.0.0 (2026-08-05)
 ++++++++++++++++++

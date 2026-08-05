@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import IO, TYPE_CHECKING
 
 from docx.opc.constants import CONTENT_TYPE as CT
@@ -43,14 +44,18 @@ class AltChunkPart(Part):
 
     @classmethod
     def new_from_stream(
-        cls, package: OpcPackage, chunk: str | IO[bytes], content_type: str
+        cls,
+        package: OpcPackage,
+        chunk: str | os.PathLike[str] | IO[bytes],
+        content_type: str,
     ) -> AltChunkPart:
         """An |AltChunkPart| newly created from `chunk` and added to `package`.
 
-        `chunk` is either a path to a file or a file-like object open for binary read.
+        `chunk` is either a path to a file (a string or ``os.PathLike``) or a file-like
+        object open for binary read.
         """
-        if isinstance(chunk, str):
-            with open(chunk, "rb") as f:
+        if isinstance(chunk, (str, os.PathLike)):
+            with open(os.fspath(chunk), "rb") as f:
                 blob = f.read()
         else:
             blob = chunk.read()

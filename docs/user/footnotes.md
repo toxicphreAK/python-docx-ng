@@ -57,3 +57,45 @@ the number printed in the margin.
     are now [`Document.footnotes`][docx.document.Document.footnotes] plus
     [`Run.add_footnote_reference()`][docx.text.run.Run.add_footnote_reference], which
     separates creating the note from placing the mark.
+
+## Endnotes
+
+Endnotes are the same shape, one part over: they live in `word/endnotes.xml` and collect
+at the end of the document or section rather than at the foot of the page.
+
+```python
+paragraph = document.add_paragraph("The engine was never built")
+endnote = document.endnotes.add_endnote("Babbage, 1837.")
+paragraph.runs[-1].add_endnote_reference(endnote)
+```
+
+[`Document.endnotes`][docx.document.Document.endnotes] supports `len()`, iteration and
+lookup by id, exactly as `footnotes` does, and an
+[`Endnote`][docx.footnotes.Endnote] has `.text`, `.endnote_id` and `.add_paragraph()`:
+
+```python
+for endnote in document.endnotes:
+    print(endnote.endnote_id, endnote.text)
+
+document.endnotes.get(1)   # -> the Endnote, or None
+```
+
+`word/endnotes.xml` is created on demand the first time you add one, as the footnotes part
+is, so a document that has no endnotes carries no endnotes part.
+
+!!! note
+
+    As in the footnotes part, ids `-1` and `0` are taken by the separator and continuation
+    separator — the rules drawn above endnote text — so the first real endnote is id `1`.
+    Iterating skips the separators, so what you get is the endnotes a reader would count.
+
+A document can carry both kinds at once — they are independent sequences, numbered
+separately, and Word renders footnotes in Arabic numerals and endnotes in lower-case Roman
+by default.
+
+[`replace_text()`][docx.document.Document.replace_text] reaches endnotes under
+`footnotes=True`, which covers both note stories:
+
+```python
+document.replace_text("Babbage", "Charles Babbage", footnotes=True)
+```

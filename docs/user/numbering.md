@@ -147,3 +147,81 @@ definition directly, when you want the new list without repointing any paragraph
 ```python
 restarted = document.numbering.restart(item.numbering.num_id, ilvl=0, start=1)
 ```
+
+## Defining a list from scratch
+
+Everything above joins or restarts a list the numbering part already defines. When the
+format you want is not in the template — Roman numerals at the top level, a bullet
+character of your own, a particular indent step — define one:
+
+```python
+definition = document.numbering.add_numbered_definition()
+document.add_paragraph("one").set_numbering(definition.num_id)
+```
+
+[`add_numbered_definition()`][docx.numbering.Numbering.add_numbered_definition] and
+[`add_bulleted_definition()`][docx.numbering.Numbering.add_bulleted_definition] are the
+two common cases. Both take a `depth` (nine levels by default, which is what Word writes)
+and an `indent_step`:
+
+```python
+from docx.enum.numbering import WD_NUMBER_FORMAT
+from docx.shared import Inches
+
+legal = document.numbering.add_numbered_definition(
+    depth=3,
+    formats=[
+        WD_NUMBER_FORMAT.UPPER_ROMAN,
+        WD_NUMBER_FORMAT.UPPER_LETTER,
+        WD_NUMBER_FORMAT.DECIMAL,
+    ],
+    indent_step=Inches(0.3),
+)
+
+bullets = document.numbering.add_bulleted_definition(bullets=["—", "·"])
+```
+
+[`add_definition()`][docx.numbering.Numbering.add_definition] is the general form, taking
+a level specification directly. Both shorthands are built on it:
+
+```python
+definition = document.numbering.add_definition([
+    {"number_format": WD_NUMBER_FORMAT.DECIMAL, "level_text": "%1.", "start": 1},
+    {"number_format": WD_NUMBER_FORMAT.LOWER_LETTER, "level_text": "%2)"},
+])
+```
+
+In a `level_text`, `%1` interpolates the counter of level 0, `%2` that of level 1, and so
+on — `"%1.%2."` is what produces "2.3.". A definition has at most nine levels; more raises
+`ValueError`.
+
+Each returns a [`NumberingDefinition`][docx.numbering.NumberingDefinition], whose `num_id`
+is what [`set_numbering()`][docx.text.paragraph.Paragraph.set_numbering] takes.
+
+!!! note
+
+    `w:nsid` and `w:tmpl` are deliberately not written. They are the identifiers Word uses
+    to recognise a definition as one of its own and to match it against a gallery entry;
+    inventing values would make Word treat unrelated lists as the same list, and they are
+    optional.
+
+## Changing a level
+
+[`NumberingLevel.set()`][docx.numbering.NumberingLevel.set] changes an existing level in
+place, and returns the level so calls chain:
+
+```python
+definition.level(0).set(
+    number_format=WD_NUMBER_FORMAT.UPPER_ROMAN,
+    level_text="%1.",
+    suffix="tab",
+    alignment="left",
+    indent=Inches(0.5),
+    hanging_indent=Inches(0.25),
+    start=1,
+)
+```
+
+`suffix` is what follows the number — `"tab"`, `"space"` or `"nothing"` — and
+`restart_after_level` is what makes a sub-list start over when the level above it advances.
+Every argument is keyword-only and optional; the ones you leave out are left alone.

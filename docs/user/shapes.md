@@ -9,3 +9,11 @@ Inline shapes are treated like a big text character (a *character glyph*). The l
 Both kinds are supported. [`Document.add_picture()`][docx.document.Document.add_picture] adds an inline picture at the end of the document in a paragraph of its own, and [`Run.add_picture()`][docx.text.run.Run.add_picture] places one mid-paragraph, so you can have text on either side of it or both.
 
 For a picture in the drawing layer — one the text flows around rather than sitting on a line — see [`Run.add_float_picture()`][docx.text.run.Run.add_float_picture] and [Floating images](images.md).
+
+## Reading the picture back
+
+A shape hands back the image it displays through
+[`InlineShape.image`][docx.shape.InlineShape.image] and
+[`FloatingShape.image`][docx.shape.FloatingShape.image], which is `None` for a shape that
+is not a picture — a chart or a SmartArt diagram. See
+[Reading the images already in a document](images.md#reading-the-images-already-in-a-document).

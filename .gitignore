@@ -11,3 +11,6 @@ Session.vim
 
 # -- built documentation site --
 site/
+
+# -- Playwright MCP session artifacts --
+.playwright-mcp/

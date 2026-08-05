@@ -111,3 +111,87 @@ Without `svg_fallback` the image is embedded but may not display.
 The format is detected from the file's own header rather than its extension, so a
 mislabelled file still works. An unrecognised one raises
 [`UnrecognizedImageError`][docx.image.exceptions.UnrecognizedImageError].
+
+## Photos from a phone: EXIF orientation
+
+A camera does not rotate the pixels when you turn it sideways. It stores the sensor's
+landscape frame and writes an EXIF `Orientation` tag saying which way up it goes. A
+portrait photo off a phone is therefore a *landscape* JPEG with a tag on it, and inserting
+it naively puts it in the document on its side — and, if you gave only a width, at the
+wrong aspect ratio too, because the height was derived from the stored dimensions.
+
+[`add_picture()`][docx.text.run.Run.add_picture] and
+[`add_float_picture()`][docx.text.run.Run.add_float_picture] honour the tag:
+
+```python
+shape = document.add_picture("photo-from-phone.jpg", width=Inches(2))
+
+shape.width    # -> Inches(2)
+shape.height   # -> Inches(4), from the displayed 2:4 shape, not the stored 4:2
+```
+
+The rotation goes into the DrawingML — `a:xfrm/@rot`, in sixtieths of a degree — and never
+into the pixels. The image part stays byte-identical to the file on disk, so the sha1
+deduplication keeps working and the same photo inserted twice is still one part.
+
+Pass `honor_exif_orientation=False` to insert the stored frame unrotated.
+
+[`Image`][docx.image.image.Image] reports both sets of dimensions, and the distinction is
+the whole point:
+
+```python
+from docx.image.image import Image
+
+image = Image.from_file("photo-from-phone.jpg")
+
+image.orientation         # -> 6, "rotate 90° clockwise to display"
+image.is_rotated          # -> True, this orientation exchanges width and height
+
+image.px_width            # -> 4032, the frame as stored
+image.px_display_width    # -> 3024, the frame as a viewer shows it
+
+image.width               # -> the stored width as a Length
+image.display_width       # -> the displayed width as a Length
+```
+
+`px_width` and `px_height` keep meaning what they always meant — the stored dimensions —
+so nothing that read them changed behaviour. The `display_*` accessors are the new ones.
+[`scaled_dimensions()`][docx.image.image.Image.scaled_dimensions] scales from the display
+aspect ratio by default and takes the same `honor_exif_orientation=False`.
+
+An image whose format cannot carry the tag, or which does not set it, reports
+`orientation == 1`, for which everything above is a no-op.
+
+## Reading the images already in a document
+
+The counterpart of `add_picture()`. Each shape hands back the image it displays:
+
+```python
+for shape in document.inline_shapes:
+    image = shape.image
+    if image is None:
+        continue                          # -- a chart, a diagram, a linked picture
+    print(image.filename, image.content_type, image.px_width, image.px_height)
+    Path(image.filename).write_bytes(image.blob)
+```
+
+[`InlineShape.image`][docx.shape.InlineShape.image] and
+[`FloatingShape.image`][docx.shape.FloatingShape.image] are `None` rather than an error
+when there is no image to give — a chart, a SmartArt diagram, a picture linked to a file
+on disk rather than embedded, or a relationship the document does not resolve.
+
+For an SVG picture, `.image` is the raster fallback Word displays and
+[`.svg_image`][docx.shape.InlineShape.svg_image] the vector source:
+
+```python
+shape.image.content_type      # -> "image/png", the fallback
+shape.svg_image.content_type  # -> "image/svg+xml", the original
+```
+
+[`Document.images`][docx.document.Document.images] is the package-level view — the distinct
+images the body embeds, deduplicated, with no shape needed to reach them:
+
+```python
+for image in document.images:
+    print(image.filename, len(image.blob))
+```

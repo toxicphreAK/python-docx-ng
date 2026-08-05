@@ -23,6 +23,7 @@ Scope:
 
 from __future__ import annotations
 
+import os
 from typing import IO, TYPE_CHECKING, Iterable, Iterator, List
 
 from docx.oxml.ns import nsdecls, qn
@@ -195,7 +196,7 @@ def add_text_watermark(
 
 def add_image_watermark(
     headers: Iterable[_BaseHeaderFooter],
-    image_descriptor: str | IO[bytes],
+    image_descriptor: str | os.PathLike[str] | IO[bytes],
     width: Length | int | None = None,
     height: Length | int | None = None,
     washout: bool = True,

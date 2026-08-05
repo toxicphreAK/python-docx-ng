@@ -137,6 +137,28 @@ class DescribeAddCustomXmlPart:
         assert str(second.partname) == "/customXml/item2.xml"
         assert first.item_id != second.item_id
 
+    def but_a_caller_can_supply_the_item_id(self):
+        """A generated GUID is the one thing in this library's output that is not a
+        function of its input, so a caller who needs reproducible bytes can pass one."""
+        item_id = "{00000000-0000-0000-0000-00000000002A}"
+        document = docx.Document()
+
+        part = document.add_custom_xml_part(_INVOICE, item_id=item_id)
+
+        assert part.item_id == item_id
+
+    def and_that_makes_the_output_byte_reproducible(self):
+        item_id = "{00000000-0000-0000-0000-00000000002A}"
+
+        def build() -> bytes:
+            document = docx.Document()
+            document.add_custom_xml_part(_INVOICE, ("urn:example:invoice",), item_id=item_id)
+            stream = io.BytesIO()
+            document.save(stream)
+            return stream.getvalue()
+
+        assert build() == build()
+
 
 class DescribeCT_DatastoreItem:
     """Unit-test suite for the `ds:datastoreItem` element class."""

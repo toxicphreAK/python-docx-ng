@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import IO, TYPE_CHECKING, Iterator, List, cast
 
 from docx.drawing import Drawing
@@ -68,12 +69,12 @@ class Run(StoryChild):
 
     def add_picture(
         self,
-        image_path_or_stream: str | IO[bytes],
+        image_path_or_stream: str | os.PathLike[str] | IO[bytes],
         width: int | Length | None = None,
         height: int | Length | None = None,
         description: str | None = None,
         title: str | None = None,
-        svg_fallback: str | IO[bytes] | None = None,
+        svg_fallback: str | os.PathLike[str] | IO[bytes] | None = None,
         honor_exif_orientation: bool = True,
     ) -> InlineShape:
         """Return |InlineShape| containing image identified by `image_path_or_stream`.
@@ -127,7 +128,7 @@ class Run(StoryChild):
 
     def add_float_picture(
         self,
-        image_path_or_stream: str | IO[bytes],
+        image_path_or_stream: str | os.PathLike[str] | IO[bytes],
         width: int | Length | None = None,
         height: int | Length | None = None,
         left: Length | int = 0,
@@ -138,7 +139,7 @@ class Run(StoryChild):
         relative_from_v: WD_ANCHOR_RELATIVE_FROM_V = WD_ANCHOR_RELATIVE_FROM_V.PARAGRAPH,
         description: str | None = None,
         title: str | None = None,
-        svg_fallback: str | IO[bytes] | None = None,
+        svg_fallback: str | os.PathLike[str] | IO[bytes] | None = None,
         honor_exif_orientation: bool = True,
     ) -> FloatingShape:
         """Return a |FloatingShape| for a picture that text flows around.
@@ -226,9 +227,9 @@ class Run(StoryChild):
 
     def add_embedded_object(
         self,
-        path_or_stream: str | IO[bytes],
+        path_or_stream: str | os.PathLike[str] | IO[bytes],
         *,
-        icon: str | IO[bytes],
+        icon: str | os.PathLike[str] | IO[bytes],
         prog_id: str | None = None,
         width: Length | None = None,
         height: Length | None = None,

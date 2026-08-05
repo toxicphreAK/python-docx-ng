@@ -125,3 +125,64 @@ from docx import fields
 paragraph = document.add_paragraph("Matter: ")
 paragraph.add_field(fields.doc_property("Matter number"))
 ```
+
+## The custom XML data store
+
+A different thing from the properties above, and easy to confuse with them. The three
+kinds of properties are flat named scalars — a string, a number, a date. The **custom XML
+data store** holds arbitrary XML documents, each in a part of its own
+(`customXml/item1.xml`, with an `itemProps1.xml` sidecar declaring its schemas).
+
+This is where a document-generation pipeline keeps the structured data its content
+controls are bound to. Word's data binding points a content control at an XPath into one
+of these items, so the control's displayed text and the stored data stay the same thing.
+
+```python
+part = document.add_custom_xml_part(
+    "<invoice xmlns='urn:example:invoice'>"
+    "<number>2026-014</number><total>1450.00</total>"
+    "</invoice>",
+    schema_refs=("urn:example:invoice",),
+)
+
+part.item_id      # -> "{...}", the GUID Word identifies the item by
+part.schema_refs  # -> ("urn:example:invoice",)
+part.xml          # -> the XML as text
+```
+
+Reading them back:
+
+```python
+for part in document.custom_xml_parts:
+    print(part.partname, part.item_id, part.schema_refs)
+    print(part.xml)
+```
+
+[`Document.custom_xml_parts`][docx.document.Document.custom_xml_parts] is a tuple in
+relationship order, empty for a document that has no data store.
+[`add_custom_xml_part()`][docx.document.Document.add_custom_xml_part] accepts a `str` or
+`bytes`, allocates the next free partname, and generates the `w:itemProps` sidecar with a
+GUID of its own — Word requires the sidecar, and an item without one is a repair prompt.
+
+`schema_refs` names the namespaces the item uses. It is optional and it is what Word's
+XML mapping pane lists, so supplying it is what makes the item usable for data binding
+through the UI.
+
+!!! warning
+
+    **The generated GUID is the one thing in this library's output that is not a function
+    of its input.** Everything else about a saved document is deterministic — see
+    [Reproducible output](documents.md#reproducible-output). If that matters to you, supply the `item_id`:
+
+    ```python
+    document.add_custom_xml_part(xml, item_id="{...}")
+    ```
+
+    It only has to be unique within the document.
+
+!!! note
+
+    A document created by this library carries **no** data store. The bundled template
+    used to ship an empty bibliography item left over from its author's Word session,
+    which meant `custom_xml_parts` reported a store the caller had never added. That is
+    gone as of 2.1.0.

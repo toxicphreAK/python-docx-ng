@@ -138,9 +138,9 @@ class EmbeddedObject(StoryChild):
 
 def add_embedded_object(
     run: object,
-    path_or_stream: str | IO[bytes],
+    path_or_stream: str | os.PathLike[str] | IO[bytes],
     *,
-    icon: str | IO[bytes],
+    icon: str | os.PathLike[str] | IO[bytes],
     prog_id: str | None = None,
     width: Length | None = None,
     height: Length | None = None,
@@ -209,10 +209,10 @@ def _next_shape_ordinal(part: object) -> int:
     return max(used, default=0) + 1
 
 
-def _read_blob(path_or_stream: str | IO[bytes]) -> bytes:
+def _read_blob(path_or_stream: str | os.PathLike[str] | IO[bytes]) -> bytes:
     """The bytes of `path_or_stream`, a path or a file-like object open for read."""
-    if isinstance(path_or_stream, str):
-        with open(path_or_stream, "rb") as f:
+    if isinstance(path_or_stream, (str, os.PathLike)):
+        with open(os.fspath(path_or_stream), "rb") as f:
             return f.read()
     path_or_stream.seek(0)
     return path_or_stream.read()

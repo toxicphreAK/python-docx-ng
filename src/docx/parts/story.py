@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import IO, TYPE_CHECKING, Tuple, cast
 
 from docx.image.constants import MIME_TYPE
@@ -25,7 +26,9 @@ class StoryPart(XmlPart):
     `.add_paragraph()`, `.add_table()` etc.
     """
 
-    def get_or_add_image(self, image_descriptor: str | IO[bytes]) -> Tuple[str, Image]:
+    def get_or_add_image(
+        self, image_descriptor: str | os.PathLike[str] | IO[bytes]
+    ) -> Tuple[str, Image]:
         """Return (rId, image) pair for image identified by `image_descriptor`.
 
         `rId` is the str key (often like "rId7") for the relationship between this story
@@ -72,12 +75,12 @@ class StoryPart(XmlPart):
 
     def new_pic_inline(
         self,
-        image_descriptor: str | IO[bytes],
+        image_descriptor: str | os.PathLike[str] | IO[bytes],
         width: int | Length | None = None,
         height: int | Length | None = None,
         description: str | None = None,
         title: str | None = None,
-        svg_fallback: str | IO[bytes] | None = None,
+        svg_fallback: str | os.PathLike[str] | IO[bytes] | None = None,
         honor_exif_orientation: bool = True,
     ) -> CT_Inline:
         """Return a newly-created `w:inline` element.
@@ -110,14 +113,14 @@ class StoryPart(XmlPart):
 
     def new_pic_anchor(
         self,
-        image_descriptor: str | IO[bytes],
+        image_descriptor: str | os.PathLike[str] | IO[bytes],
         width: int | Length | None = None,
         height: int | Length | None = None,
         pos_x: Length | int = 0,
         pos_y: Length | int = 0,
         description: str | None = None,
         title: str | None = None,
-        svg_fallback: str | IO[bytes] | None = None,
+        svg_fallback: str | os.PathLike[str] | IO[bytes] | None = None,
         honor_exif_orientation: bool = True,
     ) -> CT_Anchor:
         """Return a newly-created `wp:anchor` element for a floating picture.
@@ -145,7 +148,9 @@ class StoryPart(XmlPart):
         )
 
     def _image_rIds(
-        self, image_descriptor: str | IO[bytes], svg_fallback: str | IO[bytes] | None
+        self,
+        image_descriptor: str | os.PathLike[str] | IO[bytes],
+        svg_fallback: str | os.PathLike[str] | IO[bytes] | None,
     ) -> Tuple[str, Image, str | None]:
         """`(rId, image, svg_rId)` for `image_descriptor`.
 

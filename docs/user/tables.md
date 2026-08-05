@@ -174,6 +174,105 @@ Each edge exposes `line` (a [`WD_LINE_STYLE`][docx.enum.table.WD_LINE_STYLE] mem
 [`RGBColor`][docx.shared.RGBColor], not a hex string) and `space`. Setting `line` to
 `WD_LINE_STYLE.NONE` removes the border.
 
+## Table width, indent and cell margins
+
+[`Table.width`][docx.table.Table.width] is the table's *preferred* width — Word treats it
+as a request and may narrow the table to fit its container. It takes either a
+[`Length`][docx.shared.Length] or a percentage:
+
+```python
+from docx.shared import Inches, Pct
+
+table.width = Inches(4)
+table.width = Pct(50)      # -> half the container width
+table.width = None         # -> auto-fit, which is the default
+```
+
+[`Pct`][docx.shared.Pct] is deliberately *not* a `Length`. Every `Length` unit is
+absolute and reduces to EMU; a percentage does not, and cannot be converted to one
+without knowing what it is a percentage of. Reading `width` back gives whichever of the
+two the table actually carries.
+
+[`Table.indent`][docx.table.Table.indent] moves the whole table in from the margin, and
+[`Table.cell_margins`][docx.table.Table.cell_margins] sets the default padding inside
+every cell:
+
+```python
+table.indent = Inches(0.5)
+
+table.cell_margins.left = Inches(0.1)
+table.cell_margins.top = Inches(0.05)
+table.cell_margins.clear()          # -> back to inherited
+```
+
+The mapping admits `top`, `bottom`, `left`, `right` and the direction-relative `start`
+and `end`. These are the table-wide defaults; a cell's own `w:tcMar` overrides them where
+it has one.
+
+## Which parts of a table style apply
+
+A table style can define different formatting for the first row, the last row, the first
+and last columns, and alternating bands. Which of those *apply* is not part of the style —
+it is a set of flags on the table, the ones Word shows as the "Table Style Options"
+checkboxes:
+
+```python
+table.look.first_row = True          # -- header row formatting on
+table.look.horizontal_banding = True # -- alternating row shading on
+table.look.last_column = False
+```
+
+[`Table.look`][docx.table.Table.look] exposes `first_row`, `last_row`, `first_column`,
+`last_column`, `horizontal_banding` and `vertical_banding`. Each is `True` or `False` —
+never `None`, because `w:tblLook` has a defined default for each flag rather than an
+inherited one.
+
+!!! note
+
+    `w:tblLook` carries both modern per-flag attributes and a legacy `@w:val` bitmask,
+    and older versions of Word read the bitmask. Setting a flag rewrites both, as Word
+    does, so the table looks the same wherever it is opened.
+
+## Row properties
+
+```python
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.shared import Inches
+
+row = table.rows[0]
+
+row.repeat_as_header = True          # -- "Repeat Header Rows"
+row.hidden = False
+row.alignment = WD_TABLE_ALIGNMENT.CENTER
+row.cell_spacing = Inches(0.02)
+row.width_before = Inches(0.5)
+row.width_after = Inches(0.5)
+```
+
+[`repeat_as_header`][docx.table._Row.repeat_as_header] is the useful one: it is what makes
+a header row reappear at the top of every page a long table spans. All of these are
+tri-state where the XML is — `None` means the value is inherited — and
+[`_Row.height`][docx.table._Row.height], `height_rule` and
+[`_Row.dont_split`][docx.table._Row.dont_split] round out `w:trPr`.
+
+`width_before` and `width_after` are the widths of the grid positions a row leaves
+unpopulated, the companions to the `grid_cols_before` and `grid_cols_after` counts
+described above.
+
+## Text direction in a cell
+
+[`_Cell.text_direction`][docx.table._Cell.text_direction] rotates the text in a cell,
+which is how a narrow column gets a readable heading:
+
+```python
+from docx.enum.text import WD_TEXT_DIRECTION
+
+table.cell(0, 1).text_direction = WD_TEXT_DIRECTION.BT_LR   # -- bottom-to-top
+```
+
+See [Right-to-left and vertical text](text.md#right-to-left-and-vertical-text) for the
+full set of [`WD_TEXT_DIRECTION`][docx.enum.text.WD_TEXT_DIRECTION] values.
+
 ## Alternative text
 
 A table carries the same two alt-text values Word's "Alt Text" pane writes for a
@@ -191,3 +290,28 @@ Both are read/write on [`Table`][docx.table.Table] and both are `None` when unse
 assigning `None` removes them. They are stored as `w:tblCaption` and `w:tblDescription`
 and are never rendered — this is metadata read by assistive technology, not a visible
 caption above or below the table.
+
+They can also be given when the table is created, which saves the round trip and matches
+the way [`add_picture()`][docx.text.run.Run.add_picture] takes them:
+
+```python
+table = document.add_table(
+    rows=2,
+    cols=2,
+    style="Light Grid Accent 1",
+    title="Quarterly revenue",
+    description="Revenue by region for Q1 through Q4 2026, in thousands of euro.",
+)
+```
+
+Both are keyword-only, both default to `None`, and omitting them writes nothing.
+[`_Cell.add_table()`][docx.table._Cell.add_table] and
+[`BlockItemContainer.add_table()`][docx.blkcntnr.BlockItemContainer.add_table] take them
+too.
+
+## Captions
+
+[`_Cell.add_caption()`][docx.table._Cell.add_caption] puts a self-renumbering caption
+inside a cell. For a caption above or below a table, use
+[`Document.add_caption()`][docx.document.Document.add_caption] — see
+[Captions](fields.md#captions).
