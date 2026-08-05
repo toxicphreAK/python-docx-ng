@@ -14,4 +14,4 @@ Feature: Access a document style
     Examples: having styles or not
       | styles-state   | style-count |
       | a styles part  |      6      |
-      | no styles part |      4      |
+      | no styles part |      8      |

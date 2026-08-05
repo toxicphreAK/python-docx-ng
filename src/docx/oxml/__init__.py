@@ -131,6 +131,12 @@ from .coreprops import CT_CoreProperties
 
 register_element_cls("cp:coreProperties", CT_CoreProperties)
 
+from .customxml import CT_DatastoreItem, CT_DatastoreSchemaRef, CT_DatastoreSchemaRefs
+
+register_element_cls("ds:datastoreItem", CT_DatastoreItem)
+register_element_cls("ds:schemaRef", CT_DatastoreSchemaRef)
+register_element_cls("ds:schemaRefs", CT_DatastoreSchemaRefs)
+
 from .customprops import CT_CustomProperties, CT_Property
 
 register_element_cls("cust:Properties", CT_CustomProperties)
@@ -140,7 +146,7 @@ from .extendedprops import CT_ExtendedProperties
 
 register_element_cls("ep:Properties", CT_ExtendedProperties)
 
-from .footnotes import CT_Footnotes, CT_FtnEdn, CT_FtnEdnRef
+from .footnotes import CT_Endnotes, CT_Footnotes, CT_FtnEdn, CT_FtnEdnRef
 
 # -- `w:footnote` is also the tag of the `CT_FtnEdnSepRef` children of `w:footnotePr` in
 # -- a section or in the settings part. Those carry only a `w:id` attribute, which
@@ -148,6 +154,10 @@ from .footnotes import CT_Footnotes, CT_FtnEdn, CT_FtnEdnRef
 register_element_cls("w:footnote", CT_FtnEdn)
 register_element_cls("w:footnoteReference", CT_FtnEdnRef)
 register_element_cls("w:footnotes", CT_Footnotes)
+# -- `w:endnote` likewise doubles as the `CT_FtnEdnSepRef` child of `w:endnotePr` --
+register_element_cls("w:endnote", CT_FtnEdn)
+register_element_cls("w:endnoteReference", CT_FtnEdnRef)
+register_element_cls("w:endnotes", CT_Endnotes)
 
 from .document import CT_AltChunk, CT_Body, CT_Document
 
@@ -176,6 +186,7 @@ from .section import (
     CT_Columns,
     CT_HdrFtr,
     CT_HdrFtrRef,
+    CT_PageBorders,
     CT_PageMar,
     CT_PageSz,
     CT_SectPr,
@@ -184,6 +195,7 @@ from .section import (
 
 register_element_cls("w:col", CT_Column)
 register_element_cls("w:cols", CT_Columns)
+register_element_cls("w:pgBorders", CT_PageBorders)
 
 register_element_cls("w:footerReference", CT_HdrFtrRef)
 register_element_cls("w:ftr", CT_HdrFtr)
@@ -219,10 +231,21 @@ register_element_cls("w:tblPrChange", CT_TrackChange)
 register_element_cls("w:tcPrChange", CT_TrackChange)
 register_element_cls("w:trPrChange", CT_TrackChange)
 
-from .styles import CT_LatentStyles, CT_LsdException, CT_Style, CT_Styles
+from .styles import (
+    CT_DocDefaults,
+    CT_LatentStyles,
+    CT_LsdException,
+    CT_PPrDefault,
+    CT_RPrDefault,
+    CT_Style,
+    CT_Styles,
+)
 
 register_element_cls("w:basedOn", CT_String)
+register_element_cls("w:docDefaults", CT_DocDefaults)
 register_element_cls("w:latentStyles", CT_LatentStyles)
+register_element_cls("w:pPrDefault", CT_PPrDefault)
+register_element_cls("w:rPrDefault", CT_RPrDefault)
 # -- `w:link` appears only in `CT_Style` in the schema, so claiming the tag globally is
 # -- safe here in a way it is not for `w:name` or `w:start` --
 register_element_cls("w:link", CT_String)
@@ -251,9 +274,11 @@ from .table import (
     CT_Row,
     CT_Tbl,
     CT_TblBorders,
+    CT_TblCellMar,
     CT_TblGrid,
     CT_TblGridCol,
     CT_TblLayoutType,
+    CT_TblLook,
     CT_TblPr,
     CT_TblPrEx,
     CT_TblWidth,
@@ -289,18 +314,27 @@ register_element_cls("w:gridAfter", CT_DecimalNumber)
 register_element_cls("w:gridBefore", CT_DecimalNumber)
 register_element_cls("w:gridCol", CT_TblGridCol)
 register_element_cls("w:gridSpan", CT_DecimalNumber)
+register_element_cls("w:hidden", CT_OnOff)
 register_element_cls("w:tbl", CT_Tbl)
 register_element_cls("w:tblCaption", CT_String)
+register_element_cls("w:tblCellMar", CT_TblCellMar)
+register_element_cls("w:tblCellSpacing", CT_TblWidth)
 register_element_cls("w:tblDescription", CT_String)
 register_element_cls("w:tblGrid", CT_TblGrid)
+register_element_cls("w:tblHeader", CT_OnOff)
+register_element_cls("w:tblInd", CT_TblWidth)
 register_element_cls("w:tblLayout", CT_TblLayoutType)
+register_element_cls("w:tblLook", CT_TblLook)
 register_element_cls("w:tblPr", CT_TblPr)
 register_element_cls("w:tblPrEx", CT_TblPrEx)
 register_element_cls("w:tblStyle", CT_String)
+register_element_cls("w:tblW", CT_TblWidth)
 register_element_cls("w:tc", CT_Tc)
 register_element_cls("w:tcPr", CT_TcPr)
 register_element_cls("w:tcW", CT_TblWidth)
 register_element_cls("w:tr", CT_Row)
+register_element_cls("w:wAfter", CT_TblWidth)
+register_element_cls("w:wBefore", CT_TblWidth)
 register_element_cls("w:trHeight", CT_Height)
 register_element_cls("w:trPr", CT_TrPr)
 register_element_cls("w:vAlign", CT_VerticalJc)
@@ -357,21 +391,80 @@ register_element_cls("w:p", CT_P)
 from .text.parfmt import (
     CT_Ind,
     CT_Jc,
+    CT_PBdr,
     CT_PPr,
     CT_Spacing,
     CT_TabStop,
     CT_TabStops,
+    CT_TextDirection,
 )
 
+register_element_cls("w:bar", CT_Border)
+register_element_cls("w:between", CT_Border)
+register_element_cls("w:bidi", CT_OnOff)
 register_element_cls("w:ind", CT_Ind)
 register_element_cls("w:jc", CT_Jc)
 register_element_cls("w:keepLines", CT_OnOff)
 register_element_cls("w:keepNext", CT_OnOff)
 register_element_cls("w:outlineLvl", CT_DecimalNumber)
 register_element_cls("w:pageBreakBefore", CT_OnOff)
+register_element_cls("w:pBdr", CT_PBdr)
 register_element_cls("w:pPr", CT_PPr)
+register_element_cls("w:textDirection", CT_TextDirection)
 register_element_cls("w:pStyle", CT_String)
 register_element_cls("w:spacing", CT_Spacing)
 register_element_cls("w:tab", CT_TabStop)
 register_element_cls("w:tabs", CT_TabStops)
 register_element_cls("w:widowControl", CT_OnOff)
+
+from .theme import (
+    CT_BaseStyles,
+    CT_ColorScheme,
+    CT_FontCollection,
+    CT_FontScheme,
+    CT_OfficeStyleSheet,
+    CT_SRgbColor,
+    CT_SystemColor,
+    CT_TextFont,
+    CT_ThemeColor,
+)
+
+# -- The `a:` theme tags. `a:cs` and `a:latin` also occur inside `a:defRPr` in a
+# -- `w:lvl` text-properties block, where they are the same `CT_TextFont`, so claiming
+# -- them globally is safe. The twelve colour-slot tags are theme-only. --
+register_element_cls("a:accent1", CT_ThemeColor)
+register_element_cls("a:accent2", CT_ThemeColor)
+register_element_cls("a:accent3", CT_ThemeColor)
+register_element_cls("a:accent4", CT_ThemeColor)
+register_element_cls("a:accent5", CT_ThemeColor)
+register_element_cls("a:accent6", CT_ThemeColor)
+register_element_cls("a:clrScheme", CT_ColorScheme)
+register_element_cls("a:cs", CT_TextFont)
+register_element_cls("a:dk1", CT_ThemeColor)
+register_element_cls("a:dk2", CT_ThemeColor)
+register_element_cls("a:ea", CT_TextFont)
+register_element_cls("a:folHlink", CT_ThemeColor)
+register_element_cls("a:fontScheme", CT_FontScheme)
+register_element_cls("a:hlink", CT_ThemeColor)
+register_element_cls("a:latin", CT_TextFont)
+register_element_cls("a:lt1", CT_ThemeColor)
+register_element_cls("a:lt2", CT_ThemeColor)
+register_element_cls("a:majorFont", CT_FontCollection)
+register_element_cls("a:minorFont", CT_FontCollection)
+register_element_cls("a:srgbClr", CT_SRgbColor)
+register_element_cls("a:sysClr", CT_SystemColor)
+register_element_cls("a:theme", CT_OfficeStyleSheet)
+register_element_cls("a:themeElements", CT_BaseStyles)
+
+from .object import CT_Object, CT_OLEObject
+
+# -- `w:object` and its `o:OLEObject` child. The VML `v:shape` inside is left
+# -- untyped: VML is a large schema this library does not otherwise model, and an
+# -- element class for it would claim more than the OLE feature needs. --
+register_element_cls("o:OLEObject", CT_OLEObject)
+register_element_cls("w:object", CT_Object)
+
+from .math import CT_OMath, CT_OMathPara
+
+register_element_cls("m:oMath", CT_OMath)
+register_element_cls("m:oMathPara", CT_OMathPara)

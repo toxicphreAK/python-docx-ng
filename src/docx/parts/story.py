@@ -78,6 +78,7 @@ class StoryPart(XmlPart):
         description: str | None = None,
         title: str | None = None,
         svg_fallback: str | IO[bytes] | None = None,
+        honor_exif_orientation: bool = True,
     ) -> CT_Inline:
         """Return a newly-created `w:inline` element.
 
@@ -85,9 +86,15 @@ class StoryPart(XmlPart):
         based on the values of `width` and `height`. `description` and `title` are the
         alternative text of the picture. `svg_fallback` is the raster image to show in
         place of an SVG where the SVG cannot be rendered.
+
+        `honor_exif_orientation` applies the image's EXIF `Orientation` as a rotation in
+        the DrawingML; see :meth:`.Run.add_picture`.
         """
         rId, image, svg_rId = self._image_rIds(image_descriptor, svg_fallback)
-        cx, cy = image.scaled_dimensions(width, height)
+        cx, cy = image.scaled_dimensions(
+            width, height, honor_exif_orientation=honor_exif_orientation
+        )
+        transform = image.drawingml_transform if honor_exif_orientation else (0, False)
         shape_id, filename = self.next_id, image.filename
         return CT_Inline.new_pic_inline(
             shape_id,
@@ -98,6 +105,7 @@ class StoryPart(XmlPart):
             description=description,
             title=title,
             svg_rId=svg_rId,
+            transform=transform,
         )
 
     def new_pic_anchor(
@@ -110,6 +118,7 @@ class StoryPart(XmlPart):
         description: str | None = None,
         title: str | None = None,
         svg_fallback: str | IO[bytes] | None = None,
+        honor_exif_orientation: bool = True,
     ) -> CT_Anchor:
         """Return a newly-created `wp:anchor` element for a floating picture.
 
@@ -117,7 +126,10 @@ class StoryPart(XmlPart):
         offset from the column and paragraph the shape is anchored to.
         """
         rId, image, svg_rId = self._image_rIds(image_descriptor, svg_fallback)
-        cx, cy = image.scaled_dimensions(width, height)
+        cx, cy = image.scaled_dimensions(
+            width, height, honor_exif_orientation=honor_exif_orientation
+        )
+        transform = image.drawingml_transform if honor_exif_orientation else (0, False)
         return CT_Anchor.new_pic_anchor(
             self.next_id,
             rId,
@@ -129,6 +141,7 @@ class StoryPart(XmlPart):
             description=description,
             title=title,
             svg_rId=svg_rId,
+            transform=transform,
         )
 
     def _image_rIds(

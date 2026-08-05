@@ -19,12 +19,14 @@ from docx.oxml.shared import CT_DecimalNumber
 from docx.oxml.simpletypes import (
     ST_EighthPointMeasure,
     ST_HexColor,
+    ST_MeasurementOrPercent,
     ST_Merge,
+    ST_OnOff,
     ST_PointMeasure,
+    ST_ShortHexNumber,
     ST_TblLayoutType,
     ST_TblWidth,
     ST_TwipsMeasure,
-    XsdInt,
 )
 from docx.oxml.text.paragraph import CT_P
 from docx.oxml.xmlchemy import (
@@ -36,13 +38,13 @@ from docx.oxml.xmlchemy import (
     ZeroOrMore,
     ZeroOrOne,
 )
-from docx.shared import Emu, Length, RGBColor, Twips
+from docx.shared import Emu, Length, Pct, RGBColor, Twips
 
 if TYPE_CHECKING:
     from docx.enum.table import WD_TABLE_ALIGNMENT
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TEXT_DIRECTION
     from docx.oxml.shared import CT_OnOff, CT_String
-    from docx.oxml.text.parfmt import CT_Jc
+    from docx.oxml.text.parfmt import CT_Jc, CT_TextDirection
 
 
 class CT_Border(BaseOxmlElement):
@@ -426,6 +428,78 @@ class CT_Row(BaseOxmlElement):
         trPr = self.get_or_add_trPr()
         trPr.cantSplit_val = value
 
+    @property
+    def tblHeader_val(self) -> bool | None:
+        """Value of `w:trPr/w:tblHeader/@w:val`, or |None| if not present."""
+        trPr = self.trPr
+        return None if trPr is None else trPr.tblHeader_val
+
+    @tblHeader_val.setter
+    def tblHeader_val(self, value: bool | None) -> None:
+        if value is None and self.trPr is None:
+            return
+        self.get_or_add_trPr().tblHeader_val = value
+
+    @property
+    def hidden_val(self) -> bool | None:
+        """Value of `w:trPr/w:hidden/@w:val`, or |None| if not present."""
+        trPr = self.trPr
+        return None if trPr is None else trPr.hidden_val
+
+    @hidden_val.setter
+    def hidden_val(self, value: bool | None) -> None:
+        if value is None and self.trPr is None:
+            return
+        self.get_or_add_trPr().hidden_val = value
+
+    @property
+    def alignment(self) -> WD_TABLE_ALIGNMENT | None:
+        """Value of `w:trPr/w:jc/@w:val`, or |None| if not present."""
+        trPr = self.trPr
+        return None if trPr is None else trPr.alignment
+
+    @alignment.setter
+    def alignment(self, value: WD_TABLE_ALIGNMENT | None) -> None:
+        if value is None and self.trPr is None:
+            return
+        self.get_or_add_trPr().alignment = value
+
+    @property
+    def cell_spacing(self) -> Length | None:
+        """Value of `w:trPr/w:tblCellSpacing`, or |None| if not present."""
+        trPr = self.trPr
+        return None if trPr is None else trPr.cell_spacing
+
+    @cell_spacing.setter
+    def cell_spacing(self, value: Length | None) -> None:
+        if value is None and self.trPr is None:
+            return
+        self.get_or_add_trPr().cell_spacing = value
+
+    @property
+    def width_after(self) -> Length | None:
+        """Value of `w:trPr/w:wAfter`, or |None| if not present."""
+        trPr = self.trPr
+        return None if trPr is None else trPr.width_after
+
+    @width_after.setter
+    def width_after(self, value: Length | None) -> None:
+        if value is None and self.trPr is None:
+            return
+        self.get_or_add_trPr().width_after = value
+
+    @property
+    def width_before(self) -> Length | None:
+        """Value of `w:trPr/w:wBefore`, or |None| if not present."""
+        trPr = self.trPr
+        return None if trPr is None else trPr.width_before
+
+    @width_before.setter
+    def width_before(self, value: Length | None) -> None:
+        if value is None and self.trPr is None:
+            return
+        self.get_or_add_trPr().width_before = value
+
     def _insert_tblPrEx(self, tblPrEx: CT_TblPrEx):
         self.insert(0, tblPrEx)
 
@@ -669,15 +743,22 @@ class CT_TblPr(BaseOxmlElement):
     get_or_add_jc: Callable[[], CT_Jc]
     get_or_add_tblBorders: Callable[[], CT_TblBorders]
     get_or_add_tblCaption: Callable[[], CT_String]
+    get_or_add_tblCellMar: Callable[[], CT_TblCellMar]
     get_or_add_tblDescription: Callable[[], CT_String]
+    get_or_add_tblInd: Callable[[], CT_TblWidth]
     get_or_add_tblLayout: Callable[[], CT_TblLayoutType]
+    get_or_add_tblLook: Callable[[], CT_TblLook]
+    get_or_add_tblW: Callable[[], CT_TblWidth]
     _add_tblStyle: Callable[[], CT_String]
     _remove_bidiVisual: Callable[[], None]
     _remove_jc: Callable[[], None]
     _remove_tblBorders: Callable[[], None]
     _remove_tblCaption: Callable[[], None]
+    _remove_tblCellMar: Callable[[], None]
     _remove_tblDescription: Callable[[], None]
+    _remove_tblInd: Callable[[], None]
     _remove_tblStyle: Callable[[], None]
+    _remove_tblW: Callable[[], None]
 
     _tag_seq = (
         "w:tblStyle",
@@ -705,14 +786,26 @@ class CT_TblPr(BaseOxmlElement):
     bidiVisual: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:bidiVisual", successors=_tag_seq[4:]
     )
+    tblW: CT_TblWidth | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:tblW", successors=_tag_seq[7:]
+    )
     jc: CT_Jc | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:jc", successors=_tag_seq[8:]
+    )
+    tblInd: CT_TblWidth | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:tblInd", successors=_tag_seq[10:]
     )
     tblBorders: CT_TblBorders | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:tblBorders", successors=_tag_seq[11:]
     )
     tblLayout: CT_TblLayoutType | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:tblLayout", successors=_tag_seq[13:]
+    )
+    tblCellMar: CT_TblCellMar | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:tblCellMar", successors=_tag_seq[14:]
+    )
+    tblLook: CT_TblLook | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:tblLook", successors=_tag_seq[15:]
     )
     tblCaption: CT_String | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:tblCaption", successors=_tag_seq[16:]
@@ -781,15 +874,20 @@ class CT_TblPrEx(BaseOxmlElement):
 class CT_TblWidth(BaseOxmlElement):
     """Used for `w:tblW` and `w:tcW` and others, specifies a table-related width."""
 
-    # the type for `w` attr is actually ST_MeasurementOrPercent, but using
-    # XsdInt for now because only dxa (twips) values are being used. It's not
-    # entirely clear what the semantics are for other values like -01.4mm
-    w: int = RequiredAttribute("w:w", XsdInt)  # pyright: ignore[reportAssignmentType]
-    type = RequiredAttribute("w:type", ST_TblWidth)
+    w: int = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:w", ST_MeasurementOrPercent
+    )
+    type: str = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:type", ST_TblWidth
+    )
 
     @property
     def width(self) -> Length | None:
-        """EMU length indicated by the combined `w:w` and `w:type` attrs."""
+        """EMU length indicated by the combined `w:w` and `w:type` attrs.
+
+        |None| for any `w:type` other than `dxa`, which includes the percentage widths
+        a |Length| cannot represent. Use `.value` for the reading that covers those.
+        """
         if self.type != "dxa":
             return None
         return Twips(self.w)
@@ -798,6 +896,133 @@ class CT_TblWidth(BaseOxmlElement):
     def width(self, value: Length):
         self.type = "dxa"
         self.w = Emu(value).twips
+
+    @property
+    def value(self) -> Length | Pct | None:
+        """The width this element expresses, whatever unit it is written in.
+
+        A |Length| for `w:type="dxa"`, a |Pct| for `"pct"`, and |None| for `"auto"` and
+        `"nil"` — neither of those carries a width of its own, the first meaning "size
+        to the content" and the second "no width".
+        """
+        if self.type == "dxa":
+            return Twips(self.w)
+        if self.type == "pct":
+            return Pct.from_fiftieths(self.w)
+        return None
+
+    @value.setter
+    def value(self, value: Length | Pct | None) -> None:
+        if value is None:
+            self.type, self.w = "auto", 0
+        elif isinstance(value, Pct):
+            self.type, self.w = "pct", value.fiftieths
+        else:
+            self.type, self.w = "dxa", Emu(value).twips
+
+
+class CT_TblCellMar(BaseOxmlElement):
+    """`w:tblCellMar` element, the default cell margins for a whole table.
+
+    An absent edge means the value is inherited from the table style.
+
+    Each edge is a `CT_TblWidth` in the schema, but the edge tag names are shared with
+    `w:tblBorders` and lxml resolves an element class by tag name alone, so these
+    children arrive typed as `CT_Border` — see the note above the registrations in
+    `oxml/__init__.py`. The `w:w` and `w:type` attributes are therefore read and written
+    directly here rather than through element-class attributes.
+    """
+
+    _tag_seq = ("w:top", "w:start", "w:left", "w:bottom", "w:end", "w:right")
+    edges = tuple(tag[2:] for tag in _tag_seq)
+
+    def get_margin(self, edge: str) -> Length | None:
+        """The width of the `w:{edge}` child, or |None| when that edge is absent.
+
+        Also |None| when the edge is present but expressed in a unit other than `dxa`,
+        which is the only one Word writes here.
+        """
+        child = self.find(qn("w:%s" % edge))
+        if child is None or child.get(qn("w:type")) != "dxa":
+            return None
+        w = child.get(qn("w:w"))
+        return None if w is None else Twips(int(w))
+
+    def set_margin(self, edge: str, value: Length | None) -> None:
+        """Set the `w:{edge}` child to `value`, removing it when `value` is |None|."""
+        tag = "w:%s" % edge
+        child = self.find(qn(tag))
+        if value is None:
+            if child is not None:
+                self.remove(child)
+            return
+        if child is None:
+            child = OxmlElement(tag)
+            self._insert_edge(tag, child)
+        child.set(qn("w:type"), "dxa")
+        child.set(qn("w:w"), str(Emu(value).twips))
+
+    def _insert_edge(self, tag: str, child: BaseOxmlElement) -> None:
+        """Insert `child` at the schema position of `tag`; `w:tblCellMar` is a sequence."""
+        for successor_tag in self._tag_seq[self._tag_seq.index(tag) + 1 :]:
+            successor = self.find(qn(successor_tag))
+            if successor is not None:
+                successor.addprevious(child)
+                return
+        self.append(child)
+
+
+class CT_TblLook(BaseOxmlElement):
+    """`w:tblLook` element, selecting which parts of the table style apply.
+
+    All attributes, no children. `w:val` is the legacy bitmask carrying the same six
+    flags as the named attributes; Word writes both and keeps them in step, so
+    :class:`docx.table._TableLook` rewrites it whenever a flag changes.
+    """
+
+    firstRow: bool | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:firstRow", ST_OnOff
+    )
+    lastRow: bool | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:lastRow", ST_OnOff
+    )
+    firstColumn: bool | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:firstColumn", ST_OnOff
+    )
+    lastColumn: bool | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:lastColumn", ST_OnOff
+    )
+    noHBand: bool | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:noHBand", ST_OnOff
+    )
+    noVBand: bool | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:noVBand", ST_OnOff
+    )
+    val: int | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:val", ST_ShortHexNumber
+    )
+
+    #: The bit each flag occupies in the `w:val` bitmask.
+    _BITS = {
+        "firstRow": 0x0020,
+        "lastRow": 0x0040,
+        "firstColumn": 0x0080,
+        "lastColumn": 0x0100,
+        "noHBand": 0x0200,
+        "noVBand": 0x0400,
+    }
+
+    def update_val(self) -> None:
+        """Rewrite `@w:val` from the six named attributes.
+
+        Word reads the named attributes, but some older consumers read only the bitmask,
+        so the two are kept in step rather than letting `@w:val` go stale.
+        """
+        bits = 0
+        for name, bit in self._BITS.items():
+            if getattr(self, name):
+                bits |= bit
+        self.val = bits
 
 
 class CT_Tc(BaseOxmlElement):
@@ -1191,10 +1416,12 @@ class CT_TcPr(BaseOxmlElement):
     get_or_add_gridSpan: Callable[[], CT_DecimalNumber]
     get_or_add_tcBorders: Callable[[], CT_TcBorders]
     get_or_add_tcW: Callable[[], CT_TblWidth]
+    get_or_add_textDirection: Callable[[], CT_TextDirection]
     get_or_add_vAlign: Callable[[], CT_VerticalJc]
     _add_vMerge: Callable[[], CT_VMerge]
     _remove_gridSpan: Callable[[], None]
     _remove_tcBorders: Callable[[], None]
+    _remove_textDirection: Callable[[], None]
     _remove_vAlign: Callable[[], None]
     _remove_vMerge: Callable[[], None]
 
@@ -1230,10 +1457,26 @@ class CT_TcPr(BaseOxmlElement):
     tcBorders: CT_TcBorders | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:tcBorders", successors=_tag_seq[6:]
     )
+    textDirection: CT_TextDirection | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:textDirection", successors=_tag_seq[10:]
+    )
     vAlign: CT_VerticalJc | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:vAlign", successors=_tag_seq[12:]
     )
     del _tag_seq
+
+    @property
+    def textDirection_val(self) -> WD_TEXT_DIRECTION | None:
+        """Value of `./w:textDirection/@w:val`, or |None| if the element is absent."""
+        textDirection = self.textDirection
+        return None if textDirection is None else textDirection.val
+
+    @textDirection_val.setter
+    def textDirection_val(self, value: WD_TEXT_DIRECTION | None) -> None:
+        if value is None:
+            self._remove_textDirection()
+            return
+        self.get_or_add_textDirection().val = value
 
     @property
     def grid_span(self) -> int:
@@ -1303,7 +1546,19 @@ class CT_TrPr(BaseOxmlElement):
 
     get_or_add_trHeight: Callable[[], CT_Height]
     get_or_add_cantSplit: Callable[[], CT_OnOff]
+    get_or_add_hidden: Callable[[], CT_OnOff]
+    get_or_add_jc: Callable[[], CT_Jc]
+    get_or_add_tblCellSpacing: Callable[[], CT_TblWidth]
+    get_or_add_tblHeader: Callable[[], CT_OnOff]
+    get_or_add_wAfter: Callable[[], CT_TblWidth]
+    get_or_add_wBefore: Callable[[], CT_TblWidth]
     _remove_cantSplit: Callable[[], None]
+    _remove_hidden: Callable[[], None]
+    _remove_jc: Callable[[], None]
+    _remove_tblCellSpacing: Callable[[], None]
+    _remove_tblHeader: Callable[[], None]
+    _remove_wAfter: Callable[[], None]
+    _remove_wBefore: Callable[[], None]
 
     _tag_seq = (
         "w:cnfStyle",
@@ -1322,19 +1577,50 @@ class CT_TrPr(BaseOxmlElement):
         "w:del",
         "w:trPrChange",
     )
-    cantSplit: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
-        "w:cantSplit", successors=_tag_seq[7:]
+    gridBefore: CT_DecimalNumber | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:gridBefore", successors=_tag_seq[3:]
     )
     gridAfter: CT_DecimalNumber | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:gridAfter", successors=_tag_seq[4:]
     )
-    gridBefore: CT_DecimalNumber | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
-        "w:gridBefore", successors=_tag_seq[3:]
+    wBefore: CT_TblWidth | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:wBefore", successors=_tag_seq[5:]
+    )
+    wAfter: CT_TblWidth | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:wAfter", successors=_tag_seq[6:]
+    )
+    cantSplit: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:cantSplit", successors=_tag_seq[7:]
     )
     trHeight: CT_Height | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:trHeight", successors=_tag_seq[8:]
     )
+    tblHeader: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:tblHeader", successors=_tag_seq[9:]
+    )
+    tblCellSpacing: CT_TblWidth | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:tblCellSpacing", successors=_tag_seq[10:]
+    )
+    jc: CT_Jc | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:jc", successors=_tag_seq[11:]
+    )
+    hidden: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:hidden", successors=_tag_seq[12:]
+    )
     del _tag_seq
+
+    @property
+    def alignment(self) -> WD_TABLE_ALIGNMENT | None:
+        """Value of `./w:jc/@w:val`, or |None| if the element is absent."""
+        jc = self.jc
+        return None if jc is None else cast("WD_TABLE_ALIGNMENT | None", jc.val)
+
+    @alignment.setter
+    def alignment(self, value: WD_TABLE_ALIGNMENT | None) -> None:
+        self._remove_jc()
+        if value is None:
+            return
+        self.get_or_add_jc().val = cast("WD_ALIGN_PARAGRAPH", value)
 
     @property
     def cantSplit_val(self) -> bool | None:
@@ -1348,6 +1634,71 @@ class CT_TrPr(BaseOxmlElement):
             self._remove_cantSplit()
             return
         self.get_or_add_cantSplit().val = value
+
+    @property
+    def hidden_val(self) -> bool | None:
+        """Value of `./w:hidden/@w:val`, or |None| if the element is absent."""
+        hidden = self.hidden
+        return None if hidden is None else hidden.val
+
+    @hidden_val.setter
+    def hidden_val(self, value: bool | None) -> None:
+        if value is None:
+            self._remove_hidden()
+            return
+        self.get_or_add_hidden().val = value
+
+    @property
+    def tblHeader_val(self) -> bool | None:
+        """Value of `./w:tblHeader/@w:val`, or |None| if the element is absent."""
+        tblHeader = self.tblHeader
+        return None if tblHeader is None else tblHeader.val
+
+    @tblHeader_val.setter
+    def tblHeader_val(self, value: bool | None) -> None:
+        if value is None:
+            self._remove_tblHeader()
+            return
+        self.get_or_add_tblHeader().val = value
+
+    @property
+    def cell_spacing(self) -> Length | None:
+        """Value of `./w:tblCellSpacing`, or |None| if the element is absent."""
+        tblCellSpacing = self.tblCellSpacing
+        return None if tblCellSpacing is None else tblCellSpacing.width
+
+    @cell_spacing.setter
+    def cell_spacing(self, value: Length | None) -> None:
+        if value is None:
+            self._remove_tblCellSpacing()
+            return
+        self.get_or_add_tblCellSpacing().width = value
+
+    @property
+    def width_after(self) -> Length | None:
+        """Value of `./w:wAfter`, or |None| if the element is absent."""
+        wAfter = self.wAfter
+        return None if wAfter is None else wAfter.width
+
+    @width_after.setter
+    def width_after(self, value: Length | None) -> None:
+        if value is None:
+            self._remove_wAfter()
+            return
+        self.get_or_add_wAfter().width = value
+
+    @property
+    def width_before(self) -> Length | None:
+        """Value of `./w:wBefore`, or |None| if the element is absent."""
+        wBefore = self.wBefore
+        return None if wBefore is None else wBefore.width
+
+    @width_before.setter
+    def width_before(self, value: Length | None) -> None:
+        if value is None:
+            self._remove_wBefore()
+            return
+        self.get_or_add_wBefore().width = value
 
     @property
     def grid_after(self) -> int:

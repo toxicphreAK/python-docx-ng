@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import IO, TYPE_CHECKING, Iterator, List, Sequence, overload
 
 from docx.blkcntnr import BlockItemContainer
+from docx.borders import _Borders  # pyright: ignore[reportPrivateUsage]
 from docx.enum.section import WD_HEADER_FOOTER
+from docx.oxml.section import CT_PageBorders
 from docx.oxml.text.paragraph import CT_P
 from docx.parts.hdrftr import FooterPart, HeaderPart
 from docx.shared import Pt, lazyproperty
@@ -14,12 +16,82 @@ from docx.text.paragraph import Paragraph
 
 if TYPE_CHECKING:
     from docx.enum.section import WD_ORIENTATION, WD_SECTION_START
+    from docx.enum.text import WD_TEXT_DIRECTION
     from docx.oxml.document import CT_Document
     from docx.oxml.section import CT_SectPr
     from docx.parts.document import DocumentPart
     from docx.parts.story import StoryPart
     from docx.shared import Length
     from docx.watermark import Watermark
+
+
+class _PageBorders(_Borders):
+    """The border edges drawn around the pages of a section, `section.page_borders`.
+
+    Beyond the four edges, `w:pgBorders` carries three of its own settings — see
+    :attr:`offset_from`, :attr:`display` and :attr:`z_order`.
+    """
+
+    def __init__(self, sectPr: CT_SectPr):
+        super().__init__(CT_PageBorders.edges)
+        self._sectPr = sectPr
+
+    def clear(self) -> None:
+        self._sectPr._remove_pgBorders()  # pyright: ignore[reportPrivateUsage]
+
+    @property
+    def display(self) -> str | None:
+        """Which pages the border is drawn on, or |None| when not set.
+
+        One of ``"allPages"``, ``"firstPage"`` or ``"notFirstPage"``. Word's default,
+        when the attribute is absent, is all pages.
+        """
+        pgBorders = self._element
+        return None if pgBorders is None else pgBorders.display
+
+    @display.setter
+    def display(self, value: str | None) -> None:
+        if value is None and self._element is None:
+            return
+        self._get_or_add_element().display = value
+
+    @property
+    def offset_from(self) -> str | None:
+        """What the border is measured from, ``"page"`` or ``"text"``, or |None|.
+
+        A certificate frame is measured from the page edge; a border that should track
+        the text block is measured from the text.
+        """
+        pgBorders = self._element
+        return None if pgBorders is None else pgBorders.offsetFrom
+
+    @offset_from.setter
+    def offset_from(self, value: str | None) -> None:
+        if value is None and self._element is None:
+            return
+        self._get_or_add_element().offsetFrom = value
+
+    @property
+    def z_order(self) -> str | None:
+        """Whether the border is drawn ``"front"`` of or ``"back"`` of the page content.
+
+        |None| when not set.
+        """
+        pgBorders = self._element
+        return None if pgBorders is None else pgBorders.zOrder
+
+    @z_order.setter
+    def z_order(self, value: str | None) -> None:
+        if value is None and self._element is None:
+            return
+        self._get_or_add_element().zOrder = value
+
+    @property
+    def _element(self) -> CT_PageBorders | None:
+        return self._sectPr.pgBorders
+
+    def _get_or_add_element(self) -> CT_PageBorders:
+        return self._sectPr.get_or_add_pgBorders()
 
 
 class Section:
@@ -32,6 +104,44 @@ class Section:
         super(Section, self).__init__()
         self._sectPr = sectPr
         self._document_part = document_part
+
+    @property
+    def bidi(self) -> bool | None:
+        """|True| when the default base direction for this section is right-to-left.
+
+        This is the section-level default; a paragraph's own
+        `paragraph_format.bidi` overrides it. |None| means inherited, not |False|.
+        """
+        return self._sectPr.bidi_val
+
+    @bidi.setter
+    def bidi(self, value: bool | None) -> None:
+        self._sectPr.bidi_val = value
+
+    @lazyproperty
+    def page_borders(self) -> _PageBorders:
+        """The border edges drawn around the pages of this section::
+
+            section.page_borders["top"].line = WD_LINE_STYLE.DOUBLE
+            section.page_borders.offset_from = "page"
+
+        This is how a certificate or a title page gets its frame. Only the four sides
+        are admitted, unlike a paragraph's borders.
+        """
+        return _PageBorders(self._sectPr)
+
+    @property
+    def text_direction(self) -> WD_TEXT_DIRECTION | None:
+        """Default flow direction of the text in this section, or |None| when inherited.
+
+        Distinct from :attr:`bidi`: this says which way the lines run and whether the
+        glyphs are rotated, not which direction the text reads in.
+        """
+        return self._sectPr.textDirection_val
+
+    @text_direction.setter
+    def text_direction(self, value: WD_TEXT_DIRECTION | None) -> None:
+        self._sectPr.textDirection_val = value
 
     @property
     def bottom_margin(self) -> Length | None:

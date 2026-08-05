@@ -412,7 +412,7 @@ class DescribeCharacterStyle:
     def it_provides_access_to_its_font(self, font_fixture):
         style, Font_, font_ = font_fixture
         font = style.font
-        Font_.assert_called_once_with(style._element)
+        Font_.assert_called_once_with(style._element, style)
         assert font is font_
 
     # fixture --------------------------------------------------------

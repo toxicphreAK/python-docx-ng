@@ -20,21 +20,20 @@ from docx.text.run import Run
 
 if TYPE_CHECKING:
     import docx.types as t
+    from docx.blkcntnr import BlockItemContainer
     from docx.bookmark import Bookmark
+    from docx.document import Document
     from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
     from docx.fields import Field
+    from docx.math import Math
     from docx.numbering import ParagraphNumbering
     from docx.oxml.text.form import CT_FldChar, CT_SimpleField
     from docx.oxml.text.paragraph import CT_P
     from docx.revisions import Revision
     from docx.sdt import ContentControl
     from docx.styles.style import CharacterStyle
+    from docx.table import Table
     from docx.text.hyperlink import Hyperlink
-
-
-# -- the character style Word applies to hyperlink text, and adds to a document the
-# -- first time a link is inserted into one --
-_HYPERLINK_STYLE_NAME = "Hyperlink"
 
 
 class Paragraph(StoryChild):
@@ -117,11 +116,10 @@ class Paragraph(StoryChild):
         cross-reference or a table-of-contents entry is.
 
         `style` is the character style applied to the link text, "Hyperlink" by
-        default, which is the style Word uses. A document that does not define it — the
-        bundled default template among them — has it added, blue and underlined as Word
-        defines it, since an unstyled hyperlink is indistinguishable from body text.
-        Pass |None| to skip styling deliberately, or the name of another character
-        style to use that instead.
+        default, which is the style Word uses and which the bundled template defines.
+        Pass |None| to skip styling deliberately, or the name of another character style
+        to use that instead. A named style the document does not define raises
+        |KeyError|, as assigning a missing style always has.
 
         The returned |Hyperlink| exposes its `.runs`, so the link text can be formatted
         further::
@@ -147,41 +145,8 @@ class Paragraph(StoryChild):
         run = Run(hyperlink.add_r(), self)
         run.text = text
         if style is not None:
-            self._apply_hyperlink_style(run, style)
-        return Hyperlink(hyperlink, self._parent)
-
-    def _apply_hyperlink_style(self, run: Run, style: str | CharacterStyle) -> None:
-        """Apply `style` to `run`, defining the default hyperlink style if it is absent.
-
-        Word adds the "Hyperlink" style to a document the first time a link is inserted
-        into it, and a link that inherits body-text formatting does not look like a
-        link at all. Any other named style that is missing is the caller's problem and
-        raises, as assigning a missing style always has.
-        """
-        try:
             run.style = style
-        except KeyError:
-            if style != _HYPERLINK_STYLE_NAME:
-                raise
-            run.style = self._add_default_hyperlink_style()
-
-    def _add_default_hyperlink_style(self) -> CharacterStyle:
-        """Add and return the "Hyperlink" character style, blue and underlined."""
-        from docx.enum.style import WD_STYLE_TYPE
-        from docx.enum.text import WD_UNDERLINE
-        from docx.shared import RGBColor
-
-        style = cast(
-            "CharacterStyle",
-            self.part.document.styles.add_style(
-                _HYPERLINK_STYLE_NAME, WD_STYLE_TYPE.CHARACTER, builtin=True
-            ),
-        )
-        style.font.color.rgb = RGBColor(0x05, 0x63, 0xC1)
-        style.font.underline = WD_UNDERLINE.SINGLE
-        style.priority = 99
-        style.unhide_when_used = True
-        return style
+        return Hyperlink(hyperlink, self._parent)
 
     def add_bookmark(self, name: str) -> Bookmark:
         """Return a |Bookmark| named `name` spanning the content of this paragraph.
@@ -311,6 +276,58 @@ class Paragraph(StoryChild):
         if style is not None:
             paragraph.style = style
         return paragraph
+
+    def copy_to(
+        self,
+        container: BlockItemContainer | Document,
+        *,
+        before: Paragraph | Table | None = None,
+        after: Paragraph | Table | None = None,
+        missing_style: str = "copy",
+    ) -> Paragraph:
+        """Return a copy of this paragraph, newly placed in `container`.
+
+        Duplicating a template paragraph is the most common thing people write by hand
+        against this library, and the hand-written version has the bugs below::
+
+            new = paragraph.copy_to(document)
+            new = paragraph.copy_to(cell, before=cell.paragraphs[0])
+
+        `container` is where the copy goes — a |Document|, a table |_Cell|, a header or
+        any other block-item container. `before` and `after` place the copy relative to
+        an existing paragraph or table in that container; with neither, it is appended.
+
+        Everything a deep copy would get wrong is repaired:
+
+        - **Relationships.** A picture's `r:embed` and a hyperlink's `r:id` name
+          relationships of the *source* part, which mean something else or nothing in
+          the destination. They are related in afresh. Relating the same image blob back
+          in gives the sha1 deduplication for free, so a copy within one document does
+          not duplicate the media.
+        - **Drawing ids.** `wp:docPr/@id` must be unique document-wide; each copied
+          drawing is reassigned one that is free in the destination.
+        - **Bookmarks.** These are *dropped* rather than duplicated. A bookmark name is
+          document-wide, and a second bookmark of the same name is not a copy — anything
+          referring to the name resolves to whichever it happens to find first. Use
+          `add_bookmark()` on the copy to bookmark it afresh.
+
+        Copying into a *different* document also has to resolve what the content refers
+        to there. A style the destination does not define is copied across with its
+        `w:basedOn` / `w:next` / `w:link` closure, and a numbering definition is copied
+        and the reference repointed, so a numbered paragraph does not silently join
+        whatever list happens to hold that id here. `missing_style` chooses what happens
+        instead: ``"copy"`` (the default) brings the style over, ``"drop"`` removes the
+        reference so the content takes the destination's default, and ``"raise"`` raises
+        |ValueError|.
+
+        Raises |ValueError| when both `before` and `after` are given.
+        """
+        from docx.copy import copy_content, destination_for, place
+
+        dest_part, dest_element = destination_for(container)
+        new_p = copy_content(self._p, self.part, dest_part, missing_style=missing_style)
+        place(new_p, dest_element, before, after)
+        return Paragraph(new_p, container)  # pyright: ignore[reportArgumentType]
 
     def iter_inner_content(self) -> Iterator[Run | Hyperlink]:
         """Generate the runs and hyperlinks in this paragraph, in the order they appear.
@@ -507,6 +524,30 @@ class Paragraph(StoryChild):
             if p is self._p:
                 return number
         return None
+
+    @property
+    def math(self) -> List[Math]:
+        """The equations in this paragraph, in document order.
+
+        Word stores an equation as OMML (`m:oMath`), a notation of its own with no
+        overlap with the wordprocessing run content, so an equation appears in neither
+        :attr:`runs` nor :attr:`text`::
+
+            >>> paragraph.text
+            'The result is  for all n'
+            >>> [m.text for m in paragraph.math]
+            ['x2+y2']
+
+        **Equation text is deliberately not part of** :attr:`text`. Including it would
+        be more truthful about what the document says, but :meth:`replace_text` and the
+        run-isolating machinery underneath it measure offsets against :attr:`text` and
+        can only cut at run boundaries — text they cannot reach would silently
+        mis-target every replacement after the first equation in a paragraph. A wrong
+        edit is worse than a missing character.
+        """
+        from docx.math import math_list
+
+        return math_list(self._p, self)
 
     @property
     def paragraph_format(self):

@@ -25,7 +25,18 @@ class DescribeStylesPart:
         assert styles_part.partname == "/word/styles.xml"
         assert styles_part.content_type == CT.WML_STYLES
         assert styles_part.package is package
-        assert len(styles_part.element) == 6
+        # -- `w:docDefaults`, `w:latentStyles` and eight `w:style` definitions --
+        assert len(styles_part.element) == 10
+        assert [s.styleId for s in styles_part.element.style_lst] == [
+            "Normal",
+            "DefaultParagraphFont",
+            "TableNormal",
+            "NoList",
+            "Hyperlink",
+            "CommentText",
+            "CommentTextChar",
+            "CommentReference",
+        ]
 
     # fixtures -------------------------------------------------------
 

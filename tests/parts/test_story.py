@@ -59,6 +59,8 @@ class DescribeStoryPart:
         get_or_add_image_.return_value = "rId42", image_
         image_.scaled_dimensions.return_value = 444, 888
         image_.filename = "bar.png"
+        image_.content_type = "image/png"
+        image_.drawingml_transform = (0, False)
         next_id_prop_.return_value = 24
         expected_xml = snippet_text("inline")
         story_part = StoryPart(None, None, None, None)
@@ -66,7 +68,9 @@ class DescribeStoryPart:
         inline = story_part.new_pic_inline("foo/bar.png", width=100, height=200)
 
         get_or_add_image_.assert_called_once_with(story_part, "foo/bar.png")
-        image_.scaled_dimensions.assert_called_once_with(100, 200)
+        image_.scaled_dimensions.assert_called_once_with(
+            100, 200, honor_exif_orientation=True
+        )
         assert inline.xml == expected_xml
 
     def it_knows_the_next_available_xml_id(self, next_id_fixture):

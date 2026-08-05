@@ -300,14 +300,14 @@ class Describe_App1Marker:
     ):
         bytes_ = b"\x00\x42Exif\x00\x00"
         marker_code, offset, length = JPEG_MARKER_CODE.APP1, 0, 66
-        horz_dpi, vert_dpi = 42, 24
+        horz_dpi, vert_dpi, orientation = 42, 24, 6
         stream = StreamReader(io.BytesIO(bytes_), BIG_ENDIAN)
 
         app1_marker = _App1Marker.from_stream(stream, marker_code, offset)
 
         _tiff_from_exif_segment_.assert_called_once_with(stream, offset, length)
         _App1Marker__init_.assert_called_once_with(
-            ANY, marker_code, offset, length, horz_dpi, vert_dpi
+            ANY, marker_code, offset, length, horz_dpi, vert_dpi, orientation
         )
         assert isinstance(app1_marker, _App1Marker)
 
@@ -335,6 +335,12 @@ class Describe_App1Marker:
         app1 = _App1Marker(None, None, None, horz_dpi, vert_dpi)
         assert app1.horz_dpi == horz_dpi
         assert app1.vert_dpi == vert_dpi
+
+    def it_knows_the_exif_orientation(self):
+        assert _App1Marker(None, None, None, 72, 72, 6).orientation == 6
+
+    def and_it_reports_1_when_the_segment_declares_none(self):
+        assert _App1Marker(None, None, None, 72, 72).orientation == 1
 
     # fixtures -------------------------------------------------------
 
@@ -371,7 +377,7 @@ class Describe_App1Marker:
 
     @pytest.fixture
     def tiff_(self, request):
-        return instance_mock(request, Tiff, horz_dpi=42, vert_dpi=24)
+        return instance_mock(request, Tiff, horz_dpi=42, vert_dpi=24, orientation=6)
 
     @pytest.fixture
     def _tiff_from_exif_segment_(self, request, tiff_):

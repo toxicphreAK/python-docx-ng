@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import os
-from typing import IO, TYPE_CHECKING, Iterator, List, Sequence
+from typing import IO, TYPE_CHECKING, Iterator, List, Sequence, Tuple
 
 from docx.altchunk import AltChunk
 from docx.blkcntnr import BlockItemContainer
@@ -15,17 +15,25 @@ from docx.enum.section import WD_SECTION
 from docx.enum.text import WD_BREAK
 from docx.formfield import FormField, iter_form_fields
 from docx.opc.constants import CONTENT_TYPE as CT
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from docx.parts.image import ImagePart
 from docx.section import Section, Sections
 from docx.shared import ElementProxy, Emu, Inches, Length, Pt, lazyproperty
 from docx.text.run import Run
 
 if TYPE_CHECKING:
     import docx.types as t
+    from docx.caption import Caption
+    from docx.cleanup import CleanupResult
     from docx.comments import Comment, Comments
     from docx.fields import Field
-    from docx.footnotes import Footnotes
+    from docx.footnotes import Endnotes, Footnotes
+    from docx.image.image import Image
+    from docx.math import Math
     from docx.numbering import Numbering
+    from docx.object import EmbeddedObject
     from docx.opc.customprops import CustomProperties
+    from docx.opc.parts.custom_xml import CustomXmlPart
     from docx.oxml.document import CT_Body, CT_Document
     from docx.parts.document import DocumentPart
     from docx.revisions import Revision
@@ -34,6 +42,7 @@ if TYPE_CHECKING:
     from docx.styles.style import ParagraphStyle, _TableStyle
     from docx.table import Table
     from docx.text.paragraph import Paragraph
+    from docx.theme import Theme
     from docx.watermark import Watermark
 
 
@@ -120,6 +129,53 @@ class Document(ElementProxy):
 
         return comment
 
+    def add_caption(
+        self,
+        label: str,
+        text: str = "",
+        *,
+        style: str | None = "Caption",
+        separator: str = " ",
+        restart_at_heading_level: int | None = None,
+        before: Paragraph | None = None,
+    ) -> Caption:
+        """Add a numbered, cross-referenceable caption and return it.
+
+        Word numbers each `label` series independently and renumbers the whole series
+        when one is inserted, which is the point of using a `SEQ` field rather than a
+        typed number. The number is therefore *not* in the document until Word computes
+        it; set :attr:`.Settings.update_fields_on_open` to have it do so on open.
+
+        The caption is bookmarked with a `_Ref`-prefixed name and the returned object
+        carries it, so a cross-reference is a one-liner::
+
+            caption = document.add_caption("Figure", "Cross-section of the assembly")
+            document.add_paragraph().add_field(
+                fields.cross_reference(caption.bookmark_name)
+            )
+
+        The `_Ref` naming is not decoration: Word's own cross-reference dialogue offers
+        only targets whose bookmark name follows it, so a caption bookmarked with an
+        arbitrary name is one the user cannot reference from the UI.
+
+        `style` is the paragraph style, "Caption" by default, which is what Word uses;
+        pass |None| to leave the paragraph unstyled. `separator` goes between the number
+        and `text`. `restart_at_heading_level` restarts the numbering at each heading of
+        that level, giving the "Figure 2-1" style. `before` places the caption
+        immediately before an existing paragraph, which is where a table caption goes.
+        """
+        from docx.caption import add_caption
+
+        return add_caption(
+            self._body,
+            label,
+            text,
+            style=style,
+            separator=separator,
+            restart_at_heading_level=restart_at_heading_level,
+            before=before,
+        )
+
     def add_heading(self, text: str = "", level: int = 1):
         """Return a heading paragraph newly added to the end of the document.
 
@@ -159,6 +215,7 @@ class Document(ElementProxy):
         description: str | None = None,
         title: str | None = None,
         svg_fallback: str | IO[bytes] | None = None,
+        honor_exif_orientation: bool = True,
     ):
         """Return new picture shape added in its own paragraph at end of the document.
 
@@ -175,7 +232,8 @@ class Document(ElementProxy):
         caption-like field Word writes alongside it.
 
         `svg_fallback` is the raster image shown in place of an SVG wherever the vector
-        source cannot be rendered; see `Run.add_picture()`.
+        source cannot be rendered, and `honor_exif_orientation` applies a photo's EXIF
+        `Orientation` as a rotation in the DrawingML; see `Run.add_picture()` for both.
         """
         run = self.add_paragraph().add_run()
         return run.add_picture(
@@ -185,6 +243,7 @@ class Document(ElementProxy):
             description=description,
             title=title,
             svg_fallback=svg_fallback,
+            honor_exif_orientation=honor_exif_orientation,
         )
 
     def add_section(self, start_type: WD_SECTION = WD_SECTION.NEW_PAGE):
@@ -197,13 +256,28 @@ class Document(ElementProxy):
         new_sectPr.start_type = start_type
         return Section(new_sectPr, self._part)
 
-    def add_table(self, rows: int, cols: int, style: str | _TableStyle | None = None):
+    def add_table(
+        self,
+        rows: int,
+        cols: int,
+        style: str | _TableStyle | None = None,
+        *,
+        title: str | None = None,
+        description: str | None = None,
+    ):
         """Add a table having row and column counts of `rows` and `cols` respectively.
 
         `style` may be a table style object or a table style name. If `style` is |None|,
         the table inherits the default table style of the document.
+
+        `description` is the table's alternative text, which is what a screen reader
+        announces and what an accessibility check looks for. `title` is the separate,
+        caption-like field Word writes alongside it. Both are omitted from the XML when
+        |None|.
         """
-        table = self._body.add_table(rows, cols, self._block_width)
+        table = self._body.add_table(
+            rows, cols, self._block_width, title=title, description=description
+        )
         table.style = style
         return table
 
@@ -241,6 +315,48 @@ class Document(ElementProxy):
         """
         return self._part.package.custom_properties
 
+    def cleanup(
+        self,
+        *,
+        styles: bool = True,
+        numbering: bool = True,
+        media: bool = True,
+        latent_styles: bool = False,
+        keep: Tuple[str, ...] = (),
+    ) -> CleanupResult:
+        """Remove what this document carries that nothing points at; report what went.
+
+        A document created by this library defines 164 styles and references one, and
+        carries numbering definitions for lists it does not have::
+
+            >>> print(document.cleanup())
+            removed 152 styles, 3 numbering definitions, ...
+
+        Three separate kinds of dead weight, each with its own flag: unused style
+        definitions, numbering definitions no content or style references, and image
+        parts nothing in the document part refers to — the last of which the `.delete()`
+        methods leave behind as a matter of course.
+
+        **This is destructive.** For styles, the reachability closure in
+        :meth:`.Styles.usage` is the only thing standing between it and a document whose
+        formatting has quietly changed; `keep` names styles to preserve along with their
+        dependencies, for ones you plan to apply but have not yet.
+
+        `latent_styles` is off by default and separate from `styles` on purpose:
+        dropping a `w:lsdException` changes what a user sees in Word's style gallery
+        rather than how the document renders.
+        """
+        from docx.cleanup import cleanup
+
+        return cleanup(
+            self._part,
+            styles=styles,
+            numbering=numbering,
+            media=media,
+            latent_styles=latent_styles,
+            keep=keep,
+        )
+
     @property
     def core_properties(self):
         """A |CoreProperties| object providing Dublin Core properties of document."""
@@ -260,6 +376,102 @@ class Document(ElementProxy):
         never touches it gains no `/word/footnotes.xml`.
         """
         return self._part.footnotes
+
+    def add_custom_xml_part(
+        self, xml: str | bytes, schema_refs: Tuple[str, ...] = ()
+    ) -> CustomXmlPart:
+        """Add an item to the custom XML data store and return its part.
+
+        The custom XML data store is where a document-generation pipeline keeps its
+        data: whole XML documents against a caller-supplied schema, which content
+        controls in the document bind to through `w:dataBinding` and Word keeps in step
+        with what it displays::
+
+            document.add_custom_xml_part(
+                "<invoice><total>42.00</total></invoice>",
+                schema_refs=("urn:example:invoice",),
+            )
+
+        This is a different thing from :attr:`custom_properties`, which is a flat list
+        of named scalars in `docProps/custom.xml`.
+
+        A `customXml/itemN.xml` part is created for `xml`, along with the
+        `itemPropsN.xml` sidecar Word identifies it by, carrying a freshly generated
+        GUID and the namespaces named in `schema_refs`.
+        """
+        return self._part.add_custom_xml_part(xml, schema_refs)
+
+    @property
+    def custom_xml_parts(self) -> Tuple[CustomXmlPart, ...]:
+        """The custom XML data store items of this document, in relationship order.
+
+        Each part offers `.item_id`, `.schema_refs`, `.element` and `.xml`. The item
+        content is arbitrary caller-supplied XML, so `.element` is a plain parsed tree
+        with no element classes of its own.
+        """
+        return self._part.custom_xml_parts
+
+    @property
+    def has_macros(self) -> bool:
+        """|True| when this document carries a VBA project.
+
+        The cheap predicate; :attr:`vba_project` is what reads the bytes.
+        """
+        return self._part.has_macros
+
+    @property
+    def vba_project(self) -> bytes | None:
+        """The macro project of this document as bytes, or |None| when it has none.
+
+        A `.docm` or `.dotm` carries its macros in `word/vbaProject.bin`, an OLE
+        compound file. This library does not parse it, but it round-trips untouched, so
+        the two operations people actually want are expressible:
+
+        **Strip the macros** from a document received from elsewhere::
+
+            del document.vba_project
+            document.save("clean.docx")
+
+        **Transplant a project** authored in Word into a generated document::
+
+            document.vba_project = donor.vba_project
+
+        Assigning switches the main part to the macro-enabled content type, and removing
+        switches it back. Word silently ignores macros in a document whose main part
+        does not claim to be macro-enabled, and warns the user about macros in one that
+        claims to be but is not, so the two are kept in step rather than left to the
+        caller.
+
+        Note this sets the content type; it does not choose the file extension for you.
+        A macro-enabled document conventionally has a `.docm` extension.
+        """
+        return self._part.vba_project
+
+    @vba_project.setter
+    def vba_project(self, blob: bytes | None) -> None:
+        self._part.vba_project = blob
+
+    @vba_project.deleter
+    def vba_project(self) -> None:
+        self._part.remove_vba_project()
+
+    def remove_vba_project(self) -> int:
+        """Remove this document's VBA project; return how many parts were removed.
+
+        The `word/vbaData.xml` sibling, which holds command-bar and macro-name
+        customisations, goes with it rather than being left orphaned. Zero for a
+        document that carries no project. Equivalent to ``del document.vba_project``.
+        """
+        return self._part.remove_vba_project()
+
+    @property
+    def endnotes(self) -> Endnotes:
+        """An |Endnotes| object providing access to the endnotes of this document.
+
+        The endnotes part is created the first time this is used, so a document that
+        never touches it gains no `/word/endnotes.xml`.
+        """
+        return self._part.endnotes
 
     @property
     def fields(self) -> List[Field]:
@@ -296,6 +508,66 @@ class Document(ElementProxy):
         return self._part.floating_shapes
 
     @property
+    def embedded_objects(self) -> List[EmbeddedObject]:
+        """The OLE objects embedded in the document body, in document order.
+
+        An embedded object is a whole file carried inside the document — a spreadsheet,
+        a PDF, another document — which Word opens in its own application on
+        double-click. Extracting them is the useful half::
+
+            for obj in document.embedded_objects:
+                if obj.blob is not None:
+                    Path(obj.filename or "attachment").write_bytes(obj.blob)
+
+        Objects in a header, a footer or a footnote belong to those parts and are not
+        included; reach them through the container concerned.
+        """
+        from docx.object import iter_embedded_objects
+
+        return iter_embedded_objects(self._element.body, self._part)
+
+    @property
+    def images(self) -> Tuple[Image, ...]:
+        """The distinct images embedded in this document's body, in relationship order.
+
+        This is the package-level view, the counterpart of reaching an image through the
+        shape that displays it. Several shapes can share one image part, so this is
+        shorter than :attr:`inline_shapes` whenever a picture is used twice, and it
+        includes images no shape displays — a picture left behind when its paragraph was
+        deleted, for instance.
+
+        Only images related from the main document part appear here. A picture in a
+        header, a footer or a comment belongs to that part's relationships instead.
+
+        A *linked* image is not included: its bytes are not in the package. Neither is a
+        relationship of image type whose target is not an image part, which does occur —
+        see the same guard in `Package._gather_image_parts()`.
+        """
+        return tuple(
+            rel.target_part.image
+            for rel in self._part.rels.values()
+            if rel.reltype == RT.IMAGE
+            and not rel.is_external
+            and isinstance(rel.target_part, ImagePart)
+        )
+
+    @property
+    def theme(self) -> Theme | None:
+        """The document's |Theme|, or |None| when it carries no theme part.
+
+        The theme is where a theme typeface token such as ``"minorHAnsi"`` becomes a
+        real font name, and where a theme colour becomes an RGB value::
+
+            document.theme.minor_font.latin   # -> 'Calibri'
+            document.theme.color("accent1")
+
+        For the large class of documents that set no explicit ``w:rFonts/@w:ascii``
+        anywhere, this is the only place the typeface the text is actually rendered in
+        can be found; see also :attr:`.Font.theme_typeface`.
+        """
+        return self._part.theme
+
+    @property
     def inline_shapes(self):
         """The |InlineShapes| collection for this document.
 
@@ -318,6 +590,17 @@ class Document(ElementProxy):
     def iter_inner_content(self) -> Iterator[Paragraph | Table]:
         """Generate each `Paragraph` or `Table` in this document in document order."""
         return self._body.iter_inner_content()
+
+    @property
+    def math(self) -> List[Math]:
+        """The equations in the document body, in document order.
+
+        Equations in a header, a footer, a footnote or a comment are in those parts
+        rather than the body and are not included; reach them through the container
+        concerned. See :attr:`.Paragraph.math` for why equation text is not part of
+        :attr:`.Paragraph.text`.
+        """
+        return self._body.math
 
     @property
     def numbering(self) -> Numbering:
@@ -421,6 +704,8 @@ class Document(ElementProxy):
                 )
         if footnotes and self._part.has_footnotes_part:
             containers.extend(self.footnotes)
+        if footnotes and self._part.has_endnotes_part:
+            containers.extend(self.endnotes)
 
         replaced = 0
         for container in containers:

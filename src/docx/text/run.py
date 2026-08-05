@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import IO, TYPE_CHECKING, Iterator, cast
+from typing import IO, TYPE_CHECKING, Iterator, List, cast
 
 from docx.drawing import Drawing
 from docx.enum.shape import (
@@ -25,9 +25,11 @@ if TYPE_CHECKING:
     import docx.types as t
     from docx.bookmark import Bookmark
     from docx.enum.text import WD_UNDERLINE
-    from docx.footnotes import Footnote
+    from docx.footnotes import Endnote, Footnote
+    from docx.object import EmbeddedObject
     from docx.oxml.text.run import CT_R, CT_Text
     from docx.shared import Length
+    from docx.text.paragraph import Paragraph
 
 
 class Run(StoryChild):
@@ -72,6 +74,7 @@ class Run(StoryChild):
         description: str | None = None,
         title: str | None = None,
         svg_fallback: str | IO[bytes] | None = None,
+        honor_exif_orientation: bool = True,
     ) -> InlineShape:
         """Return |InlineShape| containing image identified by `image_path_or_stream`.
 
@@ -98,6 +101,17 @@ class Run(StoryChild):
         appear in an older Word, in a PDF export from some tools, and anywhere else the
         SVG extension is not understood. Without it the fallback refers to the SVG
         itself, which Word 2016 and later render but earlier versions do not.
+
+        `honor_exif_orientation` applies the image's EXIF `Orientation` tag, which a
+        photo off a phone or camera almost always carries: the pixels are stored in the
+        sensor's native orientation and the tag says how to turn them for display. Every
+        image viewer, browser and word processor honours it, and a library that inserts
+        pictures and does not produces a visibly wrong document from a correct input
+        file. The rotation is written into the DrawingML (`a:xfrm/@rot`) rather than
+        into the pixels, so the image part stays byte-identical and the sha1
+        deduplication keeps working. Pass |False| for an image whose pixels are already
+        rotated *and* which carries the tag anyway — some encoders write both and there
+        is no reliable way to detect it.
         """
         inline = self.part.new_pic_inline(
             image_path_or_stream,
@@ -106,9 +120,10 @@ class Run(StoryChild):
             description=description,
             title=title,
             svg_fallback=svg_fallback,
+            honor_exif_orientation=honor_exif_orientation,
         )
         self._r.add_drawing(inline)
-        return InlineShape(inline)
+        return InlineShape(inline, self)
 
     def add_float_picture(
         self,
@@ -124,6 +139,7 @@ class Run(StoryChild):
         description: str | None = None,
         title: str | None = None,
         svg_fallback: str | IO[bytes] | None = None,
+        honor_exif_orientation: bool = True,
     ) -> FloatingShape:
         """Return a |FloatingShape| for a picture that text flows around.
 
@@ -144,8 +160,9 @@ class Run(StoryChild):
                 wrap_type=WD_WRAP_TYPE.SQUARE,
             )
 
-        `image_path_or_stream`, `width`, `height`, `description`, `title` and
-        `svg_fallback` behave exactly as they do for :meth:`add_picture`.
+        `image_path_or_stream`, `width`, `height`, `description`, `title`,
+        `svg_fallback` and `honor_exif_orientation` behave exactly as they do for
+        :meth:`add_picture`.
 
         `left` and `top` are the offset from `relative_from_h` and `relative_from_v`,
         which default to the column and the paragraph — where Word puts a picture
@@ -169,13 +186,14 @@ class Run(StoryChild):
             description=description,
             title=title,
             svg_fallback=svg_fallback,
+            honor_exif_orientation=honor_exif_orientation,
         )
         anchor.wrap_type = wrap_type
         anchor.behindDoc = bool(behind_text)
         anchor.positionH.relativeFrom = relative_from_h
         anchor.positionV.relativeFrom = relative_from_v
         self._r.add_drawing(anchor)
-        return FloatingShape(anchor)
+        return FloatingShape(anchor, self)
 
     def add_tab(self) -> None:
         """Add a ``<w:tab/>`` element at the end of the run, which Word interprets as a
@@ -206,6 +224,92 @@ class Run(StoryChild):
     def bold(self, value: bool | None):
         self.font.bold = value
 
+    def add_embedded_object(
+        self,
+        path_or_stream: str | IO[bytes],
+        *,
+        icon: str | IO[bytes],
+        prog_id: str | None = None,
+        width: Length | None = None,
+        height: Length | None = None,
+    ) -> EmbeddedObject:
+        """Embed a file in this run as an OLE object and return it.
+
+        An embedded object is a whole file carried inside the document — a spreadsheet,
+        a PDF, another document — shown as an icon that opens the original application
+        on double-click::
+
+            run.add_embedded_object("budget.xlsx", icon="excel-icon.png",
+                                    prog_id="Excel.Sheet.12")
+
+        This is a different thing from :meth:`.Document.add_alt_chunk`, which imports
+        content and dissolves it into the document when Word opens the file; an embedded
+        object stays a distinct file.
+
+        `icon` is the image Word displays for the object and is required: Word cannot
+        render the embedded file itself, and an object with no visual is invisible in
+        the document. `width` and `height` size the visual, defaulting to the icon's own
+        size.
+
+        `prog_id` is what tells Word which application to launch —
+        ``"Excel.Sheet.12"``, ``"Word.Document.12"``, ``"AcroExch.Document"``. Getting
+        it wrong produces an object Word shows but cannot open, so it is worth passing
+        the right one; the default of ``"Package"`` is Word's generic "some file" entry,
+        which prompts the user to choose an application.
+
+        The visual is VML rather than DrawingML, so this shares nothing with
+        :meth:`add_picture` beyond relating the icon image in.
+        """
+        from docx.object import add_embedded_object
+
+        return add_embedded_object(
+            self,
+            path_or_stream,
+            icon=icon,
+            prog_id=prog_id,
+            width=width,
+            height=height,
+        )
+
+    @property
+    def embedded_objects(self) -> List[EmbeddedObject]:
+        """The OLE objects embedded in this run, in document order."""
+        from docx.object import iter_embedded_objects
+
+        return iter_embedded_objects(self._r, self)
+
+    def copy_to(
+        self,
+        paragraph: Paragraph,
+        *,
+        before: Run | None = None,
+        after: Run | None = None,
+        missing_style: str = "copy",
+    ) -> Run:
+        """Return a copy of this run, newly placed in `paragraph`.
+
+        `before` and `after` place the copy relative to an existing run; with neither it
+        is appended.
+
+        See :meth:`.Paragraph.copy_to` for what is repaired on the way — relationships,
+        drawing ids, bookmarks, and, for a copy into another document, styles.
+        """
+        from docx.copy import copy_content
+
+        new_r = copy_content(
+            self._r, self.part, paragraph.part, missing_style=missing_style
+        )
+
+        if before is not None and after is not None:
+            raise ValueError("pass at most one of `before` and `after`")
+        if before is not None:
+            before._r.addprevious(new_r)
+        elif after is not None:
+            after._r.addnext(new_r)
+        else:
+            paragraph._p.append(new_r)  # pyright: ignore[reportPrivateUsage]
+        return Run(new_r, paragraph)
+
     def clear(self):
         """Return reference to this run after removing all its content.
 
@@ -231,7 +335,7 @@ class Run(StoryChild):
     def font(self) -> Font:
         """The |Font| object providing access to the character formatting properties for
         this run, such as font name and size."""
-        return Font(self._element)
+        return Font(self._element, self)
 
     @property
     def italic(self) -> bool | None:
@@ -310,6 +414,24 @@ class Run(StoryChild):
         if self._r.style is None:
             self._r.style = "FootnoteReference"
         self._r.add_footnoteReference().id = footnote.footnote_id
+
+    def add_endnote_reference(self, endnote: Endnote) -> None:
+        """Add a reference to `endnote` at the end of this run.
+
+        The endnote counterpart of :meth:`add_footnote_reference`, and identical to it
+        except that Word places the note at the end of the document or section rather
+        than at the foot of the page::
+
+            endnote = document.endnotes.add_endnote("See Smith (2019).")
+            paragraph.add_run().add_endnote_reference(endnote)
+
+        The "EndnoteReference" character style is applied to this run when it has no
+        character style of its own, since that style is what raises the mark to a
+        superscript.
+        """
+        if self._r.style is None:
+            self._r.style = "EndnoteReference"
+        self._r.add_endnoteReference().id = endnote.endnote_id
 
     def mark_comment_range(self, last_run: Run, comment_id: int) -> None:
         """Mark the range of runs from this run to `last_run` (inclusive) as belonging to a comment.

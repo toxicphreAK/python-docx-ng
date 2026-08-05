@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Callable
+
 from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml.simpletypes import ST_DecimalNumber, ST_OnOff, ST_String
 from docx.oxml.xmlchemy import (
@@ -11,6 +13,10 @@ from docx.oxml.xmlchemy import (
     ZeroOrMore,
     ZeroOrOne,
 )
+
+if TYPE_CHECKING:
+    from docx.oxml.text.font import CT_RPr
+    from docx.oxml.text.parfmt import CT_PPr
 
 
 def styleId_from_name(name):
@@ -28,6 +34,43 @@ def styleId_from_name(name):
         "heading 8": "Heading8",
         "heading 9": "Heading9",
     }.get(name, name.replace(" ", ""))
+
+
+class CT_PPrDefault(BaseOxmlElement):
+    """`w:pPrDefault` element, wrapping the document-wide default paragraph formatting."""
+
+    get_or_add_pPr: Callable[[], CT_PPr]
+
+    pPr: CT_PPr | None = ZeroOrOne("w:pPr", successors=())  # pyright: ignore[reportAssignmentType]
+
+
+class CT_RPrDefault(BaseOxmlElement):
+    """`w:rPrDefault` element, wrapping the document-wide default run formatting."""
+
+    get_or_add_rPr: Callable[[], CT_RPr]
+
+    rPr: CT_RPr | None = ZeroOrOne("w:rPr", successors=())  # pyright: ignore[reportAssignmentType]
+
+
+class CT_DocDefaults(BaseOxmlElement):
+    """`w:docDefaults` element, the bottom of the formatting inheritance chain.
+
+    Whatever is set here applies to the whole document before any style or direct
+    formatting. For many real documents it is the only place the base font and the base
+    paragraph spacing are set.
+    """
+
+    get_or_add_pPrDefault: Callable[[], CT_PPrDefault]
+    get_or_add_rPrDefault: Callable[[], CT_RPrDefault]
+
+    _tag_seq = ("w:rPrDefault", "w:pPrDefault")
+    rPrDefault: CT_RPrDefault | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:rPrDefault", successors=_tag_seq[1:]
+    )
+    pPrDefault: CT_PPrDefault | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:pPrDefault", successors=_tag_seq[2:]
+    )
+    del _tag_seq
 
 
 class CT_LatentStyles(BaseOxmlElement):
@@ -330,7 +373,12 @@ class CT_Style(BaseOxmlElement):
 class CT_Styles(BaseOxmlElement):
     """``<w:styles>`` element, the root element of a styles part, i.e. styles.xml."""
 
+    get_or_add_docDefaults: Callable[[], CT_DocDefaults]
+
     _tag_seq = ("w:docDefaults", "w:latentStyles", "w:style")
+    docDefaults: CT_DocDefaults | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:docDefaults", successors=_tag_seq[1:]
+    )
     latentStyles = ZeroOrOne("w:latentStyles", successors=_tag_seq[2:])
     style = ZeroOrMore("w:style", successors=())
     del _tag_seq

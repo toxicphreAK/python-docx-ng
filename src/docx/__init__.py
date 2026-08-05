@@ -25,17 +25,20 @@ from docx.opc.constants import CONTENT_TYPE as CT
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.opc.part import PartFactory
 from docx.opc.parts.coreprops import CorePropertiesPart
+from docx.opc.parts.custom_xml import CustomXmlPart, CustomXmlPropertiesPart
 from docx.opc.parts.customprops import CustomPropertiesPart
 from docx.opc.parts.extendedprops import ExtendedPropertiesPart
 from docx.parts.altchunk import AltChunkPart
 from docx.parts.comments import CommentsPart
 from docx.parts.document import DocumentPart
+from docx.parts.endnotes import EndnotesPart
 from docx.parts.footnotes import FootnotesPart
 from docx.parts.hdrftr import FooterPart, HeaderPart
 from docx.parts.image import ImagePart
 from docx.parts.numbering import NumberingPart
 from docx.parts.settings import SettingsPart
 from docx.parts.styles import StylesPart
+from docx.parts.theme import ThemePart
 
 
 def part_class_selector(content_type: str, reltype: str) -> Type[Part] | None:
@@ -45,21 +48,28 @@ def part_class_selector(content_type: str, reltype: str) -> Type[Part] | None:
     # -- can only be recognized by the relationship that reaches it --
     if reltype == RT.A_F_CHUNK:
         return AltChunkPart
+    # -- a custom XML data store item is `application/xml`, which is far too generic to
+    # -- dispatch on; the relationship that reaches it is what identifies it --
+    if reltype == RT.CUSTOM_XML:
+        return CustomXmlPart
     return None
 
 
 PartFactory.part_class_selector = part_class_selector
 PartFactory.part_type_for[CT.OFC_EXTENDED_PROPERTIES] = ExtendedPropertiesPart
 PartFactory.part_type_for[CT.OFC_CUSTOM_PROPERTIES] = CustomPropertiesPart
+PartFactory.part_type_for[CT.OFC_CUSTOM_XML_PROPERTIES] = CustomXmlPropertiesPart
 PartFactory.part_type_for[CT.OPC_CORE_PROPERTIES] = CorePropertiesPart
 PartFactory.part_type_for[CT.WML_COMMENTS] = CommentsPart
 PartFactory.part_type_for[CT.WML_DOCUMENT_MAIN] = DocumentPart
 PartFactory.part_type_for[CT.WML_DOCUMENT_MACRO_ENABLED_MAIN] = DocumentPart
+PartFactory.part_type_for[CT.WML_ENDNOTES] = EndnotesPart
 PartFactory.part_type_for[CT.WML_FOOTER] = FooterPart
 PartFactory.part_type_for[CT.WML_FOOTNOTES] = FootnotesPart
 PartFactory.part_type_for[CT.WML_HEADER] = HeaderPart
 PartFactory.part_type_for[CT.WML_NUMBERING] = NumberingPart
 PartFactory.part_type_for[CT.WML_SETTINGS] = SettingsPart
+PartFactory.part_type_for[CT.OFC_THEME] = ThemePart
 PartFactory.part_type_for[CT.WML_STYLES] = StylesPart
 # -- a Word template holds the same main part as a document; only Word's treatment of
 # -- the file differs --
@@ -69,9 +79,11 @@ PartFactory.part_type_for[CT.WML_TEMPLATE_MACRO_ENABLED_MAIN] = DocumentPart
 del (
     CT,
     CorePropertiesPart,
+    CustomXmlPropertiesPart,
     ExtendedPropertiesPart,
     CommentsPart,
     DocumentPart,
+    EndnotesPart,
     FooterPart,
     FootnotesPart,
     HeaderPart,
@@ -79,5 +91,6 @@ del (
     PartFactory,
     SettingsPart,
     StylesPart,
+    ThemePart,
     part_class_selector,
 )

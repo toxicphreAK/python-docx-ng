@@ -174,7 +174,13 @@ class DescribeDocument:
         picture = document.add_picture(path, width, height)
 
         run_.add_picture.assert_called_once_with(
-            path, width, height, description=None, title=None, svg_fallback=None
+            path,
+            width,
+            height,
+            description=None,
+            title=None,
+            svg_fallback=None,
+            honor_exif_orientation=True,
         )
         assert picture is picture_
 
@@ -229,7 +235,7 @@ class DescribeDocument:
 
         table = document.add_table(rows, cols, style)
 
-        body_.add_table.assert_called_once_with(rows, cols, width)
+        body_.add_table.assert_called_once_with(rows, cols, width, title=None, description=None)
         assert table == table_
         assert table.style == style
 

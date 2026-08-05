@@ -4,11 +4,12 @@ import pytest
 
 from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml.styles import CT_Style, CT_Styles
+from docx.shared import Pt
 from docx.styles.latent import LatentStyles
 from docx.styles.style import BaseStyle
 from docx.styles.styles import Styles
 
-from ..unitutil.cxml import element
+from ..unitutil.cxml import element, xml
 from ..unitutil.mock import call, class_mock, function_mock, instance_mock, method_mock
 
 
@@ -452,3 +453,55 @@ class DescribeStyles:
     @pytest.fixture
     def styles_elm_(self, request):
         return instance_mock(request, CT_Styles)
+
+
+class DescribeStylesDocDefaults:
+    """Unit-test suite for `Styles.default_font` and `.default_paragraph_format`."""
+
+    def it_provides_access_to_the_document_wide_default_font(self):
+        styles = Styles(element("w:styles"))
+
+        styles.default_font.name = "Calibri"
+
+        assert styles._element.xml == xml(
+            "w:styles/w:docDefaults/w:rPrDefault/w:rPr/w:rFonts"
+            "{w:ascii=Calibri,w:hAnsi=Calibri}"
+        )
+
+    def it_provides_access_to_the_document_wide_default_paragraph_format(self):
+        styles = Styles(element("w:styles"))
+
+        styles.default_paragraph_format.space_after = Pt(10)
+
+        assert styles._element.xml == xml(
+            "w:styles/w:docDefaults/w:pPrDefault/w:pPr/w:spacing{w:after=200}"
+        )
+
+    def it_reads_the_base_font_a_document_sets_only_in_docDefaults(self):
+        """The case that makes `Font.name` |None| on every run of a real document."""
+        styles = Styles(
+            element(
+                "w:styles/w:docDefaults/w:rPrDefault/w:rPr/w:rFonts"
+                "{w:ascii=Cambria,w:hAnsi=Cambria}"
+            )
+        )
+
+        assert styles.default_font.name == "Cambria"
+
+    def it_inserts_docDefaults_before_latentStyles(self):
+        styles = Styles(element("w:styles/w:latentStyles"))
+
+        styles.default_font
+
+        assert styles._element.xml == xml(
+            "w:styles/(w:docDefaults/w:rPrDefault,w:latentStyles)"
+        )
+
+    def and_it_inserts_rPrDefault_before_pPrDefault(self):
+        styles = Styles(element("w:styles/w:docDefaults/w:pPrDefault"))
+
+        styles.default_font
+
+        assert styles._element.xml == xml(
+            "w:styles/w:docDefaults/(w:rPrDefault,w:pPrDefault)"
+        )

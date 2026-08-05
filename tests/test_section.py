@@ -10,6 +10,8 @@ import pytest
 
 from docx import Document
 from docx.enum.section import WD_HEADER_FOOTER, WD_ORIENTATION, WD_SECTION
+from docx.enum.table import WD_LINE_STYLE
+from docx.enum.text import WD_TEXT_DIRECTION
 from docx.oxml.document import CT_Document
 from docx.oxml.section import CT_SectPr
 from docx.parts.document import DocumentPart
@@ -1070,3 +1072,75 @@ class Describe_Header:
     @pytest.fixture
     def header_part_(self, request: FixtureRequest):
         return instance_mock(request, HeaderPart)
+
+
+class DescribeSectionDirectionAndBorders:
+    """Unit-test suite for `Section.bidi`, `.text_direction` and `.page_borders`."""
+
+    @pytest.mark.parametrize(
+        ("sectPr_cxml", "expected_value"),
+        [
+            ("w:sectPr", None),
+            ("w:sectPr/w:bidi", True),
+            ("w:sectPr/w:bidi{w:val=0}", False),
+        ],
+    )
+    def it_knows_its_base_direction(
+        self, sectPr_cxml: str, expected_value: bool | None, document_part_: Mock
+    ):
+        section = Section(cast(CT_SectPr, element(sectPr_cxml)), document_part_)
+
+        assert section.bidi == expected_value
+
+    def it_inserts_bidi_after_textDirection(self, document_part_: Mock):
+        section = Section(cast(CT_SectPr, element("w:sectPr")), document_part_)
+
+        section.text_direction = WD_TEXT_DIRECTION.TB_RL
+        section.bidi = True
+
+        assert section._sectPr.xml == xml(
+            "w:sectPr/(w:textDirection{w:val=tbRl},w:bidi)"
+        )
+
+    def it_provides_access_to_the_four_page_border_edges(self, document_part_: Mock):
+        section = Section(cast(CT_SectPr, element("w:sectPr")), document_part_)
+
+        assert list(section.page_borders) == ["top", "left", "bottom", "right"]
+
+    def it_inserts_pgBorders_in_schema_order(self, document_part_: Mock):
+        """`w:pgBorders` must precede `w:cols`."""
+        section = Section(cast(CT_SectPr, element("w:sectPr/w:cols")), document_part_)
+
+        section.page_borders["top"].line = WD_LINE_STYLE.DOUBLE
+
+        assert section._sectPr.xml == xml(
+            "w:sectPr/(w:pgBorders/w:top{w:val=double},w:cols)"
+        )
+
+    def it_can_get_and_set_the_page_border_container_settings(self, document_part_: Mock):
+        section = Section(cast(CT_SectPr, element("w:sectPr")), document_part_)
+
+        section.page_borders.offset_from = "page"
+        section.page_borders.display = "firstPage"
+        section.page_borders.z_order = "front"
+
+        assert section.page_borders.offset_from == "page"
+        assert section.page_borders.display == "firstPage"
+        assert section.page_borders.z_order == "front"
+
+    def it_keeps_the_pgBorders_element_when_its_last_edge_goes_but_settings_remain(
+        self, document_part_: Mock
+    ):
+        section = Section(cast(CT_SectPr, element("w:sectPr")), document_part_)
+        section.page_borders.offset_from = "page"
+        section.page_borders["top"].line = WD_LINE_STYLE.SINGLE
+
+        section.page_borders["top"].line = None
+
+        assert section.page_borders.offset_from == "page"
+
+    # fixtures -------------------------------------------------------
+
+    @pytest.fixture
+    def document_part_(self, request: FixtureRequest):
+        return instance_mock(request, DocumentPart)

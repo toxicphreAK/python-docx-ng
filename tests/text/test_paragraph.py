@@ -7,6 +7,7 @@ import pytest
 
 import docx
 from docx import types as t
+from docx.enum.dml import MSO_THEME_COLOR
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.text.paragraph import CT_P
@@ -449,25 +450,32 @@ class DescribeAddHyperlink:
         with pytest.raises(ValueError, match="address, a fragment, or both"):
             paragraph.add_hyperlink("nowhere")
 
-    def it_defines_the_hyperlink_style_when_the_document_lacks_it(self):
+    def it_applies_the_hyperlink_style_the_bundled_template_defines(self):
         """An unstyled link is indistinguishable from body text."""
         document = docx.Document()
-        assert "Hyperlink" not in [s.name for s in document.styles]
+        assert "Hyperlink" in [s.name for s in document.styles]
 
         hyperlink = document.add_paragraph().add_hyperlink("x", "https://example.com/")
 
         assert hyperlink.runs[0].style.name == "Hyperlink"
-        assert "Hyperlink" in [s.name for s in document.styles]
+
+    def and_the_definition_is_the_one_Word_writes(self):
+        """Lifted verbatim from a Word-authored fixture, theme colour and all."""
+        style = docx.Document().styles["Hyperlink"]
+
+        assert style.type == WD_STYLE_TYPE.CHARACTER
+        assert style.base_style.name == "Default Paragraph Font"
+        assert style.font.underline is True
+        assert style.font.color.theme_color == MSO_THEME_COLOR.HYPERLINK
 
     def it_can_skip_styling_the_link_text(self):
         document = docx.Document()
 
         hyperlink = document.add_paragraph().add_hyperlink("x", "https://example.com/", style=None)
 
-        assert "Hyperlink" not in [s.name for s in document.styles]
         assert hyperlink.runs[0].style.name == "Default Paragraph Font"
 
-    def it_raises_for_a_missing_style_that_is_not_the_hyperlink_style(self):
+    def it_raises_for_a_style_the_document_does_not_define(self):
         paragraph = docx.Document().add_paragraph()
 
         with pytest.raises(KeyError):

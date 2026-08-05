@@ -22,11 +22,11 @@ rendering those correctly is a localisation problem rather than a document-model
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Iterator, List, Tuple
+from typing import TYPE_CHECKING, Dict, Iterator, List, Mapping, Sequence, Tuple
 
 from docx.enum.numbering import WD_NUMBER_FORMAT
 from docx.oxml.ns import qn
-from docx.shared import ElementProxy
+from docx.shared import ElementProxy, Length
 
 if TYPE_CHECKING:
     from docx.oxml.numbering import CT_AbstractNum, CT_Lvl, CT_Num, CT_Numbering
@@ -201,6 +201,100 @@ class NumberingLevel:
         """
         return False if self._lvl is None else self._lvl.is_lgl
 
+    @property
+    def suffix(self) -> str:
+        """What separates the number from the text: `"tab"`, `"space"` or `"nothing"`.
+
+        `"tab"` when the level does not say, which is Word's default.
+        """
+        if self._lvl is not None and self._lvl.suffix is not None:
+            return self._lvl.suffix
+        return "tab"
+
+    @property
+    def indent(self) -> Length | None:
+        """The left indent this level applies, or |None| when it sets none."""
+        pPr = None if self._lvl is None else self._lvl.pPr
+        if pPr is None:
+            return None
+        return pPr.ind_left  # pyright: ignore[reportAttributeAccessIssue]
+
+    @property
+    def hanging_indent(self) -> Length | None:
+        """The hanging indent this level applies, or |None| when it sets none.
+
+        This is what keeps the wrapped text of a list item lined up under the first
+        line rather than under the bullet.
+        """
+        pPr = None if self._lvl is None else self._lvl.pPr
+        if pPr is None:
+            return None
+        first_line = pPr.first_line_indent  # pyright: ignore[reportAttributeAccessIssue]
+        return None if first_line is None or first_line >= 0 else Length(-first_line)
+
+    def set(
+        self,
+        *,
+        start: int | None = None,
+        number_format: WD_NUMBER_FORMAT | str | None = None,
+        level_text: str | None = None,
+        suffix: str | None = None,
+        alignment: str | None = None,
+        indent: Length | None = None,
+        hanging_indent: Length | None = None,
+        restart_after_level: int | None = None,
+        style_id: str | None = None,
+        is_legal: bool | None = None,
+    ) -> NumberingLevel:
+        """Change this level's definition; return self for chaining.
+
+        Only the arguments given are written, so a call sets what it names and leaves
+        the rest of the level alone::
+
+            level.set(number_format=WD_NUMBER_FORMAT.LOWER_LETTER, level_text="%2)")
+
+        The change is made to the *abstract* definition, which is shared: every list
+        pointing at it changes with it. Use :meth:`.Numbering.add_definition` for a list
+        of your own rather than editing a definition the document already had.
+
+        Raises |ValueError| for a level that has no definition to write to — one of the
+        nine levels an abstract definition does not define.
+        """
+        if self._lvl is None:
+            raise ValueError(
+                "level %d has no definition in this list; only levels the abstract"
+                " definition defines can be changed" % self._ilvl
+            )
+        lvl = self._lvl
+
+        if start is not None:
+            lvl.start = start
+        if number_format is not None:
+            lvl.num_fmt = number_format
+        if level_text is not None:
+            lvl.lvl_text = level_text
+        if suffix is not None:
+            lvl.suffix = suffix
+        if alignment is not None:
+            lvl.jc = alignment
+        if restart_after_level is not None:
+            lvl.lvl_restart = restart_after_level
+        if style_id is not None:
+            lvl.p_style = style_id
+        if is_legal is not None:
+            lvl.is_lgl = is_legal
+        if indent is not None or hanging_indent is not None:
+            pPr = lvl.get_or_add_pPr()
+            if indent is not None:
+                pPr.ind_left = indent  # pyright: ignore[reportAttributeAccessIssue]
+            if hanging_indent is not None:
+                # -- a hanging indent is a negative first-line indent, which is how
+                # -- `CT_PPr.first_line_indent` already spells it --
+                pPr.first_line_indent = Length(  # pyright: ignore[reportAttributeAccessIssue]
+                    -hanging_indent
+                )
+        return self
+
     def format_number(self, value: int) -> str:
         """`value` rendered in this level's number format.
 
@@ -328,6 +422,168 @@ class Numbering(ElementProxy):
         except KeyError:
             return None
         return NumberingDefinition(num, self)
+
+    def add_definition(
+        self,
+        levels: Sequence[Mapping[str, object]] | None = None,
+        *,
+        multi_level_type: str | None = None,
+    ) -> NumberingDefinition:
+        """Define a new list and return it.
+
+        Until now a list could be *applied* and *restarted* but not defined, so a format
+        the template did not already contain — `1)` where the template has `1.`, a
+        custom bullet character, a particular per-level indent — meant hand-building
+        `w:abstractNum` XML::
+
+            definition = document.numbering.add_definition([
+                {"number_format": WD_NUMBER_FORMAT.DECIMAL, "level_text": "%1)"},
+                {"number_format": WD_NUMBER_FORMAT.LOWER_LETTER, "level_text": "%2)"},
+            ])
+            paragraph.set_numbering(definition.num_id, level=0)
+
+        `levels` is one mapping per level, outermost first, of the keyword arguments
+        :meth:`.NumberingLevel.set` takes. A level given as an empty mapping takes the
+        defaults. With `levels` of |None| the definition gets nine decimal levels, which
+        is what Word's plain numbered list is; :meth:`add_bulleted_definition` and
+        :meth:`add_numbered_definition` are the shorthands for the two common cases.
+
+        `multi_level_type` is written to `w:multiLevelType` when given; Word uses it to
+        decide how to present the list in its gallery and is content without it.
+
+        A fresh `w:abstractNum` and a `w:num` pointing at it are created, both with ids
+        free in this document. `w:nsid` and `w:tmpl` are deliberately not written — they
+        are what Word uses to recognise a definition as one of its own gallery entries,
+        and inventing values would claim a provenance this definition does not have.
+
+        Raises |ValueError| for more than nine levels, which is all OOXML admits.
+        """
+        from docx.oxml.numbering import CT_AbstractNum
+
+        if levels is None:
+            levels = [{} for _ in range(_MAX_LEVELS)]
+        elif len(levels) > _MAX_LEVELS:
+            raise ValueError(
+                "a list definition has at most %d levels, got %d"
+                % (_MAX_LEVELS, len(levels))
+            )
+
+        abstract = CT_AbstractNum.new(self._next_abstract_num_id())
+        self._insert_abstract_num(abstract)
+        if multi_level_type is not None:
+            abstract.multi_level_type = multi_level_type
+
+        for ilvl, spec in enumerate(levels):
+            lvl = abstract.add_level(ilvl)
+            NumberingLevel(ilvl, lvl).set(
+                **{
+                    "number_format": WD_NUMBER_FORMAT.DECIMAL,
+                    "level_text": "%%%d." % (ilvl + 1),
+                    "start": 1,
+                    **spec,  # pyright: ignore[reportArgumentType]
+                }
+            )
+
+        num = self._element.add_num(abstract.abstractNumId)
+        return NumberingDefinition(num, self)
+
+    def add_numbered_definition(
+        self,
+        depth: int = 9,
+        *,
+        formats: Sequence[WD_NUMBER_FORMAT] | None = None,
+        indent_step: Length | None = None,
+    ) -> NumberingDefinition:
+        """Define a decimal-with-sublevels list and return it.
+
+        The tedious half of :meth:`add_definition` is assembling nine levels by hand, so
+        this does it: each level shows its own counter followed by a period, in the
+        format `formats` gives it, indented `indent_step` further than the level above.
+
+        `formats` cycles when it is shorter than `depth`; the default of decimal, lower
+        letter and lower roman is Word's familiar 1. / a. / i. alternation. For the
+        cumulative "1.1.1" style, pass `levels` to :meth:`add_definition` with
+        `level_text` of ``"%1.%2."`` and so on. `indent_step` defaults to a quarter
+        inch, which is what Word uses.
+
+        Raises |ValueError| for a `depth` above nine, as :meth:`add_definition` does.
+        """
+        from docx.shared import Inches
+
+        if formats is None:
+            formats = (
+                WD_NUMBER_FORMAT.DECIMAL,
+                WD_NUMBER_FORMAT.LOWER_LETTER,
+                WD_NUMBER_FORMAT.LOWER_ROMAN,
+            )
+        step = Inches(0.25) if indent_step is None else indent_step
+
+        levels: List[Dict[str, object]] = []
+        for ilvl in range(depth):
+            levels.append(
+                {
+                    "number_format": formats[ilvl % len(formats)],
+                    "level_text": "%%%d." % (ilvl + 1),
+                    "start": 1,
+                    "indent": Length(step * (ilvl + 2)),
+                    "hanging_indent": step,
+                }
+            )
+        return self.add_definition(levels, multi_level_type="multilevel")
+
+    def add_bulleted_definition(
+        self,
+        depth: int = 9,
+        *,
+        bullets: Sequence[str] = ("•", "o", "§"),
+        indent_step: Length | None = None,
+    ) -> NumberingDefinition:
+        """Define a bulleted list and return it.
+
+        `bullets` cycles when it is shorter than `depth`; the default is Word's own
+        bullet, circle and square sequence. `indent_step` defaults to a quarter inch.
+        Raises |ValueError| for a `depth` above nine.
+
+        Note the bullet characters Word writes are glyphs of the Symbol and Wingdings
+        fonts rather than the Unicode characters they resemble. The defaults here are
+        the Unicode ones, which render in whatever font the paragraph uses and so do not
+        depend on a font being installed.
+        """
+        from docx.shared import Inches
+
+        step = Inches(0.25) if indent_step is None else indent_step
+
+        levels: List[Dict[str, object]] = []
+        for ilvl in range(depth):
+            levels.append(
+                {
+                    "number_format": WD_NUMBER_FORMAT.BULLET,
+                    "level_text": bullets[ilvl % len(bullets)],
+                    "indent": Length(step * (ilvl + 2)),
+                    "hanging_indent": step,
+                }
+            )
+        return self.add_definition(levels, multi_level_type="hybridMultilevel")
+
+    def _next_abstract_num_id(self) -> int:
+        """The first unused `w:abstractNum/@w:abstractNumId` in this part."""
+        used = {abstract.abstractNumId for abstract in self._element.abstractNum_lst}
+        candidate = 0
+        while candidate in used:
+            candidate += 1
+        return candidate
+
+    def _insert_abstract_num(self, abstract: CT_AbstractNum) -> None:
+        """Place `abstract` after the last `w:abstractNum` and before the first `w:num`.
+
+        `CT_Numbering` is an `xsd:sequence`: every `w:abstractNum` precedes every
+        `w:num`, and Word rejects a document that has them the other way round.
+        """
+        for child in self._element:
+            if child.tag == qn("w:num"):
+                child.addprevious(abstract)
+                return
+        self._element.append(abstract)
 
     def restart(self, num_id: int, ilvl: int = 0, start: int = 1) -> NumberingDefinition:
         """Return a new list definition restarting the list `num_id` at `start`.

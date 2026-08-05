@@ -8,11 +8,22 @@ from typing import cast
 
 import pytest
 
+from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.exceptions import InvalidSpanError
+from docx.oxml.ns import nsdecls
 from docx.oxml.parser import parse_xml
-from docx.oxml.table import CT_Row, CT_Tbl, CT_Tc
+from docx.oxml.table import (
+    CT_Row,
+    CT_Tbl,
+    CT_TblCellMar,
+    CT_TblLook,
+    CT_TblPr,
+    CT_TblWidth,
+    CT_Tc,
+    CT_TrPr,
+)
 from docx.oxml.text.paragraph import CT_P
-from docx.shared import Twips
+from docx.shared import Inches, Pct, Twips
 
 from ..unitutil.cxml import element, xml
 from ..unitutil.file import snippet_seq
@@ -491,3 +502,230 @@ class DescribeCT_Row_grid_offsets:
 
         with pytest.raises(ValueError, match="does not populate"):
             tr.tc_covering_grid_offset(grid_offset)
+
+
+class DescribeCT_TrPr:
+    """Unit-test suite for the row-property elements added for issue #106."""
+
+    @pytest.mark.parametrize(
+        ("trPr_cxml", "expected_cxml"),
+        [
+            # -- w:tblHeader sits between w:trHeight and w:tblCellSpacing. `w:val="1"`
+            # -- is the ST_OnOff default, so it is not written. --
+            ("w:trPr", "w:trPr/w:tblHeader"),
+            (
+                "w:trPr/w:trHeight{w:val=240}",
+                "w:trPr/(w:trHeight{w:val=240},w:tblHeader)",
+            ),
+            (
+                "w:trPr/w:jc{w:val=center}",
+                "w:trPr/(w:tblHeader,w:jc{w:val=center})",
+            ),
+        ],
+    )
+    def it_inserts_tblHeader_in_schema_order(self, trPr_cxml: str, expected_cxml: str):
+        trPr = cast(CT_TrPr, element(trPr_cxml))
+
+        trPr.tblHeader_val = True
+
+        assert trPr.xml == xml(expected_cxml)
+
+    @pytest.mark.parametrize(
+        ("trPr_cxml", "expected_cxml"),
+        [
+            ("w:trPr", "w:trPr/w:hidden"),
+            (
+                "w:trPr/w:jc{w:val=center}",
+                "w:trPr/(w:jc{w:val=center},w:hidden)",
+            ),
+        ],
+    )
+    def it_inserts_hidden_after_jc(self, trPr_cxml: str, expected_cxml: str):
+        trPr = cast(CT_TrPr, element(trPr_cxml))
+
+        trPr.hidden_val = True
+
+        assert trPr.xml == xml(expected_cxml)
+
+    def it_inserts_wBefore_and_wAfter_between_gridAfter_and_cantSplit(self):
+        trPr = cast(
+            CT_TrPr,
+            element("w:trPr/(w:gridBefore{w:val=1},w:cantSplit{w:val=1})"),
+        )
+
+        trPr.width_before = Twips(120)
+        trPr.width_after = Twips(240)
+
+        assert trPr.xml == xml(
+            "w:trPr/(w:gridBefore{w:val=1},w:wBefore{w:w=120,w:type=dxa},"
+            "w:wAfter{w:w=240,w:type=dxa},w:cantSplit{w:val=1})"
+        )
+        assert trPr.width_before == Twips(120)
+        assert trPr.width_after == Twips(240)
+
+    def it_inserts_tblCellSpacing_between_tblHeader_and_jc(self):
+        trPr = cast(CT_TrPr, element("w:trPr/(w:tblHeader,w:jc{w:val=center})"))
+
+        trPr.cell_spacing = Twips(15)
+
+        assert trPr.xml == xml(
+            "w:trPr/(w:tblHeader,w:tblCellSpacing{w:w=15,w:type=dxa},w:jc{w:val=center})"
+        )
+
+    @pytest.mark.parametrize("attr", ["tblHeader_val", "hidden_val"])
+    def it_removes_the_element_when_assigned_None(self, attr: str):
+        trPr = cast(CT_TrPr, element("w:trPr/(w:tblHeader,w:hidden)"))
+
+        setattr(trPr, attr, None)
+
+        assert getattr(trPr, attr) is None
+
+    def it_reads_the_row_alignment(self):
+        trPr = cast(CT_TrPr, element("w:trPr/w:jc{w:val=center}"))
+
+        assert trPr.alignment == WD_TABLE_ALIGNMENT.CENTER
+
+
+class DescribeCT_TblPr:
+    """Unit-test suite for the table-property elements added for issues #97 and #107."""
+
+    @pytest.mark.parametrize(
+        ("tblPr_cxml", "expected_cxml"),
+        [
+            # -- w:tblW sits between w:tblStyleColBandSize and w:jc --
+            ("w:tblPr", "w:tblPr/w:tblW{w:w=5000,w:type=pct}"),
+            (
+                "w:tblPr/w:jc{w:val=center}",
+                "w:tblPr/(w:tblW{w:w=5000,w:type=pct},w:jc{w:val=center})",
+            ),
+            (
+                "w:tblPr/w:tblStyle{w:val=X}",
+                "w:tblPr/(w:tblStyle{w:val=X},w:tblW{w:w=5000,w:type=pct})",
+            ),
+        ],
+    )
+    def it_inserts_tblW_in_schema_order(self, tblPr_cxml: str, expected_cxml: str):
+        tblPr = cast(CT_TblPr, element(tblPr_cxml))
+
+        tblPr.get_or_add_tblW().value = Pct(100)
+
+        assert tblPr.xml == xml(expected_cxml)
+
+    def it_inserts_tblInd_between_tblCellSpacing_and_tblBorders(self):
+        tblPr = cast(CT_TblPr, element("w:tblPr/w:tblBorders"))
+
+        tblPr.get_or_add_tblInd().width = Twips(360)
+
+        assert tblPr.xml == xml("w:tblPr/(w:tblInd{w:w=360,w:type=dxa},w:tblBorders)")
+
+    def it_inserts_tblCellMar_and_tblLook_before_tblCaption(self):
+        tblPr = cast(CT_TblPr, element("w:tblPr/w:tblCaption{w:val=T}"))
+
+        tblPr.get_or_add_tblCellMar()
+        tblPr.get_or_add_tblLook()
+
+        assert tblPr.xml == xml("w:tblPr/(w:tblCellMar,w:tblLook,w:tblCaption{w:val=T})")
+
+
+class DescribeCT_TblWidth:
+    """Unit-test suite for the width readings added for issue #107."""
+
+    @pytest.mark.parametrize(
+        ("cxml", "expected"),
+        [
+            ("w:tblW{w:w=2880,w:type=dxa}", Twips(2880)),
+            ("w:tblW{w:w=5000,w:type=pct}", Pct(100)),
+            ("w:tblW{w:w=0,w:type=auto}", None),
+            ("w:tblW{w:w=0,w:type=nil}", None),
+        ],
+    )
+    def it_knows_the_width_it_expresses(self, cxml: str, expected: object):
+        tblW = cast(CT_TblWidth, element(cxml))
+
+        assert tblW.value == expected
+
+    @pytest.mark.parametrize(
+        ("value", "expected_cxml"),
+        [
+            (Twips(2880), "w:tblW{w:w=2880,w:type=dxa}"),
+            (Pct(50), "w:tblW{w:w=2500,w:type=pct}"),
+            (None, "w:tblW{w:w=0,w:type=auto}"),
+        ],
+    )
+    def it_can_be_assigned_a_length_a_percentage_or_None(
+        self, value: object, expected_cxml: str
+    ):
+        tblW = cast(CT_TblWidth, element("w:tblW{w:w=1,w:type=dxa}"))
+
+        tblW.value = value  # pyright: ignore[reportAttributeAccessIssue]
+
+        assert tblW.xml == xml(expected_cxml)
+
+    def it_reads_a_percentage_written_with_a_percent_sign(self):
+        """The schema admits `"50%"`; Word does not write it but other producers do."""
+        tblW = cast(CT_TblWidth, parse_xml(
+            '<w:tblW %s w:w="50%%" w:type="pct"/>' % nsdecls("w")
+        ))
+
+        assert tblW.value == Pct(50)
+
+    def it_reads_a_universal_measure(self):
+        tblW = cast(CT_TblWidth, parse_xml(
+            '<w:tblW %s w:w="1.5in" w:type="dxa"/>' % nsdecls("w")
+        ))
+
+        assert tblW.value == Inches(1.5)
+
+
+class DescribeCT_TblLook:
+    """Unit-test suite for `w:tblLook`, issue #97."""
+
+    def it_rewrites_the_legacy_bitmask_from_the_named_attributes(self):
+        tblLook = cast(CT_TblLook, element("w:tblLook"))
+
+        tblLook.firstRow = True
+        tblLook.firstColumn = True
+        tblLook.noVBand = True
+        tblLook.update_val()
+
+        # -- 0x0020 | 0x0080 | 0x0400, the value Word writes for a default table --
+        assert tblLook.val == 0x04A0
+        assert tblLook.xml == xml(
+            "w:tblLook{w:firstRow=1,w:firstColumn=1,w:noVBand=1,w:val=04A0}"
+        )
+
+    def it_clears_the_bitmask_when_every_flag_is_off(self):
+        tblLook = cast(CT_TblLook, element("w:tblLook{w:val=04A0}"))
+
+        tblLook.update_val()
+
+        assert tblLook.val == 0
+
+
+class DescribeCT_TblCellMar:
+    """Unit-test suite for `w:tblCellMar`, issue #107."""
+
+    def it_inserts_its_edges_in_schema_order(self):
+        tblCellMar = cast(CT_TblCellMar, element("w:tblCellMar"))
+
+        tblCellMar.set_margin("right", Twips(108))
+        tblCellMar.set_margin("top", Twips(0))
+        tblCellMar.set_margin("left", Twips(108))
+
+        assert tblCellMar.xml == xml(
+            "w:tblCellMar/(w:top{w:w=0,w:type=dxa},w:left{w:w=108,w:type=dxa},"
+            "w:right{w:w=108,w:type=dxa})"
+        )
+
+    def it_reads_an_edge_back(self):
+        tblCellMar = cast(CT_TblCellMar, element("w:tblCellMar/w:left{w:w=108,w:type=dxa}"))
+
+        assert tblCellMar.get_margin("left") == Twips(108)
+        assert tblCellMar.get_margin("right") is None
+
+    def it_removes_an_edge_assigned_None(self):
+        tblCellMar = cast(CT_TblCellMar, element("w:tblCellMar/w:left{w:w=108,w:type=dxa}"))
+
+        tblCellMar.set_margin("left", None)
+
+        assert tblCellMar.xml == xml("w:tblCellMar")

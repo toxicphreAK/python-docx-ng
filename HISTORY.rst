@@ -3,6 +3,146 @@
 Release History
 ---------------
 
+Unreleased
+++++++++++
+
+Behaviour changes
+~~~~~~~~~~~~~~~~~
+
+- The bundled template no longer ships ``word/stylesWithEffects.xml``,
+  ``docProps/thumbnail.jpeg`` or the template author's ``customXml`` bibliography
+  store. That is 447 KB off every generated document — the uncompressed package drops
+  from 826 KB to 376 KB — and it stops ``Document.custom_xml_parts`` reporting a data
+  store the caller never added. Only the *bundled* template is affected; a document you
+  open keeps its own thumbnail and data store.
+- The bundled template now defines ``Hyperlink``, ``CommentText``, ``CommentTextChar``
+  and ``CommentReference``, lifted verbatim from a Word-authored fixture in the repo.
+  ``Paragraph.add_hyperlink()`` no longer synthesises a ``Hyperlink`` style on first
+  use; it resolves the real one like any other style. **Links in documents created
+  after this change look slightly different**: the real definition is theme-linked
+  (``w:themeColor="hyperlink"``) where the synthesised one was hardcoded blue. Passing
+  a style name the document does not define now raises ``KeyError`` for
+  ``"Hyperlink"`` as it always has for every other name.
+- ``StylesPart.default()`` — the styles part built for a document that has none — grows
+  from four style definitions to eight, for the same reason.
+
+New features
+~~~~~~~~~~~~
+
+- ``Document.add_table()``, ``BlockItemContainer.add_table()`` and ``_Cell.add_table()``
+  accept keyword-only ``title`` and ``description``, matching ``Run.add_picture()``.
+  Both default to ``None`` and write nothing when omitted.
+- ``_Row.repeat_as_header`` ("Repeat Header Rows"), plus ``_Row.hidden``,
+  ``.alignment``, ``.cell_spacing``, ``.width_before`` and ``.width_after`` — the rest
+  of ``w:trPr``.
+- ``Table.look``, the ``w:tblLook`` flags that decide which parts of a table style
+  apply: ``first_row``, ``last_row``, ``first_column``, ``last_column``,
+  ``horizontal_banding`` and ``vertical_banding``. The legacy ``@w:val`` bitmask is
+  rewritten in step, as Word does.
+- ``Table.width``, including percentage widths through the new ``docx.shared.Pct``
+  value type, plus ``Table.indent`` and ``Table.cell_margins``.
+- ``Styles.default_font`` and ``Styles.default_paragraph_format``, exposing
+  ``w:docDefaults`` — the bottom of the formatting inheritance chain, and for many
+  documents the only place the base font is set.
+- ``ParagraphFormat.mark_font``, the run properties of the paragraph mark itself
+  (``w:pPr/w:rPr``). This is the only place the formatting of an empty paragraph lives.
+- Character-unit indents and line-unit spacing:
+  ``ParagraphFormat.first_line_indent_chars``, ``.left_indent_chars``,
+  ``.right_indent_chars``, ``.space_before_lines`` and ``.space_after_lines``. Values
+  are in hundredths, matching the XML. The existing twips properties now also read the
+  ``w:start``/``w:end`` spellings Word writes in recent files, and setting either unit
+  clears its counterpart so the two cannot disagree.
+- Right-to-left and vertical text: ``ParagraphFormat.bidi``, ``Section.bidi``, and
+  ``text_direction`` on ``ParagraphFormat``, ``Section`` and ``_Cell``, with the new
+  ``WD_TEXT_DIRECTION`` enumeration.
+- ``ParagraphFormat.borders`` and ``Section.page_borders``, spelled the same as the
+  table and cell borders API. A paragraph with only a bottom border is how Word draws a
+  horizontal rule.
+- ``Run.add_embedded_object()``, ``Run.embedded_objects`` and
+  ``Document.embedded_objects`` — OLE objects, the whole files a document can carry
+  inside it. The read side matters on its own: a document with embedded attachments
+  previously gave no way to discover they exist, let alone extract them.
+- A ``python -m docx`` command line: ``info`` (the part inventory with sizes),
+  ``styles report`` / ``styles list`` / ``styles extract``, and ``cleanup``. argparse
+  only, no new dependency, and every subcommand is a thin shell over one public library
+  operation. ``cleanup`` never writes to its input and its ``--check`` mode exits
+  non-zero when there is something to remove, so it can be a CI gate.
+- Numbering definitions are writable: ``Numbering.add_definition()`` defines a list
+  from scratch, ``add_numbered_definition()`` and ``add_bulleted_definition()`` are the
+  shorthands for the two common cases, and ``NumberingLevel.set()`` changes a level's
+  format, level text, suffix, alignment and indents. A list format the template does not
+  already contain no longer means hand-building ``w:abstractNum`` XML.
+- ``Document.add_caption()`` and ``_Cell.add_caption()``, which put together the label,
+  the self-renumbering ``SEQ`` field and the ``_Ref``-prefixed bookmark a
+  cross-reference needs. The naming matters: Word's cross-reference dialogue offers only
+  targets that follow the ``_Ref`` convention, so a caption bookmarked otherwise is one
+  the user cannot reference from the UI.
+- ``copy_to()`` on ``Paragraph``, ``Run``, ``_Row`` and ``Table``. Duplicating content
+  is the most-written-by-hand operation against this library, and the hand-written
+  deep-copy version quietly breaks: a picture's ``r:embed`` and a hyperlink's ``r:id``
+  name relationships of the *source* part, ``wp:docPr/@id`` must be unique
+  document-wide, and a duplicated bookmark name competes for anything referring to it.
+  All of that is repaired, and a copy into another document also brings the styles and
+  numbering the content refers to, so a numbered paragraph does not silently join
+  whichever list happens to hold that id there.
+- ``add_picture()`` and ``add_float_picture()`` honour a photo's EXIF ``Orientation``.
+  A portrait photo off a phone is stored landscape with a tag saying to turn it, and
+  was previously inserted sideways and — when only a width was given — at the wrong
+  aspect ratio. The rotation is written into the DrawingML (``a:xfrm/@rot``) rather
+  than into the pixels, so the image part stays byte-identical and the sha1
+  deduplication keeps working. Pass ``honor_exif_orientation=False`` to opt out.
+  ``Image.orientation``, ``.is_rotated``, ``.px_display_width``, ``.px_display_height``,
+  ``.display_width`` and ``.display_height`` are the new accessors; ``px_width`` and
+  ``px_height`` keep reporting the stored dimensions.
+- Style usage analysis: ``Styles.usage()``, ``Styles.unused`` and ``Style.in_use``.
+  "Used" is a reachability closure over every story part — body, headers, footers,
+  footnotes, endnotes and comments — following ``w:basedOn``, ``w:next``, ``w:link``
+  and the numbering and table-style references, not a scan of ``w:pStyle`` in the body.
+- Cleanup, built on that closure: ``Styles.remove_unused()``,
+  ``LatentStyles.trim()`` and ``Document.cleanup()``, which also drops numbering
+  definitions and image parts nothing references. Destructive, so the closure and its
+  tests come first; ``Normal`` and the ``w:default="1"`` styles are never removed by
+  default.
+- Bulk style transfer: ``Styles.import_from()``, ``Styles.extract()`` and
+  ``Styles.extract_xml()``, on top of ``copy_style_from()``. ``import_from()`` accepts
+  a path, a stream or an open ``Document`` — a ``.dotx`` house template is the common
+  case — and reports what it did with each name.
+- ``Document.custom_xml_parts`` and ``Document.add_custom_xml_part()``, exposing the
+  custom XML data store (``customXml/item1.xml`` and its ``itemProps`` sidecar). This
+  is where a document-generation pipeline keeps the data its content controls are bound
+  to, and is a different thing from the flat named scalars in
+  ``Document.custom_properties``.
+- ``Document.vba_project``, ``Document.has_macros`` and
+  ``Document.remove_vba_project()``. Reading, transplanting and stripping a macro
+  project are now expressible; assigning or removing one switches the main part's
+  content type with it, since Word ignores macros in a document that does not claim to
+  be macro-enabled and warns about macros in one that claims to be but is not.
+- Endnotes: ``Document.endnotes``, ``Endnotes.add_endnote()``, ``Endnote.text``,
+  ``Endnote.endnote_id`` and ``Run.add_endnote_reference()``, mirroring the footnote
+  API. ``word/endnotes.xml`` is created on demand, as the footnotes part is, and
+  ``Document.replace_text(footnotes=True)`` now reaches endnotes as its docstring
+  already said it would.
+- ``Paragraph.math``, ``BlockItemContainer.math`` and ``Document.math``, exposing the
+  OMML equations (``m:oMath``) that were previously unreachable. Each ``Math`` object
+  offers ``.text``, ``.xml`` and ``.is_display``.
+
+  **Equation text is deliberately not included in ``Paragraph.text``.** Including it
+  would describe the document more truthfully, but ``replace_text()`` and the
+  run-isolating machinery under it measure offsets against ``Paragraph.text`` and can
+  only cut at run boundaries; text they cannot reach would silently mis-target every
+  replacement after the first equation in a paragraph. A wrong edit is worse than a
+  missing character.
+- ``Document.theme``, exposing ``word/theme/theme1.xml`` — the major and minor
+  typefaces and the twelve theme colours — and ``Font.theme_typeface``, which resolves
+  a ``minorHAnsi``-style token to the font name it stands for. For a document whose
+  fonts come only from its theme, this is the first way to find out what the text is
+  actually rendered in. ``Document.theme`` is ``None`` for a document with no theme
+  part; unlike the styles and settings parts, one is never created on demand.
+- ``InlineShape.image`` and ``FloatingShape.image``, the counterpart of
+  ``Run.add_picture()``, plus ``.svg_image`` for the vector source of an SVG picture and
+  ``Document.images`` for the package-level view. ``.image`` is ``None`` rather than an
+  error for a chart, a SmartArt diagram or a linked picture.
+
 2.0.0 (2026-08-05)
 ++++++++++++++++++
 

@@ -30,6 +30,27 @@ class LatentStyles(ElementProxy):
         lsdException.name = BabelFish.ui2internal(name)
         return _LatentStyle(lsdException)
 
+    def trim(self) -> int:
+        """Remove every `w:lsdException` override; return how many went.
+
+        The bundled template carries 137 of these, one per built-in style Word might
+        offer, and a generated document needs none of them.
+
+        A latent style is a *behavior* declaration for a style the document does not
+        define: which of Word's built-ins appear in the gallery, in what order, and
+        whether they are hidden until used. Removing one therefore changes what a user
+        sees in Word's style list, not how the document renders — a different risk from
+        removing a style definition, which is why this is a separate operation from
+        :meth:`.Styles.remove_unused`.
+
+        The defaults on the `w:latentStyles` element itself are left in place; they are
+        what the overrides were overriding.
+        """
+        lsdExceptions = self._element.lsdException_lst
+        for lsdException in lsdExceptions:
+            self._element.remove(lsdException)
+        return len(lsdExceptions)
+
     @property
     def default_priority(self):
         """Integer between 0 and 99 inclusive specifying the default sort order for

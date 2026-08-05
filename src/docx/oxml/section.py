@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Callable, Iterator, List, Sequence, cast
+from typing import TYPE_CHECKING, Callable, Iterator, List, Sequence, cast
 
 from lxml import etree
 from typing_extensions import TypeAlias
@@ -15,12 +15,20 @@ from docx.oxml.shared import CT_OnOff
 from docx.oxml.simpletypes import (
     ST_DecimalNumber,
     ST_OnOff,
+    ST_PageBorderDisplay,
+    ST_PageBorderOffset,
+    ST_PageBorderZOrder,
     ST_SignedTwipsMeasure,
     ST_TwipsMeasure,
     XsdString,
 )
-from docx.oxml.table import CT_Tbl
+from docx.oxml.table import (
+    CT_Border,
+    CT_Tbl,
+    _CT_BordersBase,  # pyright: ignore[reportPrivateUsage]
+)
 from docx.oxml.text.paragraph import CT_P
+from docx.oxml.text.parfmt import CT_TextDirection
 from docx.oxml.xmlchemy import (
     BaseOxmlElement,
     OptionalAttribute,
@@ -30,7 +38,61 @@ from docx.oxml.xmlchemy import (
 )
 from docx.shared import Length, lazyproperty
 
+if TYPE_CHECKING:
+    from docx.enum.text import WD_TEXT_DIRECTION
+
 BlockElement: TypeAlias = "CT_P | CT_Tbl"
+
+
+class CT_PageBorders(_CT_BordersBase):
+    """`w:pgBorders` element, the border drawn around the pages of a section.
+
+    Only four edges, unlike `w:pBdr`. The three attributes have no `CT_Border`
+    counterpart and belong to the container: where the border is measured from, which
+    pages it appears on, and whether it is drawn in front of or behind the page content.
+
+    The schema gives the top and bottom edges the `CT_TopPageBorder` and
+    `CT_BottomPageBorder` types, which add attributes naming a decorative border image.
+    Those are not modelled; the edges arrive as `CT_Border` like every other edge tag,
+    which covers the line style, colour, width and spacing that make up an ordinary
+    page border.
+    """
+
+    get_or_add_top: Callable[[], CT_Border]
+    get_or_add_left: Callable[[], CT_Border]
+    get_or_add_bottom: Callable[[], CT_Border]
+    get_or_add_right: Callable[[], CT_Border]
+    _remove_top: Callable[[], None]
+    _remove_left: Callable[[], None]
+    _remove_bottom: Callable[[], None]
+    _remove_right: Callable[[], None]
+
+    _tag_seq = ("w:top", "w:left", "w:bottom", "w:right")
+    top: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:top", successors=_tag_seq[1:]
+    )
+    left: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:left", successors=_tag_seq[2:]
+    )
+    bottom: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:bottom", successors=_tag_seq[3:]
+    )
+    right: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:right", successors=_tag_seq[4:]
+    )
+
+    zOrder: str | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:zOrder", ST_PageBorderZOrder
+    )
+    display: str | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:display", ST_PageBorderDisplay
+    )
+    offsetFrom: str | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:offsetFrom", ST_PageBorderOffset
+    )
+
+    edges = tuple(tag[2:] for tag in _tag_seq)
+    del _tag_seq
 
 
 class CT_HdrFtr(BaseOxmlElement):
@@ -150,13 +212,19 @@ class CT_PageSz(BaseOxmlElement):
 class CT_SectPr(BaseOxmlElement):
     """`w:sectPr` element, the container element for section properties."""
 
+    get_or_add_bidi: Callable[[], CT_OnOff]
     get_or_add_cols: Callable[[], CT_Columns]
+    get_or_add_pgBorders: Callable[[], CT_PageBorders]
     get_or_add_pgMar: Callable[[], CT_PageMar]
     get_or_add_pgSz: Callable[[], CT_PageSz]
+    get_or_add_textDirection: Callable[[], CT_TextDirection]
     get_or_add_titlePg: Callable[[], CT_OnOff]
     get_or_add_type: Callable[[], CT_SectType]
     _add_footerReference: Callable[[], CT_HdrFtrRef]
     _add_headerReference: Callable[[], CT_HdrFtrRef]
+    _remove_bidi: Callable[[], None]
+    _remove_pgBorders: Callable[[], None]
+    _remove_textDirection: Callable[[], None]
     _remove_titlePg: Callable[[], None]
     _remove_type: Callable[[], None]
 
@@ -193,13 +261,48 @@ class CT_SectPr(BaseOxmlElement):
     pgMar: CT_PageMar | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:pgMar", successors=_tag_seq[5:]
     )
+    pgBorders: CT_PageBorders | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:pgBorders", successors=_tag_seq[7:]
+    )
     cols: CT_Columns | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:cols", successors=_tag_seq[10:]
     )
     titlePg: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:titlePg", successors=_tag_seq[14:]
     )
+    textDirection: CT_TextDirection | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:textDirection", successors=_tag_seq[15:]
+    )
+    bidi: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:bidi", successors=_tag_seq[16:]
+    )
     del _tag_seq
+
+    @property
+    def bidi_val(self) -> bool | None:
+        """Value of `./w:bidi/@w:val`, or |None| if the element is absent."""
+        bidi = self.bidi
+        return None if bidi is None else bidi.val
+
+    @bidi_val.setter
+    def bidi_val(self, value: bool | None) -> None:
+        if value is None:
+            self._remove_bidi()
+            return
+        self.get_or_add_bidi().val = value
+
+    @property
+    def textDirection_val(self) -> WD_TEXT_DIRECTION | None:
+        """Value of `./w:textDirection/@w:val`, or |None| if the element is absent."""
+        textDirection = self.textDirection
+        return None if textDirection is None else textDirection.val
+
+    @textDirection_val.setter
+    def textDirection_val(self, value: WD_TEXT_DIRECTION | None) -> None:
+        if value is None:
+            self._remove_textDirection()
+            return
+        self.get_or_add_textDirection().val = value
 
     def add_footerReference(self, type_: WD_HEADER_FOOTER, rId: str) -> CT_HdrFtrRef:
         """Return newly added CT_HdrFtrRef element of `type_` with `rId`.

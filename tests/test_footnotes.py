@@ -83,7 +83,7 @@ class DescribeFootnotes:
         assert footnote.footnote_id == 1
         assert len(footnotes) == 1
         # -- the reference mark Word renders as the footnote number is already there --
-        assert footnote._footnote_elm.xpath(".//w:footnoteRef")
+        assert footnote._note_elm.xpath(".//w:footnoteRef")
 
     def and_it_numbers_each_new_footnote_after_the_last(self, package_: Mock):
         footnotes = _footnotes("w:footnotes/(%s,w:footnote{w:id=7})" % SEPARATORS, package_)

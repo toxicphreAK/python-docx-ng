@@ -21,6 +21,7 @@ from docx.oxml.simpletypes import (
     ST_RelationshipId,
     ST_WrapDistance,
     XsdBoolean,
+    XsdInt,
     XsdString,
     XsdToken,
     XsdUnsignedInt,
@@ -131,6 +132,7 @@ class CT_Anchor(BaseOxmlElement):
         description: str | None = None,
         title: str | None = None,
         svg_rId: str | None = None,
+        transform: tuple[int, bool] = (0, False),
     ) -> CT_Anchor:
         """Create a `wp:anchor` element containing a `pic:pic` element.
 
@@ -139,7 +141,7 @@ class CT_Anchor(BaseOxmlElement):
         inline to floating, and text wraps around its bounding rectangle.
         """
         pic_id = 0  # -- as with an inline picture, Word does not appear to use this --
-        pic = CT_Picture.new(pic_id, filename, rId, cx, cy, svg_rId=svg_rId)
+        pic = CT_Picture.new(pic_id, filename, rId, cx, cy, svg_rId=svg_rId, transform=transform)
         anchor = cast(CT_Anchor, parse_xml(cls._anchor_xml()))
         anchor.extent.cx = cx
         anchor.extent.cy = cy
@@ -355,16 +357,21 @@ class CT_Inline(BaseOxmlElement):
         description: str | None = None,
         title: str | None = None,
         svg_rId: str | None = None,
+        transform: tuple[int, bool] = (0, False),
     ) -> CT_Inline:
         """Create `wp:inline` element containing a `pic:pic` element.
 
         The contents of the `pic:pic` element is taken from the argument values.
         `description` and `title` are the alternative text of the picture and are
         omitted when |None|. `svg_rId`, when given, identifies the SVG source of the
-        picture, making `rId` its raster fallback.
+        picture, making `rId` its raster fallback. `transform` is the rotation and flip
+        expressing the source image's EXIF orientation.
+
+        `cx` and `cy` are the *display* dimensions, so they become the `wp:extent` and
+        the layout reserves the space the rotated picture actually occupies.
         """
         pic_id = 0  # Word doesn't seem to use this, but does not omit it
-        pic = CT_Picture.new(pic_id, filename, rId, cx, cy, svg_rId=svg_rId)
+        pic = CT_Picture.new(pic_id, filename, rId, cx, cy, svg_rId=svg_rId, transform=transform)
         inline = cls.new(cx, cy, shape_id, pic)
         if description is not None:
             inline.docPr.descr = description
@@ -430,8 +437,13 @@ class CT_Picture(BaseOxmlElement):
         cx: Length,
         cy: Length,
         svg_rId: str | None = None,
+        transform: tuple[int, bool] = (0, False),
     ) -> CT_Picture:
         """A new minimum viable `<pic:pic>` (picture) element.
+
+        `cx` and `cy` are the *display* dimensions. `transform` is the
+        `(rotation, flip_h)` pair expressing the source image's EXIF orientation, in the
+        units `a:xfrm/@rot` uses; it is omitted when it is the no-op `(0, False)`.
 
         `rId` identifies the image the raster blip refers to. When `svg_rId` is given
         the picture also carries an `asvg:svgBlip` extension referring to that SVG, and
@@ -446,8 +458,17 @@ class CT_Picture(BaseOxmlElement):
             svgBlip = pic.blipFill.blip.svgBlip
             assert svgBlip is not None
             svgBlip.embed = svg_rId
-        pic.spPr.cx = cx
-        pic.spPr.cy = cy
+        rotation, flip_h = transform
+        if rotation in (90 * 60000, 270 * 60000):
+            # -- `a:ext` is the box the shape occupies *before* rotation, which for a
+            # -- quarter turn is the display box with its sides exchanged. The
+            # -- containing `wp:extent` stays the display box, so the layout reserves
+            # -- the right space. --
+            pic.spPr.cx, pic.spPr.cy = Emu(cy), Emu(cx)
+        else:
+            pic.spPr.cx = cx
+            pic.spPr.cy = cy
+        pic.spPr.apply_transform(rotation, flip_h)
         return pic
 
     @classmethod
@@ -567,6 +588,20 @@ class CT_ShapeProperties(BaseOxmlElement):
         ),
     )
 
+    def apply_transform(self, rotation: int, flip_h: bool) -> None:
+        """Rotate this shape by `rotation`, in 60000ths of a degree, and mirror it.
+
+        Both are omitted when they would be the no-op values, so an ordinary picture
+        carries no rotation markup at all.
+        """
+        if rotation == 0 and not flip_h:
+            return
+        xfrm = self.get_or_add_xfrm()
+        if rotation:
+            xfrm.rot = rotation
+        if flip_h:
+            xfrm.flipH = True
+
     @property
     def cx(self):
         """Shape width as an instance of Emu, or None if not present."""
@@ -600,10 +635,21 @@ class CT_StretchInfoProperties(BaseOxmlElement):
 
 
 class CT_Transform2D(BaseOxmlElement):
-    """``<a:xfrm>`` element, specifies size and shape of picture container."""
+    """``<a:xfrm>`` element, specifies size and shape of picture container.
+
+    `@rot` is the rotation applied about the shape's centre, in 60000ths of a degree —
+    5400000 is a quarter turn clockwise. `@flipH` and `@flipV` mirror the shape. This is
+    where an image's EXIF orientation lands: rotating the pixels themselves would mean
+    a decode/encode dependency this library does not have, would lose quality, and would
+    break the sha1 deduplication that keeps one copy of an image used twice.
+    """
 
     off = ZeroOrOne("a:off", successors=("a:ext",))
     ext = ZeroOrOne("a:ext", successors=())
+
+    rot: int | None = OptionalAttribute("rot", XsdInt)  # pyright: ignore
+    flipH: bool | None = OptionalAttribute("flipH", XsdBoolean)  # pyright: ignore
+    flipV: bool | None = OptionalAttribute("flipV", XsdBoolean)  # pyright: ignore
 
     @property
     def cx(self):

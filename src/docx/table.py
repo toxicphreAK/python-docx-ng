@@ -2,29 +2,30 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from collections.abc import Mapping
 from typing import TYPE_CHECKING, Iterator, cast, overload
 
 from typing_extensions import TypeAlias
 
 from docx.blkcntnr import BlockItemContainer
+from docx.borders import _Borders  # pyright: ignore[reportPrivateUsage]
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
 from docx.oxml.deletion import delete_element
 from docx.oxml.table import CT_TblBorders, CT_TblGridCol, CT_TcBorders
-from docx.shared import Inches, Parented, RGBColor, StoryChild, lazyproperty
+from docx.shared import Inches, Parented, Pct, StoryChild, lazyproperty
 
 if TYPE_CHECKING:
     import docx.types as t
+    from docx.blkcntnr import BlockItemContainer
+    from docx.caption import Caption
+    from docx.document import Document
     from docx.enum.table import (
-        WD_LINE_STYLE,
         WD_ROW_HEIGHT_RULE,
         WD_TABLE_ALIGNMENT,
         WD_TABLE_DIRECTION,
     )
+    from docx.enum.text import WD_TEXT_DIRECTION
     from docx.oxml.table import (
-        CT_Border,
         CT_Row,
         CT_Tbl,
         CT_TblPr,
@@ -36,166 +37,9 @@ if TYPE_CHECKING:
         ParagraphStyle,
         _TableStyle,  # pyright: ignore[reportPrivateUsage]
     )
+    from docx.text.paragraph import Paragraph
 
 TableParent: TypeAlias = "Table | _Columns | _Rows"
-
-
-class _Border:
-    """One border edge of a table or cell, e.g. `table.borders["top"]`.
-
-    A border edge that is not set has |None| for every property, meaning the effective
-    appearance of that edge is inherited from the table style. Assigning to any property
-    other than :attr:`line` on an edge that is not set creates it with a line style of
-    `WD_LINE_STYLE.SINGLE`, because a border with no line style is not valid XML.
-    Assigning |None| to :attr:`line` removes the edge entirely.
-    """
-
-    def __init__(self, borders: _Borders, edge: str):
-        self._borders = borders
-        self._edge = edge
-
-    @property
-    def color(self) -> RGBColor | None:
-        """|RGBColor| of this border edge, or |None| when it has no explicit color.
-
-        As for |ColorFormat|, a border whose color is the automatic color reads as
-        |None|; Word chooses that color at render time, so there is no RGB value to
-        report.
-        """
-        border = self._element
-        if border is None:
-            return None
-        color = border.color
-        if not isinstance(color, RGBColor):
-            return None
-        return color
-
-    @color.setter
-    def color(self, value: RGBColor | None):
-        if value is None:
-            border = self._element
-            if border is not None:
-                border.color = None
-            return
-        self._get_or_add_element().color = value
-
-    @property
-    def line(self) -> WD_LINE_STYLE | None:
-        """Member of :ref:`WdLineStyle`, or |None| when this edge is not set."""
-        border = self._element
-        return None if border is None else border.val
-
-    @line.setter
-    def line(self, value: WD_LINE_STYLE | None):
-        if value is None:
-            self._borders._remove_edge(self._edge)  # pyright: ignore[reportPrivateUsage]
-            return
-        self._get_or_add_element().val = value
-
-    @property
-    def size(self) -> Length | None:
-        """Width of this border line, or |None| when it has no explicit width.
-
-        The underlying `w:sz` attribute counts eighths of a point, so an assigned value
-        is rounded to the nearest eighth of a point.
-        """
-        border = self._element
-        return None if border is None else border.sz
-
-    @size.setter
-    def size(self, value: Length | None):
-        if value is None:
-            border = self._element
-            if border is not None:
-                border.sz = None
-            return
-        self._get_or_add_element().sz = value
-
-    @property
-    def space(self) -> Length | None:
-        """Offset of this border from the content it surrounds, or |None| when not set.
-
-        The underlying `w:space` attribute counts whole points, so an assigned value is
-        rounded to the nearest point.
-        """
-        border = self._element
-        return None if border is None else border.space
-
-    @space.setter
-    def space(self, value: Length | None):
-        if value is None:
-            border = self._element
-            if border is not None:
-                border.space = None
-            return
-        self._get_or_add_element().space = value
-
-    @property
-    def _element(self) -> CT_Border | None:
-        """The `w:{edge}` element for this edge, or |None| when this edge is not set."""
-        borders = self._borders._element  # pyright: ignore[reportPrivateUsage]
-        return None if borders is None else borders.get_border(self._edge)
-
-    def _get_or_add_element(self) -> CT_Border:
-        """The `w:{edge}` element for this edge, adding it if not already present."""
-        borders = self._borders._get_or_add_element()  # pyright: ignore[reportPrivateUsage]
-        return borders.get_or_add_border(self._edge)
-
-
-class _Borders(Mapping[str, _Border]):
-    """The border edges of a table or cell, keyed by edge name.
-
-    A read-only mapping in the sense that the set of keys is fixed; the |_Border| object
-    each key maps to is what you assign through::
-
-        table.borders["top"].line = WD_LINE_STYLE.SINGLE
-
-    Every edge admitted by the schema is always a key, whether or not it is set, so
-    iterating yields edges with a :attr:`_Border.line` of |None| as well.
-
-    Edge names are the local names used in the XML: `top`, `start`, `left`, `bottom`,
-    `end`, `right`, `insideH` and `insideV`, plus `tl2br` and `tr2bl` for a cell. Word
-    writes `left` and `right` for a left-to-right table and `start` and `end` for a
-    right-to-left one.
-    """
-
-    def __init__(self, edges: tuple[str, ...]):
-        self._edges = edges
-
-    def __getitem__(self, edge: str) -> _Border:
-        if edge not in self._edges:
-            raise KeyError(
-                "no border edge '%s'; must be one of %s" % (edge, ", ".join(self._edges))
-            )
-        return _Border(self, edge)
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._edges)
-
-    def __len__(self) -> int:
-        return len(self._edges)
-
-    @abstractmethod
-    def clear(self) -> None:
-        """Remove every border edge, restoring inheritance from the style hierarchy."""
-
-    @property
-    @abstractmethod
-    def _element(self) -> _CT_BordersBase | None:
-        """The `w:tblBorders` or `w:tcBorders` element, or |None| when not present."""
-
-    @abstractmethod
-    def _get_or_add_element(self) -> _CT_BordersBase:
-        """The borders element, adding it and any required ancestor if not present."""
-
-    def _remove_edge(self, edge: str) -> None:
-        """Remove the `w:{edge}` child, and the borders element if that empties it."""
-        borders = self._element
-        if borders is None:
-            return
-        borders.remove_border(edge)
-        if len(borders) == 0:
-            self.clear()
 
 
 class _TableBorders(_Borders):
@@ -237,6 +81,179 @@ class _CellBorders(_Borders):
 
     def _get_or_add_element(self) -> _CT_BordersBase:
         return self._tc.get_or_add_tcPr().get_or_add_tcBorders()
+
+
+class _TableLook:
+    """Which parts of the table style apply to a table, `table.look`.
+
+    `w:tblLook` is what tells Word whether the first row is a header row, whether the
+    first or last column is emphasised, and whether row or column banding is on. Without
+    it a styled table looks nothing like the style preview in Word.
+
+    Each flag is tri-state: |None| means the attribute is absent and Word applies its own
+    default (off for every flag). The two banding flags are stored inverted in the XML,
+    as `w:noHBand` and `w:noVBand`; that inversion lives here so the oxml layer stays
+    faithful to the attribute names.
+
+    Word writes the six named attributes *and* the equivalent legacy bitmask in
+    `@w:val`, and keeps them in step. Setting any flag through this proxy rewrites
+    `@w:val` to match, because some older consumers read only the bitmask.
+    """
+
+    def __init__(self, tbl: CT_Tbl):
+        self._tbl = tbl
+
+    @property
+    def first_row(self) -> bool | None:
+        """|True| when the table style's first-row (header) formatting applies."""
+        return self._get("firstRow")
+
+    @first_row.setter
+    def first_row(self, value: bool | None) -> None:
+        self._set("firstRow", value)
+
+    @property
+    def last_row(self) -> bool | None:
+        """|True| when the table style's last-row (total) formatting applies."""
+        return self._get("lastRow")
+
+    @last_row.setter
+    def last_row(self, value: bool | None) -> None:
+        self._set("lastRow", value)
+
+    @property
+    def first_column(self) -> bool | None:
+        """|True| when the table style's first-column formatting applies."""
+        return self._get("firstColumn")
+
+    @first_column.setter
+    def first_column(self, value: bool | None) -> None:
+        self._set("firstColumn", value)
+
+    @property
+    def last_column(self) -> bool | None:
+        """|True| when the table style's last-column formatting applies."""
+        return self._get("lastColumn")
+
+    @last_column.setter
+    def last_column(self, value: bool | None) -> None:
+        self._set("lastColumn", value)
+
+    @property
+    def horizontal_banding(self) -> bool | None:
+        """|True| when the table style's row banding applies.
+
+        Stored inverted, as `w:noHBand`.
+        """
+        value = self._get("noHBand")
+        return None if value is None else not value
+
+    @horizontal_banding.setter
+    def horizontal_banding(self, value: bool | None) -> None:
+        self._set("noHBand", None if value is None else not value)
+
+    @property
+    def vertical_banding(self) -> bool | None:
+        """|True| when the table style's column banding applies.
+
+        Stored inverted, as `w:noVBand`.
+        """
+        value = self._get("noVBand")
+        return None if value is None else not value
+
+    @vertical_banding.setter
+    def vertical_banding(self, value: bool | None) -> None:
+        self._set("noVBand", None if value is None else not value)
+
+    def _get(self, attr_name: str) -> bool | None:
+        tblLook = self._tbl.tblPr.tblLook
+        return None if tblLook is None else cast("bool | None", getattr(tblLook, attr_name))
+
+    def _set(self, attr_name: str, value: bool | None) -> None:
+        tblPr = self._tbl.tblPr
+        if value is None and tblPr.tblLook is None:
+            return
+        tblLook = tblPr.get_or_add_tblLook()
+        setattr(tblLook, attr_name, value)
+        tblLook.update_val()
+
+
+class _TableCellMargins:
+    """The default cell margins of a table, `table.cell_margins`.
+
+    These are the padding Word applies inside every cell of the table that does not
+    override them. An edge reads |None| when the table sets no value for it, in which
+    case the table style's value applies.
+
+    The `start` and `end` edges are the logical (writing-direction) synonyms of `left`
+    and `right`. Word writes `left` and `right`; both are exposed because documents from
+    other producers use the newer pair.
+    """
+
+    def __init__(self, tbl: CT_Tbl):
+        self._tbl = tbl
+
+    @property
+    def top(self) -> Length | None:
+        return self._get("top")
+
+    @top.setter
+    def top(self, value: Length | None) -> None:
+        self._set("top", value)
+
+    @property
+    def bottom(self) -> Length | None:
+        return self._get("bottom")
+
+    @bottom.setter
+    def bottom(self, value: Length | None) -> None:
+        self._set("bottom", value)
+
+    @property
+    def left(self) -> Length | None:
+        return self._get("left")
+
+    @left.setter
+    def left(self, value: Length | None) -> None:
+        self._set("left", value)
+
+    @property
+    def right(self) -> Length | None:
+        return self._get("right")
+
+    @right.setter
+    def right(self, value: Length | None) -> None:
+        self._set("right", value)
+
+    @property
+    def start(self) -> Length | None:
+        return self._get("start")
+
+    @start.setter
+    def start(self, value: Length | None) -> None:
+        self._set("start", value)
+
+    @property
+    def end(self) -> Length | None:
+        return self._get("end")
+
+    @end.setter
+    def end(self, value: Length | None) -> None:
+        self._set("end", value)
+
+    def clear(self) -> None:
+        """Remove the `w:tblCellMar` element, restoring the table style's margins."""
+        self._tbl.tblPr._remove_tblCellMar()  # pyright: ignore[reportPrivateUsage]
+
+    def _get(self, edge: str) -> Length | None:
+        tblCellMar = self._tbl.tblPr.tblCellMar
+        return None if tblCellMar is None else tblCellMar.get_margin(edge)
+
+    def _set(self, edge: str, value: Length | None) -> None:
+        tblPr = self._tbl.tblPr
+        if value is None and tblPr.tblCellMar is None:
+            return
+        tblPr.get_or_add_tblCellMar().set_margin(edge, value)
 
 
 class Table(StoryChild):
@@ -369,6 +386,98 @@ class Table(StoryChild):
         tblPr._remove_tblDescription()  # pyright: ignore[reportPrivateUsage]
         if value is not None:
             tblPr.get_or_add_tblDescription().val = value
+
+    @lazyproperty
+    def cell_margins(self) -> _TableCellMargins:
+        """The default cell margins for every cell of this table::
+
+            table.cell_margins.left = Pt(6)
+
+        An edge reads |None| when the table sets no value for it, in which case the
+        table style's margin applies. Assigning |None| removes the override.
+        """
+        return _TableCellMargins(self._tbl)
+
+    @property
+    def indent(self) -> Length | None:
+        """Indentation of this table from the margin, or |None| if not set.
+
+        This is `w:tblInd`. Assigning |None| removes it.
+        """
+        tblInd = self._tblPr.tblInd
+        return None if tblInd is None else tblInd.width
+
+    @indent.setter
+    def indent(self, value: Length | None) -> None:
+        tblPr = self._tblPr
+        if value is None:
+            tblPr._remove_tblInd()  # pyright: ignore[reportPrivateUsage]
+            return
+        tblPr.get_or_add_tblInd().width = value
+
+    @lazyproperty
+    def look(self) -> _TableLook:
+        """Which parts of the table style apply to this table::
+
+            table.look.first_row = True
+            table.look.horizontal_banding = True
+
+        Applying a table style without setting these produces a table that looks nothing
+        like the style preview in Word.
+        """
+        return _TableLook(self._tbl)
+
+    @property
+    def width(self) -> Length | Pct | None:
+        """The preferred width of this table.
+
+        A |Length| for an absolute width, a |Pct| for a percentage of the text column,
+        and |None| when the width is `auto` — Word sizing the table to its content —
+        or no `w:tblW` is present at all.
+
+        A percentage table reflows with the page margins where one built from absolute
+        column widths does not, so ``table.width = Pct(100)`` is not the same as setting
+        the column widths to add up::
+
+            table.width = Pct(100)
+            table.width = Inches(6)
+            table.width = None       # auto
+
+        Note this is the *preferred* width: Word may widen a table whose content does
+        not fit, and a table with `autofit` on will do so routinely.
+        """
+        tblW = self._tblPr.tblW
+        return None if tblW is None else tblW.value
+
+    @width.setter
+    def width(self, value: Length | Pct | None) -> None:
+        tblPr = self._tblPr
+        if value is None and tblPr.tblW is None:
+            return
+        tblPr.get_or_add_tblW().value = value
+
+    def copy_to(
+        self,
+        container: BlockItemContainer | Document,
+        *,
+        before: Paragraph | Table | None = None,
+        after: Paragraph | Table | None = None,
+        missing_style: str = "copy",
+    ) -> Table:
+        """Return a copy of this table, newly placed in `container`::
+
+            new_table = table.copy_to(document)
+
+        See :meth:`.Paragraph.copy_to` for what is repaired on the way — relationships,
+        drawing ids, bookmarks, and, for a copy into another document, styles and
+        numbering.
+        """
+        from docx.copy import copy_content, destination_for, place
+
+        dest_part, dest_element = destination_for(container)
+        new_tbl = copy_content(self._tbl, self.part, dest_part, missing_style=missing_style)
+        place(new_tbl, dest_element, before, after)
+        return Table(new_tbl, container)  # pyright: ignore[reportArgumentType]
 
     def delete(self) -> None:
         """Remove this table from the document.
@@ -510,7 +619,12 @@ class _Cell(BlockItemContainer):
         return super(_Cell, self).add_paragraph(text, style)
 
     def add_table(  # pyright: ignore[reportIncompatibleMethodOverride]
-        self, rows: int, cols: int
+        self,
+        rows: int,
+        cols: int,
+        *,
+        title: str | None = None,
+        description: str | None = None,
     ) -> Table:
         """Return a table newly added to this cell after any existing cell content.
 
@@ -518,11 +632,43 @@ class _Cell(BlockItemContainer):
 
         An empty paragraph is added after the table because Word requires a paragraph
         element as the last element in every cell.
+
+        `description` is the table's alternative text and `title` the separate,
+        caption-like field Word writes alongside it. Both are omitted from the XML when
+        |None|.
         """
         width = self.width if self.width is not None else Inches(1)
-        table = super(_Cell, self).add_table(rows, cols, width)
+        table = super(_Cell, self).add_table(
+            rows, cols, width, title=title, description=description
+        )
         self.add_paragraph()
         return table
+
+    def add_caption(
+        self,
+        label: str,
+        text: str = "",
+        *,
+        style: str | None = "Caption",
+        separator: str = " ",
+        restart_at_heading_level: int | None = None,
+        before: Paragraph | None = None,
+    ) -> Caption:
+        """Add a numbered, cross-referenceable caption to this cell and return it.
+
+        See :meth:`.Document.add_caption`.
+        """
+        from docx.caption import add_caption
+
+        return add_caption(
+            self,
+            label,
+            text,
+            style=style,
+            separator=separator,
+            restart_at_heading_level=restart_at_heading_level,
+            before=before,
+        )
 
     @lazyproperty
     def borders(self) -> _CellBorders:
@@ -651,6 +797,25 @@ class _Cell(BlockItemContainer):
         p = tc.add_p()
         r = p.add_r()
         r.text = text
+
+    @property
+    def text_direction(self) -> WD_TEXT_DIRECTION | None:
+        """Flow direction of the text in this cell, or |None| when inherited.
+
+        This is what a rotated header cell needs::
+
+            cell.text_direction = WD_TEXT_DIRECTION.BT_LR
+
+        Assigning |None| removes the setting, restoring inheritance.
+        """
+        tcPr = self._element.tcPr
+        return None if tcPr is None else tcPr.textDirection_val
+
+    @text_direction.setter
+    def text_direction(self, value: WD_TEXT_DIRECTION | None) -> None:
+        if value is None and self._element.tcPr is None:
+            return
+        self._element.get_or_add_tcPr().textDirection_val = value
 
     @property
     def vertical_alignment(self):
@@ -819,6 +984,48 @@ class _Row(Parented):
 
         return tuple(_iter_row_cells())
 
+    def copy_to(
+        self,
+        table: Table,
+        *,
+        before: _Row | None = None,
+        after: _Row | None = None,
+        missing_style: str = "copy",
+    ) -> _Row:
+        """Return a copy of this row, newly placed in `table`.
+
+        "Duplicate this table row N times" is the other most-written-by-hand operation::
+
+            for _ in range(9):
+                template_row.copy_to(table)
+
+        `before` and `after` place the copy relative to an existing row; with neither it
+        is appended.
+
+        The copy keeps this row's own cell widths and spans. It is not adjusted to
+        `table`'s grid, so copying a row into a table of a different column count
+        produces a row that does not line up — which is what the XML says and what Word
+        will render.
+
+        See :meth:`.Paragraph.copy_to` for what is repaired on the way — relationships,
+        drawing ids, bookmarks, and, for a copy into another document, styles and
+        numbering.
+        """
+        from docx.copy import copy_content
+
+        dest_part = table.part
+        new_tr = copy_content(self._tr, self.part, dest_part, missing_style=missing_style)
+
+        if before is not None and after is not None:
+            raise ValueError("pass at most one of `before` and `after`")
+        if before is not None:
+            before._tr.addprevious(new_tr)
+        elif after is not None:
+            after._tr.addnext(new_tr)
+        else:
+            table._tbl.append(new_tr)
+        return _Row(new_tr, table)  # pyright: ignore[reportArgumentType]
+
     def delete(self) -> None:
         """Remove this row from its table.
 
@@ -885,6 +1092,79 @@ class _Row(Parented):
     @dont_split.setter
     def dont_split(self, value: bool | None) -> None:
         self._tr.cantSplit_val = value
+
+    @property
+    def repeat_as_header(self) -> bool | None:
+        """|True| when this row repeats at the top of each page the table spans.
+
+        Corresponds to "Repeat Header Rows" in Word. |None| indicates no explicit
+        setting, which Word treats as off.
+
+        Word only honours this on a contiguous run of rows starting at the first row of
+        the table. Setting it on row 3 alone is legal XML that has no visible effect.
+        """
+        return self._tr.tblHeader_val
+
+    @repeat_as_header.setter
+    def repeat_as_header(self, value: bool | None) -> None:
+        self._tr.tblHeader_val = value
+
+    @property
+    def hidden(self) -> bool | None:
+        """|True| when this row is not displayed.
+
+        |None| indicates no explicit setting, which Word treats as visible.
+        """
+        return self._tr.hidden_val
+
+    @hidden.setter
+    def hidden(self, value: bool | None) -> None:
+        self._tr.hidden_val = value
+
+    @property
+    def alignment(self) -> WD_TABLE_ALIGNMENT | None:
+        """Horizontal alignment of this row within the table, or |None| if not set.
+
+        This overrides the table's own alignment for this row alone.
+        """
+        return self._tr.alignment
+
+    @alignment.setter
+    def alignment(self, value: WD_TABLE_ALIGNMENT | None) -> None:
+        self._tr.alignment = value
+
+    @property
+    def cell_spacing(self) -> Length | None:
+        """Spacing between the cells of this row, or |None| if not set."""
+        return self._tr.cell_spacing
+
+    @cell_spacing.setter
+    def cell_spacing(self, value: Length | None) -> None:
+        self._tr.cell_spacing = value
+
+    @property
+    def width_before(self) -> Length | None:
+        """Width of the grid positions this row leaves unpopulated at its start.
+
+        Pairs with `.grid_cols_before`, which counts them. |None| if not set.
+        """
+        return self._tr.width_before
+
+    @width_before.setter
+    def width_before(self, value: Length | None) -> None:
+        self._tr.width_before = value
+
+    @property
+    def width_after(self) -> Length | None:
+        """Width of the grid positions this row leaves unpopulated at its end.
+
+        Pairs with `.grid_cols_after`, which counts them. |None| if not set.
+        """
+        return self._tr.width_after
+
+    @width_after.setter
+    def width_after(self, value: Length | None) -> None:
+        self._tr.width_after = value
 
     @property
     def height_rule(self) -> WD_ROW_HEIGHT_RULE | None:
