@@ -100,6 +100,26 @@ font.shading_fill          # -- an RGBColor, the string "auto", or None --
 
 0.9.x returned `9` when no outline level was set. `None` and `9` are different things: `None` means the level is inherited from the style hierarchy, and `9` is Word's explicit "Body Text" level, which deliberately excludes the paragraph from the outline. 2.0.0 reports them distinctly, and assigning a value outside 0–9 raises `ValueError` rather than writing an invalid document.
 
+### `Section.orientation`
+
+Assigning an orientation now exchanges `page_width` and `page_height` too, so the page is actually rotated. Previously it set `w:pgSz/@w:orient` alone and left the dimensions where they were, giving a section declared landscape at portrait dimensions — which Word renders as portrait.
+
+**Remove the workaround if you have one.** Nearly everyone who hit this wrote something like:
+
+```python
+section.orientation = WD_ORIENT.LANDSCAPE
+section.page_width, section.page_height = section.page_height, section.page_width  # -- delete this --
+```
+
+The two swaps now cancel out and the page comes back the size it started, which is the same broken result as before, arrived at from the other direction. Delete the second line:
+
+```python
+section.orientation = WD_ORIENT.LANDSCAPE
+section.page_width, section.page_height    # -- (11in, 8.5in) --
+```
+
+Setting the orientation a section already has does nothing, so the assignment is safe to repeat. For a page size that is not simply the rotation of the current one, set `page_width` and `page_height` explicitly afterwards. Margins are not moved.
+
 ## Removed without replacement
 
 `Section.paragraphs`  

@@ -354,6 +354,20 @@ class Section:
         """:ref:`WdOrientation` member specifying page orientation for this section.
 
         One of ``WD_ORIENT.PORTRAIT`` or ``WD_ORIENT.LANDSCAPE``.
+
+        Assigning a different orientation also exchanges :attr:`page_width` and
+        :attr:`page_height`, so the page is actually rotated::
+
+            section.page_width, section.page_height    # -- (8.5in, 11in) --
+            section.orientation = WD_ORIENT.LANDSCAPE
+            section.page_width, section.page_height    # -- (11in, 8.5in) --
+
+        Underneath, `w:orient` and the `w:w`/`w:h` page dimensions are independent
+        attributes, and setting only the first leaves a section declared landscape at
+        portrait dimensions — which Word renders as portrait. Set
+        :attr:`page_width` and :attr:`page_height` explicitly afterwards for a page
+        size that is not simply the rotation of the current one. Margins
+        (:attr:`left_margin` and friends) are not moved.
         """
         return self._sectPr.orientation
 

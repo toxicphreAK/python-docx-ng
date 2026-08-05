@@ -55,6 +55,13 @@ Breaking changes
   ``Document.paragraphs`` and ``.tables`` altogether. Text inside a text box
   (``w:txbxContent``) is still not included; that is a separate container rather than a
   transparent wrapper.
+- Assigning ``Section.orientation`` now exchanges ``page_width`` and ``page_height`` as
+  well, so the page is actually rotated. Previously it set ``w:pgSz/@w:orient`` alone,
+  leaving a section declared landscape at portrait dimensions — which Word renders as
+  portrait. **If your code applies the usual workaround**, swapping the dimensions by
+  hand right after the assignment, remove it: the two swaps now cancel and the page
+  comes out the size it started. Setting the orientation it already has does nothing,
+  and margins are not moved.
 
 Added
 ~~~~~

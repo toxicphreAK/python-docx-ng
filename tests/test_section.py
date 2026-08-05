@@ -551,6 +551,93 @@ class DescribeSection:
         assert section._sectPr.xml == expected_xml
 
     @pytest.mark.parametrize(
+        ("sectPr_cxml", "value", "expected_cxml"),
+        [
+            # -- portrait letter rotated to landscape --
+            (
+                "w:sectPr/w:pgSz{w:w=12240,w:h=15840}",
+                WD_ORIENTATION.LANDSCAPE,
+                "w:sectPr/w:pgSz{w:w=15840,w:h=12240,w:orient=landscape}",
+            ),
+            # -- and back again --
+            (
+                "w:sectPr/w:pgSz{w:w=15840,w:h=12240,w:orient=landscape}",
+                WD_ORIENTATION.PORTRAIT,
+                "w:sectPr/w:pgSz{w:w=12240,w:h=15840}",
+            ),
+            # -- None means portrait, and rotates from landscape just the same --
+            (
+                "w:sectPr/w:pgSz{w:w=15840,w:h=12240,w:orient=landscape}",
+                None,
+                "w:sectPr/w:pgSz{w:w=12240,w:h=15840}",
+            ),
+            # -- setting the orientation it already has must not swap --
+            (
+                "w:sectPr/w:pgSz{w:w=15840,w:h=12240,w:orient=landscape}",
+                WD_ORIENTATION.LANDSCAPE,
+                "w:sectPr/w:pgSz{w:w=15840,w:h=12240,w:orient=landscape}",
+            ),
+            (
+                "w:sectPr/w:pgSz{w:w=12240,w:h=15840}",
+                WD_ORIENTATION.PORTRAIT,
+                "w:sectPr/w:pgSz{w:w=12240,w:h=15840}",
+            ),
+            # -- nothing to swap when the dimensions are absent or incomplete --
+            (
+                "w:sectPr/w:pgSz",
+                WD_ORIENTATION.LANDSCAPE,
+                "w:sectPr/w:pgSz{w:orient=landscape}",
+            ),
+            (
+                "w:sectPr/w:pgSz{w:w=12240}",
+                WD_ORIENTATION.LANDSCAPE,
+                "w:sectPr/w:pgSz{w:w=12240,w:orient=landscape}",
+            ),
+        ],
+    )
+    def and_changing_it_rotates_the_page_dimensions(
+        self,
+        sectPr_cxml: str,
+        value: WD_ORIENTATION | None,
+        expected_cxml: str,
+        document_part_: Mock,
+    ):
+        """A landscape-declared page at portrait dimensions is what Word renders as
+        portrait, which is the trap this closes."""
+        section = Section(cast(CT_SectPr, element(sectPr_cxml)), document_part_)
+        expected_xml = xml(expected_cxml)
+
+        section.orientation = value
+
+        assert section._sectPr.xml == expected_xml
+
+    def and_it_leaves_the_margins_alone(self, document_part_: Mock):
+        """Rotating the page does not move the margins; that is a separate decision."""
+        section = Section(
+            cast(
+                CT_SectPr,
+                element("w:sectPr/(w:pgSz{w:w=12240,w:h=15840},w:pgMar{w:left=1800,w:top=1440})"),
+            ),
+            document_part_,
+        )
+
+        section.orientation = WD_ORIENTATION.LANDSCAPE
+
+        assert section._sectPr.xml == xml(
+            "w:sectPr/(w:pgSz{w:w=15840,w:h=12240,w:orient=landscape},"
+            "w:pgMar{w:left=1800,w:top=1440})"
+        )
+
+    def and_rotating_twice_returns_to_where_it_started(self, document_part_: Mock):
+        original = "w:sectPr/w:pgSz{w:w=12240,w:h=15840}"
+        section = Section(cast(CT_SectPr, element(original)), document_part_)
+
+        section.orientation = WD_ORIENTATION.LANDSCAPE
+        section.orientation = WD_ORIENTATION.PORTRAIT
+
+        assert section._sectPr.xml == xml(original)
+
+    @pytest.mark.parametrize(
         ("sectPr_cxml", "margin_prop_name", "expected_value"),
         [
             ("w:sectPr/w:pgMar{w:left=120}", "left_margin", 76200),

@@ -351,8 +351,31 @@ class CT_SectPr(BaseOxmlElement):
 
     @orientation.setter
     def orientation(self, value: WD_ORIENTATION | None):
-        pgSz = self.get_or_add_pgSz()
-        pgSz.orient = value if value else WD_ORIENTATION.PORTRAIT
+        """Set the orientation, swapping the page dimensions to match.
+
+        `w:orient` and `w:w`/`w:h` are independent attributes in the schema, and setting
+        only the first leaves the section declared landscape while still 8.5 inches wide
+        and 11 tall — which Word renders as portrait. Nobody wants that combination, so
+        the dimensions move with the orientation.
+
+        Only on an actual change, so setting the same orientation twice does not swap
+        twice. `w:pgMar` is deliberately left alone.
+        """
+        new_orientation = value if value else WD_ORIENTATION.PORTRAIT
+        if new_orientation != self.orientation:
+            self._swap_page_dimensions()
+        self.get_or_add_pgSz().orient = new_orientation
+
+    def _swap_page_dimensions(self) -> None:
+        """Exchange `w:pgSz/@w:w` and `@w:h`, when there is a pair of them to exchange.
+
+        A section with no `w:pgSz`, or one naming only a single dimension, has nothing
+        to rotate and is left as it is.
+        """
+        pgSz = self.pgSz
+        if pgSz is None or pgSz.w is None or pgSz.h is None:
+            return
+        pgSz.w, pgSz.h = pgSz.h, pgSz.w
 
     @property
     def page_height(self) -> Length | None:
