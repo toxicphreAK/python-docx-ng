@@ -29,6 +29,7 @@ import zipfile
 from typing import IO, Any, Dict, List, Sequence
 
 import docx
+from docx.opc.exceptions import EncryptedPackageError, PackageNotFoundError
 
 #: Exit code for a document that cannot be opened.
 EXIT_CANNOT_OPEN = 2
@@ -54,8 +55,17 @@ def main(argv: Sequence[str] | None = None, stdout: IO[str] | None = None) -> in
     except FileNotFoundError as e:
         print("error: no such file: %s" % e.filename, file=sys.stderr)
         return EXIT_CANNOT_OPEN
-    except (zipfile.BadZipFile, ValueError, KeyError) as e:
+    except EncryptedPackageError:
+        print("error: document is password-protected", file=sys.stderr)
+        return EXIT_CANNOT_OPEN
+    except (PackageNotFoundError, zipfile.BadZipFile) as e:
         print("error: cannot open document: %s" % e, file=sys.stderr)
+        return EXIT_CANNOT_OPEN
+    except KeyError as e:
+        # -- `styles extract --names` and `cleanup --keep` name styles, and a name the
+        # -- document does not define surfaces here rather than as a traceback --
+        message = e.args[0] if e.args else str(e)
+        print("error: %s" % message, file=sys.stderr)
         return EXIT_CANNOT_OPEN
 
 
@@ -91,8 +101,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
     listing = styles_sub.add_parser("list", help="list style names")
     listing.add_argument("path")
-    listing.add_argument("--unused", action="store_true", help="only the unused ones")
-    listing.add_argument("--used", action="store_true", help="only the ones in use")
+    # -- asking for both would silently print nothing, so argparse refuses the pair --
+    which = listing.add_mutually_exclusive_group()
+    which.add_argument("--unused", action="store_true", help="only the unused ones")
+    which.add_argument("--used", action="store_true", help="only the ones in use")
     listing.add_argument("--json", action="store_true")
     listing.set_defaults(func=_cmd_styles_list)
 

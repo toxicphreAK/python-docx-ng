@@ -114,6 +114,11 @@ def _reassign_drawing_ids(element: BaseOxmlElement, dest_part: StoryPart) -> Non
     The id must be unique document-wide, and a deep copy duplicates whatever the source
     had. Ids are allocated one at a time rather than in a batch because `next_id` reads
     the destination's XML, and the copy is not in it yet.
+
+    `@name` is left alone. Only the id has to be unique, and the name is the shape's own
+    — the source file name for a picture, "Chart 1" for a chart — so overwriting it
+    would discard information and mislabel anything that is not a picture. A drawing
+    with no name at all gets one, since Word shows the field in its selection pane.
     """
     docPrs = element.xpath(".//wp:docPr")
     if not docPrs:
@@ -121,7 +126,8 @@ def _reassign_drawing_ids(element: BaseOxmlElement, dest_part: StoryPart) -> Non
     next_id = dest_part.next_id
     for offset, docPr in enumerate(docPrs):
         docPr.id = next_id + offset
-        docPr.name = "Picture %d" % (next_id + offset)
+        if not docPr.name:
+            docPr.name = "Picture %d" % (next_id + offset)
 
 
 def _strip_bookmarks(element: BaseOxmlElement) -> None:

@@ -59,12 +59,14 @@ class Document(ElementProxy):
         self._part = part
         self.__body = None
 
-    def add_alt_chunk(self, chunk: bytes | str | IO[bytes], content_type: str) -> AltChunk:
+    def add_alt_chunk(
+        self, chunk: bytes | str | os.PathLike[str] | IO[bytes], content_type: str
+    ) -> AltChunk:
         """Return an |AltChunk| newly added at the end of the document body.
 
-        `chunk` is the embedded document, given as bytes, as a path to a file, or as a
-        file-like object open for binary read. `content_type` states its format, e.g.
-        `"text/html"`, `"application/rtf"` or
+        `chunk` is the embedded document, given as bytes, as a path to a file (a string
+        or ``os.PathLike``), or as a file-like object open for binary read.
+        `content_type` states its format, e.g. `"text/html"`, `"application/rtf"` or
         `"application/vnd.openxmlformats-officedocument.wordprocessingml.document"`;
         Word chooses an importer from it, so it must be right.
 
@@ -209,12 +211,12 @@ class Document(ElementProxy):
 
     def add_picture(
         self,
-        image_path_or_stream: str | IO[bytes],
+        image_path_or_stream: str | os.PathLike[str] | IO[bytes],
         width: int | Length | None = None,
         height: int | Length | None = None,
         description: str | None = None,
         title: str | None = None,
-        svg_fallback: str | IO[bytes] | None = None,
+        svg_fallback: str | os.PathLike[str] | IO[bytes] | None = None,
         honor_exif_orientation: bool = True,
     ):
         """Return new picture shape added in its own paragraph at end of the document.
@@ -378,7 +380,11 @@ class Document(ElementProxy):
         return self._part.footnotes
 
     def add_custom_xml_part(
-        self, xml: str | bytes, schema_refs: Tuple[str, ...] = ()
+        self,
+        xml: str | bytes,
+        schema_refs: Tuple[str, ...] = (),
+        *,
+        item_id: str | None = None,
     ) -> CustomXmlPart:
         """Add an item to the custom XML data store and return its part.
 
@@ -396,10 +402,16 @@ class Document(ElementProxy):
         of named scalars in `docProps/custom.xml`.
 
         A `customXml/itemN.xml` part is created for `xml`, along with the
-        `itemPropsN.xml` sidecar Word identifies it by, carrying a freshly generated
-        GUID and the namespaces named in `schema_refs`.
+        `itemPropsN.xml` sidecar Word identifies it by, carrying the namespaces named in
+        `schema_refs` and a GUID.
+
+        `item_id` is that GUID, in Word's `"{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}"`
+        shape. One is generated at random when it is omitted, which is what Word does —
+        but a random value is the one thing in this library's output that is not a
+        function of its input, so pass an `item_id` of your own when byte-reproducible
+        output matters. It only has to be unique within the document.
         """
-        return self._part.add_custom_xml_part(xml, schema_refs)
+        return self._part.add_custom_xml_part(xml, schema_refs, item_id=item_id)
 
     @property
     def custom_xml_parts(self) -> Tuple[CustomXmlPart, ...]:
@@ -847,7 +859,7 @@ class Document(ElementProxy):
 
     def add_image_watermark(
         self,
-        image_path_or_stream: str | IO[bytes],
+        image_path_or_stream: str | os.PathLike[str] | IO[bytes],
         *,
         width: Length | int | None = None,
         height: Length | int | None = None,
@@ -968,9 +980,9 @@ def _document_content_type(content_type: str, as_template: bool) -> str:
     return mapping.get(content_type, content_type)
 
 
-def _read_blob(chunk: str | IO[bytes]) -> bytes:
+def _read_blob(chunk: str | os.PathLike[str] | IO[bytes]) -> bytes:
     """The bytes of `chunk`, a path to a file or a file-like object open for read."""
-    if isinstance(chunk, str):
-        with open(chunk, "rb") as f:
+    if isinstance(chunk, (str, os.PathLike)):
+        with open(os.fspath(chunk), "rb") as f:
             return f.read()
     return chunk.read()

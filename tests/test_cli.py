@@ -7,6 +7,8 @@ from __future__ import annotations
 import io
 import json
 
+import pytest
+
 import docx
 from docx.cli import EXIT_CANNOT_OPEN, EXIT_WOULD_CHANGE, main
 
@@ -250,3 +252,55 @@ class DescribeBareInvocation:
 
         assert code == 0
         assert "Inspect and clean up Word documents" in out
+
+
+class DescribeErrorReporting:
+    """A CLI that ends in a traceback has not reported an error, it has crashed."""
+
+    @pytest.mark.parametrize(
+        "argv",
+        [
+            ("styles", "report", "MISSING"),
+            ("styles", "list", "MISSING"),
+            ("styles", "extract", "MISSING", "-o", "OUT"),
+            ("cleanup", "MISSING", "-o", "OUT"),
+        ],
+    )
+    def it_reports_a_document_it_cannot_open_rather_than_raising(
+        self, argv: tuple[str, ...], tmp_path, capsys: pytest.CaptureFixture[str]
+    ):
+        """`PackageNotFoundError` is what a missing or non-package file raises, and it
+        is neither a `FileNotFoundError` nor a `BadZipFile`."""
+        filled = tuple(
+            str(tmp_path / "nope.docx")
+            if arg == "MISSING"
+            else str(tmp_path / "out.docx")
+            if arg == "OUT"
+            else arg
+            for arg in argv
+        )
+
+        code, _ = _run(*filled)
+
+        assert code == EXIT_CANNOT_OPEN
+        assert "cannot open document" in capsys.readouterr().err
+
+    def and_names_a_style_the_document_does_not_define(
+        self, tmp_path, capsys: pytest.CaptureFixture[str]
+    ):
+        path = _document_path(tmp_path)
+
+        code, _ = _run(
+            "styles", "extract", path, "-o", str(tmp_path / "out.docx"), "--names", "Nope"
+        )
+
+        assert code == EXIT_CANNOT_OPEN
+        assert "Nope" in capsys.readouterr().err
+
+    def it_refuses_used_and_unused_together(self, tmp_path):
+        """Both filters at once matches nothing, so an empty list would read as an
+        answer rather than as the contradiction it is."""
+        path = _document_path(tmp_path)
+
+        with pytest.raises(SystemExit):
+            _run("styles", "list", path, "--used", "--unused")

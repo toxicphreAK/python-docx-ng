@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import IO, TYPE_CHECKING, Iterator, List, Sequence, overload
 
 from docx.blkcntnr import BlockItemContainer
@@ -340,7 +341,7 @@ class Section:
 
     def add_image_watermark(
         self,
-        image_path_or_stream: str | IO[bytes],
+        image_path_or_stream: str | os.PathLike[str] | IO[bytes],
         *,
         width: Length | int | None = None,
         height: Length | int | None = None,

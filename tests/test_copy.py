@@ -149,6 +149,18 @@ class DescribeCopyRelationshipRemapping:
         copy_id = copy._p.xpath(".//wp:docPr/@id")[0]
         assert original_id != copy_id
 
+    def but_it_keeps_the_drawing_name(self):
+        """Only `@id` has to be unique. `@name` is the shape's own — Word shows it in
+        the selection pane — and for a picture it is the source file name."""
+        document = docx.Document()
+        paragraph = document.add_paragraph()
+        paragraph.add_run().add_picture(_IMAGE)
+
+        copy = paragraph.copy_to(document)
+
+        original_name = paragraph._p.xpath(".//wp:docPr/@name")[0]
+        assert copy._p.xpath(".//wp:docPr/@name") == [original_name]
+
     def it_remaps_a_hyperlink_across_documents(self):
         source = docx.Document()
         paragraph = source.add_paragraph()

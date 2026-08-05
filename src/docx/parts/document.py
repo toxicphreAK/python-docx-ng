@@ -59,12 +59,17 @@ class DocumentPart(StoryPart):
         return self.relate_to(alt_chunk_part, RT.A_F_CHUNK)
 
     def add_custom_xml_part(
-        self, xml: str | bytes, schema_refs: tuple[str, ...] = ()
+        self,
+        xml: str | bytes,
+        schema_refs: tuple[str, ...] = (),
+        *,
+        item_id: str | None = None,
     ) -> CustomXmlPart:
         """Add a custom XML data store item holding `xml` and return its part.
 
-        Creates the `customXml/itemN.xml` part, its `itemPropsN.xml` sidecar carrying a
-        freshly generated item GUID, and both relationships.
+        Creates the `customXml/itemN.xml` part, its `itemPropsN.xml` sidecar carrying the
+        item GUID, and both relationships. `item_id` is that GUID; one is generated at
+        random when it is omitted. See :meth:`.Document.add_custom_xml_part`.
         """
         package = self.package
         assert package is not None
@@ -77,7 +82,10 @@ class DocumentPart(StoryPart):
 
         item_part = CustomXmlPart.new(package, item_partname, parse_xml(blob))
         props_part = CustomXmlPropertiesPart.new(
-            package, props_partname, "{%s}" % str(uuid.uuid4()).upper(), schema_refs
+            package,
+            props_partname,
+            item_id if item_id is not None else "{%s}" % str(uuid.uuid4()).upper(),
+            schema_refs,
         )
         item_part.relate_to(props_part, RT.CUSTOM_XML_PROPS)
         self.relate_to(item_part, RT.CUSTOM_XML)
