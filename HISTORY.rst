@@ -58,6 +58,15 @@ New features
 - ``ParagraphFormat.borders`` and ``Section.page_borders``, spelled the same as the
   table and cell borders API. A paragraph with only a bottom border is how Word draws a
   horizontal rule.
+- ``add_picture()`` and ``add_float_picture()`` honour a photo's EXIF ``Orientation``.
+  A portrait photo off a phone is stored landscape with a tag saying to turn it, and
+  was previously inserted sideways and — when only a width was given — at the wrong
+  aspect ratio. The rotation is written into the DrawingML (``a:xfrm/@rot``) rather
+  than into the pixels, so the image part stays byte-identical and the sha1
+  deduplication keeps working. Pass ``honor_exif_orientation=False`` to opt out.
+  ``Image.orientation``, ``.is_rotated``, ``.px_display_width``, ``.px_display_height``,
+  ``.display_width`` and ``.display_height`` are the new accessors; ``px_width`` and
+  ``px_height`` keep reporting the stored dimensions.
 - Style usage analysis: ``Styles.usage()``, ``Styles.unused`` and ``Style.in_use``.
   "Used" is a reachability closure over every story part — body, headers, footers,
   footnotes, endnotes and comments — following ``w:basedOn``, ``w:next``, ``w:link``

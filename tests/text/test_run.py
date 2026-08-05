@@ -314,7 +314,13 @@ class DescribeRun:
         picture = run.add_picture(image, width, height)
 
         document_part_.new_pic_inline.assert_called_once_with(
-            image, width, height, description=None, title=None, svg_fallback=None
+            image,
+            width,
+            height,
+            description=None,
+            title=None,
+            svg_fallback=None,
+            honor_exif_orientation=True,
         )
         assert run._r.xml == xml("w:r/(wp:x,w:drawing/wp:inline{id=42})")
         InlineShape_.assert_called_once_with(inline, run)

@@ -39,11 +39,12 @@ class DescribeTiff:
         tiff_parser_.px_height = px_height
         tiff_parser_.horz_dpi = horz_dpi
         tiff_parser_.vert_dpi = vert_dpi
+        tiff_parser_.orientation = 6
 
         tiff = Tiff.from_stream(stream_)
 
         _TiffParser_.parse.assert_called_once_with(stream_)
-        Tiff__init_.assert_called_once_with(ANY, px_width, px_height, horz_dpi, vert_dpi)
+        Tiff__init_.assert_called_once_with(ANY, px_width, px_height, horz_dpi, vert_dpi, 6)
         assert isinstance(tiff, Tiff)
 
     def it_knows_its_content_type(self):

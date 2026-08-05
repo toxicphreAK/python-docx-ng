@@ -165,6 +165,7 @@ class Document(ElementProxy):
         description: str | None = None,
         title: str | None = None,
         svg_fallback: str | IO[bytes] | None = None,
+        honor_exif_orientation: bool = True,
     ):
         """Return new picture shape added in its own paragraph at end of the document.
 
@@ -181,7 +182,8 @@ class Document(ElementProxy):
         caption-like field Word writes alongside it.
 
         `svg_fallback` is the raster image shown in place of an SVG wherever the vector
-        source cannot be rendered; see `Run.add_picture()`.
+        source cannot be rendered, and `honor_exif_orientation` applies a photo's EXIF
+        `Orientation` as a rotation in the DrawingML; see `Run.add_picture()` for both.
         """
         run = self.add_paragraph().add_run()
         return run.add_picture(
@@ -191,6 +193,7 @@ class Document(ElementProxy):
             description=description,
             title=title,
             svg_fallback=svg_fallback,
+            honor_exif_orientation=honor_exif_orientation,
         )
 
     def add_section(self, start_type: WD_SECTION = WD_SECTION.NEW_PAGE):

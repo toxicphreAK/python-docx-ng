@@ -199,10 +199,12 @@ class DescribeImage:
             (1500, 1500, 1500, 1500),
         ]
     )
-    def scale_fixture(self, request, width_prop_, height_prop_):
+    def scale_fixture(self, request, display_width_prop_, display_height_prop_):
+        """Scaling works from the *display* dimensions, so an image whose EXIF
+        orientation turns it a quarter scales to the ratio it will render at."""
         width, height, scaled_width, scaled_height = request.param
-        width_prop_.return_value = Emu(1000)
-        height_prop_.return_value = Emu(2000)
+        display_width_prop_.return_value = Emu(1000)
+        display_height_prop_.return_value = Emu(2000)
         image = Image(None, None, None)
         return image, width, height, (scaled_width, scaled_height)
 
@@ -234,6 +236,14 @@ class DescribeImage:
     @pytest.fixture
     def height_prop_(self, request):
         return property_mock(request, Image, "height")
+
+    @pytest.fixture
+    def display_height_prop_(self, request):
+        return property_mock(request, Image, "display_height")
+
+    @pytest.fixture
+    def display_width_prop_(self, request):
+        return property_mock(request, Image, "display_width")
 
     @pytest.fixture
     def image_(self, request):

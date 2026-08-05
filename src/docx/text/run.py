@@ -72,6 +72,7 @@ class Run(StoryChild):
         description: str | None = None,
         title: str | None = None,
         svg_fallback: str | IO[bytes] | None = None,
+        honor_exif_orientation: bool = True,
     ) -> InlineShape:
         """Return |InlineShape| containing image identified by `image_path_or_stream`.
 
@@ -98,6 +99,17 @@ class Run(StoryChild):
         appear in an older Word, in a PDF export from some tools, and anywhere else the
         SVG extension is not understood. Without it the fallback refers to the SVG
         itself, which Word 2016 and later render but earlier versions do not.
+
+        `honor_exif_orientation` applies the image's EXIF `Orientation` tag, which a
+        photo off a phone or camera almost always carries: the pixels are stored in the
+        sensor's native orientation and the tag says how to turn them for display. Every
+        image viewer, browser and word processor honours it, and a library that inserts
+        pictures and does not produces a visibly wrong document from a correct input
+        file. The rotation is written into the DrawingML (`a:xfrm/@rot`) rather than
+        into the pixels, so the image part stays byte-identical and the sha1
+        deduplication keeps working. Pass |False| for an image whose pixels are already
+        rotated *and* which carries the tag anyway — some encoders write both and there
+        is no reliable way to detect it.
         """
         inline = self.part.new_pic_inline(
             image_path_or_stream,
@@ -106,6 +118,7 @@ class Run(StoryChild):
             description=description,
             title=title,
             svg_fallback=svg_fallback,
+            honor_exif_orientation=honor_exif_orientation,
         )
         self._r.add_drawing(inline)
         return InlineShape(inline, self)
@@ -124,6 +137,7 @@ class Run(StoryChild):
         description: str | None = None,
         title: str | None = None,
         svg_fallback: str | IO[bytes] | None = None,
+        honor_exif_orientation: bool = True,
     ) -> FloatingShape:
         """Return a |FloatingShape| for a picture that text flows around.
 
@@ -144,8 +158,9 @@ class Run(StoryChild):
                 wrap_type=WD_WRAP_TYPE.SQUARE,
             )
 
-        `image_path_or_stream`, `width`, `height`, `description`, `title` and
-        `svg_fallback` behave exactly as they do for :meth:`add_picture`.
+        `image_path_or_stream`, `width`, `height`, `description`, `title`,
+        `svg_fallback` and `honor_exif_orientation` behave exactly as they do for
+        :meth:`add_picture`.
 
         `left` and `top` are the offset from `relative_from_h` and `relative_from_v`,
         which default to the column and the paragraph — where Word puts a picture
@@ -169,6 +184,7 @@ class Run(StoryChild):
             description=description,
             title=title,
             svg_fallback=svg_fallback,
+            honor_exif_orientation=honor_exif_orientation,
         )
         anchor.wrap_type = wrap_type
         anchor.behindDoc = bool(behind_text)

@@ -30,8 +30,9 @@ class Tiff(BaseImageHeader):
         px_height = parser.px_height
         horz_dpi = parser.horz_dpi
         vert_dpi = parser.vert_dpi
+        orientation = parser.orientation
 
-        return cls(px_width, px_height, horz_dpi, vert_dpi)
+        return cls(px_width, px_height, horz_dpi, vert_dpi, orientation)
 
 
 class _TiffParser:
@@ -62,6 +63,17 @@ class _TiffParser:
         """The vertical dots per inch value calculated from the XResolution and
         ResolutionUnit tags of the IFD; defaults to 72 if those tags are not present."""
         return self._dpi(TIFF_TAG.Y_RESOLUTION)
+
+    @property
+    def orientation(self) -> int:
+        """The `Orientation` tag value, or 1 when the tag is absent or unparseable.
+
+        1 means the stored pixels are already in display order, which is what every
+        value outside the documented 1..8 range is treated as: an orientation nobody can
+        act on is better ignored than guessed at.
+        """
+        value = self._ifd_entries.get(TIFF_TAG.ORIENTATION, 1)
+        return value if isinstance(value, int) and 1 <= value <= 8 else 1
 
     @property
     def px_height(self):
