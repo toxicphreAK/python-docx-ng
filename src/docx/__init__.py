@@ -13,7 +13,7 @@ from docx.api import Document
 if TYPE_CHECKING:
     from docx.opc.part import Part
 
-__version__ = "2.0.0"
+__version__ = "2.0.0rc1"
 
 
 __all__ = ["Document"]
