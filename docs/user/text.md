@@ -322,6 +322,28 @@ font.shading_fill = "FFFF00"
 paragraph.paragraph_format.shading_fill = "EEEEEE"
 ```
 
+Word draws a *pattern* in a foreground colour over that fill. The usual case is no
+pattern at all, `WD_SHADING_PATTERN.CLEAR`, which is what the two assignments above
+produce and what leaves the fill as a plain background. The percentage patterns are how
+Word produces a tint of one colour over another:
+
+```python
+from docx.enum.text import WD_SHADING_PATTERN
+
+font.shading_fill = "FFFFFF"                        # -- background --
+font.shading_color = "FF0000"                       # -- pattern foreground --
+font.shading_pattern = WD_SHADING_PATTERN.PCT_25    # -- 25% red over white --
+```
+
+Setting `shading_pattern` to `None` removes the shading entirely, as does setting
+`shading_fill` to `None`.
+
+!!! note
+
+    A shading pattern is valid with no fill — `<w:shd w:val="pct25" w:color="FF0000"/>`
+    is what Word writes for several of its Shading presets. Reading `shading_fill` on
+    such a run returns `None` rather than raising.
+
 !!! note
 
     In 0.9.x, [`Font.highlight_color`][docx.text.font.Font.highlight_color] fell back to

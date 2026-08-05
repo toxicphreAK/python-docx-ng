@@ -31,6 +31,7 @@ import datetime as dt
 from typing import TYPE_CHECKING, Iterator, List, cast
 
 from docx.oxml.ns import qn
+from docx.oxml.sdt import TRANSPARENT_WRAPPER_TAGS
 from docx.oxml.simpletypes import ST_DecimalNumber, ST_String
 from docx.oxml.xmlchemy import BaseOxmlElement, OptionalAttribute
 
@@ -149,7 +150,7 @@ def iter_original_run_content(element: BaseOxmlElement) -> Iterator[CT_R | CT_Hy
             yield cast("CT_R | CT_Hyperlink", child)
         elif tag in inserted:
             continue  # -- not there before the revision --
-        elif tag in deleted or tag == qn("w:fldSimple"):
+        elif tag in deleted or tag == qn("w:fldSimple") or tag in TRANSPARENT_WRAPPER_TAGS:
             yield from iter_original_run_content(cast(BaseOxmlElement, child))
         elif tag == qn("w:sdt"):
             sdtContent = child.find(qn("w:sdtContent"))

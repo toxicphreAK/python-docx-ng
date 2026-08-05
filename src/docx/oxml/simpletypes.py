@@ -10,7 +10,7 @@ schema.
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any, Tuple
+from typing import Any, Tuple, cast
 
 from docx.exceptions import InvalidXmlError
 from docx.shared import Emu, Length, RGBColor, Twips
@@ -337,6 +337,14 @@ class ST_FtnEdn(XsdStringEnumeration):
 
 
 class ST_HexColor(BaseStringType):
+    """`ST_HexColor`, a union of an RGB triple and the literal "auto".
+
+    `ref/xsd/wml.xsd:159` defines it as `<xsd:union memberTypes="ST_HexColorAuto
+    s:ST_HexColorRGB"/>`, so "auto" — meaning "let the consumer choose a colour that
+    contrasts with the background" — is as valid as a hex triple. Both directions
+    accept it; converting one way only would make a value readable and not writable.
+    """
+
     @classmethod
     def convert_from_xml(  # pyright: ignore[reportIncompatibleMethodOverride]
         cls, str_value: str
@@ -347,19 +355,23 @@ class ST_HexColor(BaseStringType):
 
     @classmethod
     def convert_to_xml(  # pyright: ignore[reportIncompatibleMethodOverride]
-        cls, value: RGBColor
+        cls, value: RGBColor | str
     ) -> str:
         """Keep alpha hex numerals all uppercase just for consistency."""
+        if value == ST_HexColorAuto.AUTO:
+            return ST_HexColorAuto.AUTO
         # expecting 3-tuple of ints in range 0-255
-        return "%02X%02X%02X" % value
+        return "%02X%02X%02X" % cast(RGBColor, value)
 
     @classmethod
     def validate(cls, value: Any) -> None:
-        # must be an RGBColor object ---
-        if not isinstance(value, RGBColor):
-            raise ValueError(
-                "rgb color value must be RGBColor object, got %s %s" % (type(value), value)
-            )
+        # must be an RGBColor object, or the string "auto" ---
+        if isinstance(value, RGBColor) or value == ST_HexColorAuto.AUTO:
+            return
+        raise ValueError(
+            'rgb color value must be an RGBColor object or "auto", got %s %s'
+            % (type(value), value)
+        )
 
 
 class ST_HexColorAuto(XsdStringEnumeration):
