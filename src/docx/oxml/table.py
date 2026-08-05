@@ -668,11 +668,15 @@ class CT_TblPr(BaseOxmlElement):
     get_or_add_bidiVisual: Callable[[], CT_OnOff]
     get_or_add_jc: Callable[[], CT_Jc]
     get_or_add_tblBorders: Callable[[], CT_TblBorders]
+    get_or_add_tblCaption: Callable[[], CT_String]
+    get_or_add_tblDescription: Callable[[], CT_String]
     get_or_add_tblLayout: Callable[[], CT_TblLayoutType]
     _add_tblStyle: Callable[[], CT_String]
     _remove_bidiVisual: Callable[[], None]
     _remove_jc: Callable[[], None]
     _remove_tblBorders: Callable[[], None]
+    _remove_tblCaption: Callable[[], None]
+    _remove_tblDescription: Callable[[], None]
     _remove_tblStyle: Callable[[], None]
 
     _tag_seq = (
@@ -709,6 +713,12 @@ class CT_TblPr(BaseOxmlElement):
     )
     tblLayout: CT_TblLayoutType | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:tblLayout", successors=_tag_seq[13:]
+    )
+    tblCaption: CT_String | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:tblCaption", successors=_tag_seq[16:]
+    )
+    tblDescription: CT_String | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:tblDescription", successors=_tag_seq[17:]
     )
     del _tag_seq
 

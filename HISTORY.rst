@@ -103,6 +103,7 @@ Added
   ``shading_color`` and the ``WD_SHADING_PATTERN`` enum — and paragraph outline level
 - Multi-column section layout
 - Alt text on pictures and inline shapes
+- Table alternative text — ``Table.title`` and ``Table.description``
 - ``_Row.dont_split``, and the merge extent and origin of a table cell
 - Byte-reproducible output — the same document data serializes to identical bytes
 - Custom namespace prefixes in ``xpath()`` calls

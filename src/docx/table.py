@@ -352,6 +352,24 @@ class Table(StoryChild):
 
         return list(iter_column_cells())
 
+    @property
+    def description(self) -> str | None:
+        """Alternative-text description for this table, or |None| if not set.
+
+        Assigning |None| removes the description. This value is stored in the
+        ``w:tblDescription`` table-property element and is used by assistive
+        technologies.
+        """
+        tblDescription = self._tblPr.tblDescription
+        return None if tblDescription is None else tblDescription.val
+
+    @description.setter
+    def description(self, value: str | None):
+        tblPr = self._tblPr
+        tblPr._remove_tblDescription()  # pyright: ignore[reportPrivateUsage]
+        if value is not None:
+            tblPr.get_or_add_tblDescription().val = value
+
     def delete(self) -> None:
         """Remove this table from the document.
 
@@ -423,6 +441,23 @@ class Table(StoryChild):
     @table_direction.setter
     def table_direction(self, value: WD_TABLE_DIRECTION | None):
         self._element.bidiVisual_val = value
+
+    @property
+    def title(self) -> str | None:
+        """Alternative-text title for this table, or |None| if not set.
+
+        Assigning |None| removes the title. This value is stored in the
+        ``w:tblCaption`` table-property element and is used by assistive technologies.
+        """
+        tblCaption = self._tblPr.tblCaption
+        return None if tblCaption is None else tblCaption.val
+
+    @title.setter
+    def title(self, value: str | None):
+        tblPr = self._tblPr
+        tblPr._remove_tblCaption()  # pyright: ignore[reportPrivateUsage]
+        if value is not None:
+            tblPr.get_or_add_tblCaption().val = value
 
     @property
     def _cells(self) -> list[_Cell]:
