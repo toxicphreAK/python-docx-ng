@@ -16,6 +16,7 @@ from docx.enum.text import WD_BREAK
 from docx.formfield import FormField, iter_form_fields
 from docx.opc.constants import CONTENT_TYPE as CT
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from docx.parts.image import ImagePart
 from docx.section import Section, Sections
 from docx.shared import ElementProxy, Emu, Inches, Length, Pt, lazyproperty
 from docx.text.run import Run
@@ -538,12 +539,16 @@ class Document(ElementProxy):
         Only images related from the main document part appear here. A picture in a
         header, a footer or a comment belongs to that part's relationships instead.
 
-        A *linked* image is not included: its bytes are not in the package.
+        A *linked* image is not included: its bytes are not in the package. Neither is a
+        relationship of image type whose target is not an image part, which does occur —
+        see the same guard in `Package._gather_image_parts()`.
         """
         return tuple(
             rel.target_part.image
             for rel in self._part.rels.values()
-            if rel.reltype == RT.IMAGE and not rel.is_external
+            if rel.reltype == RT.IMAGE
+            and not rel.is_external
+            and isinstance(rel.target_part, ImagePart)
         )
 
     @property

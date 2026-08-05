@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from docx.shared import ElementProxy
 
 if TYPE_CHECKING:
+    from docx.opc.part import XmlPart
     from docx.oxml.theme import CT_OfficeStyleSheet
     from docx.shared import RGBColor
 
@@ -70,8 +71,8 @@ class Theme(ElementProxy):
     concrete typeface behind that token lives.
     """
 
-    def __init__(self, theme: CT_OfficeStyleSheet, part: object = None):
-        super().__init__(theme)  # pyright: ignore[reportArgumentType]
+    def __init__(self, theme: CT_OfficeStyleSheet, part: XmlPart | None = None):
+        super().__init__(theme, part)  # pyright: ignore[reportArgumentType]
         self._element = theme
 
     @property

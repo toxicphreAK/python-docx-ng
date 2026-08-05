@@ -307,3 +307,28 @@ class DescribeNumberingLevelSet:
 
         with pytest.raises(ValueError, match="has no definition"):
             definition.level(5).set(start=1)
+
+
+class DescribeLevelCountValidation:
+    """OOXML admits nine levels; more is out of schema and Word may reject it."""
+
+    def it_rejects_more_than_nine_levels(self):
+        document = docx.Document()
+
+        with pytest.raises(ValueError, match="at most 9 levels"):
+            document.numbering.add_definition([{} for _ in range(10)])
+
+    def but_nine_is_fine(self):
+        document = docx.Document()
+
+        definition = document.numbering.add_definition([{} for _ in range(9)])
+
+        assert len(definition.levels) == 9
+
+    def and_the_shorthands_validate_too(self):
+        document = docx.Document()
+
+        with pytest.raises(ValueError, match="at most 9 levels"):
+            document.numbering.add_numbered_definition(12)
+        with pytest.raises(ValueError, match="at most 9 levels"):
+            document.numbering.add_bulleted_definition(12)

@@ -14,6 +14,7 @@ underlying document.
 from __future__ import annotations
 
 import os
+import re
 from typing import IO, TYPE_CHECKING
 
 from docx.opc.constants import CONTENT_TYPE as CT
@@ -27,6 +28,9 @@ if TYPE_CHECKING:
     import docx.types as t
     from docx.image.image import Image
     from docx.oxml.object import CT_Object
+
+#: A shape id of the `_x0000_iNNNN` form Word writes for an OLE object's visual.
+_SHAPE_ID_RE = re.compile(r"^_x0000_i(\d+)$")
 
 #: The `ProgID` Word writes for an object it has no better name for. An object whose
 #: `ProgID` names no installed application is one Word displays but cannot open, so a
@@ -75,7 +79,7 @@ class EmbeddedObject(StoryChild):
         return oleObject is not None and oleObject.DrawAspect == "Icon"
 
     @property
-    def part_(self) -> Part | None:
+    def embedded_part(self) -> Part | None:
         """The package part holding the embedded file, or |None|.
 
         |None| for a linked object, and for an embedded one whose relationship the
@@ -99,13 +103,13 @@ class EmbeddedObject(StoryChild):
                 if obj.blob is not None:
                     Path(obj.filename or "attachment").write_bytes(obj.blob)
         """
-        part = self.part_
+        part = self.embedded_part
         return None if part is None else part.blob
 
     @property
     def content_type(self) -> str | None:
         """The content type of the embedded part, or |None| when there is no part."""
-        part = self.part_
+        part = self.embedded_part
         return None if part is None else part.content_type
 
     @property
@@ -116,7 +120,7 @@ class EmbeddedObject(StoryChild):
         name of the part it landed in, which is what a caller extracting it has to work
         with.
         """
-        part = self.part_
+        part = self.embedded_part
         return None if part is None else os.path.basename(str(part.partname))
 
     @property
@@ -155,9 +159,10 @@ def add_embedded_object(
     cx = width if width is not None else icon_image.width
     cy = height if height is not None else icon_image.height
 
+    ordinal = _next_shape_ordinal(part)
     # -- the shape id must be unique in the document, and `o:OLEObject/@ShapeID` names
     # -- it, so the two are generated together --
-    shape_id = "_x0000_i%04d" % part.next_id
+    shape_id = "_x0000_i%04d" % ordinal
 
     object_elm = parse_xml(
         "<w:object %s>\n"
@@ -175,12 +180,33 @@ def add_embedded_object(
             icon_rId,
             prog_id or _DEFAULT_PROG_ID,
             shape_id,
-            part.next_id,
+            ordinal,
             object_rId,
         )
     )
     run._r.append(object_elm)  # pyright: ignore[reportPrivateUsage]
     return EmbeddedObject(object_elm, run)  # pyright: ignore[reportArgumentType]
+
+
+def _next_shape_ordinal(part: object) -> int:
+    """The next free number for a `v:shape/@id` of the `_x0000_iNNNN` form.
+
+    `StoryPart.next_id` cannot serve here: it reads unprefixed `id` attributes and keeps
+    only the ones that are entirely digits, so a VML shape id is invisible to it and
+    every object would be given the same number. The two id spaces are counted
+    separately for the same reason `next_bookmark_id` is separate from `next_id`.
+    """
+    used = {
+        int(match.group(1))
+        for match in (
+            _SHAPE_ID_RE.match(shape_id)
+            for shape_id in part.element.xpath(  # pyright: ignore[reportAttributeAccessIssue]
+                "//v:shape/@id"
+            )
+        )
+        if match
+    }
+    return max(used, default=0) + 1
 
 
 def _read_blob(path_or_stream: str | IO[bytes]) -> bytes:

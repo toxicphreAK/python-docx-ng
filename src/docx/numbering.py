@@ -455,11 +455,18 @@ class Numbering(ElementProxy):
         free in this document. `w:nsid` and `w:tmpl` are deliberately not written — they
         are what Word uses to recognise a definition as one of its own gallery entries,
         and inventing values would claim a provenance this definition does not have.
+
+        Raises |ValueError| for more than nine levels, which is all OOXML admits.
         """
         from docx.oxml.numbering import CT_AbstractNum
 
         if levels is None:
-            levels = [{} for _ in range(9)]
+            levels = [{} for _ in range(_MAX_LEVELS)]
+        elif len(levels) > _MAX_LEVELS:
+            raise ValueError(
+                "a list definition has at most %d levels, got %d"
+                % (_MAX_LEVELS, len(levels))
+            )
 
         abstract = CT_AbstractNum.new(self._next_abstract_num_id())
         self._insert_abstract_num(abstract)
@@ -498,6 +505,8 @@ class Numbering(ElementProxy):
         cumulative "1.1.1" style, pass `levels` to :meth:`add_definition` with
         `level_text` of ``"%1.%2."`` and so on. `indent_step` defaults to a quarter
         inch, which is what Word uses.
+
+        Raises |ValueError| for a `depth` above nine, as :meth:`add_definition` does.
         """
         from docx.shared import Inches
 
@@ -533,6 +542,7 @@ class Numbering(ElementProxy):
 
         `bullets` cycles when it is shorter than `depth`; the default is Word's own
         bullet, circle and square sequence. `indent_step` defaults to a quarter inch.
+        Raises |ValueError| for a `depth` above nine.
 
         Note the bullet characters Word writes are glyphs of the Symbol and Wingdings
         fonts rather than the Unicode characters they resemble. The defaults here are

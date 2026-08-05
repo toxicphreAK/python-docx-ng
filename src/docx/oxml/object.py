@@ -14,14 +14,11 @@ case is inconsistent — `ProgID`, `ShapeID`, `DrawAspect` — so they are taken
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+from typing import List
 
 from docx.oxml.ns import qn
 from docx.oxml.simpletypes import ST_RelationshipId, XsdString
 from docx.oxml.xmlchemy import BaseOxmlElement, OptionalAttribute
-
-if TYPE_CHECKING:
-    pass
 
 
 class CT_OLEObject(BaseOxmlElement):

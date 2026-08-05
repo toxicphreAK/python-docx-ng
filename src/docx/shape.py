@@ -40,10 +40,17 @@ def _picture_blip(graphicData: CT_GraphicalObjectData) -> CT_Blip | None:
 
 
 def _image_from_rId(part: StoryPart, rId: str | None) -> Image | None:
-    """The |Image| of the image part `rId` names, or |None| when `rId` is |None|."""
-    if rId is None:
+    """The |Image| of the image part `rId` names, or |None| when there is none.
+
+    |None| rather than |KeyError| for a relationship the part does not resolve, and for
+    one resolving to something that is not an image part. Both occur in real documents —
+    a relationship whose target was missing from the package is dropped on load — and
+    neither is the caller's fault, so `.image` reports "nothing to give" as it does for
+    a chart or a linked picture.
+    """
+    if rId is None or rId not in part.rels:
         return None
-    return part.related_parts[rId].image
+    return getattr(part.rels[rId].target_part, "image", None)
 
 
 class _PictureShape:

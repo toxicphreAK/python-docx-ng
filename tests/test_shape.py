@@ -13,7 +13,8 @@ import docx
 from docx.document import Document
 from docx.enum.shape import WD_INLINE_SHAPE
 from docx.oxml.document import CT_Body
-from docx.oxml.ns import nsmap
+from docx.oxml.ns import nsdecls, nsmap
+from docx.oxml.parser import parse_xml
 from docx.oxml.shape import CT_Inline
 from docx.shape import InlineShape, InlineShapes
 from docx.shared import Emu, Inches, Length
@@ -380,3 +381,38 @@ class DescribeShapeImageExtraction:
     @pytest.fixture
     def document_(self, request: FixtureRequest):
         return instance_mock(request, Document)
+
+
+class DescribeBrokenImageRelationships:
+    """A relationship whose target was missing from the package is dropped on load."""
+
+    def it_reports_None_rather_than_raising_KeyError(self):
+        document = docx.Document()
+        run = document.add_paragraph().add_run()
+        run._r.append(
+            parse_xml(
+                '<w:drawing %s><wp:inline><a:graphic><a:graphicData uri="%s">'
+                '<pic:pic><pic:blipFill><a:blip r:embed="rIdMissing"/></pic:blipFill>'
+                "</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>"
+                % (nsdecls("w", "wp", "a", "pic", "r"), nsmap["pic"])
+            )
+        )
+
+        shape = document.inline_shapes[0]
+
+        assert shape.image is None
+        assert shape.svg_image is None
+
+    def and_Document_images_skips_a_non_image_target(self):
+        """`Package._gather_image_parts()` guards for the same case."""
+        from docx.opc.constants import RELATIONSHIP_TYPE as RT
+        from docx.opc.packuri import PackURI
+        from docx.opc.part import Part
+
+        document = docx.Document()
+        not_an_image = Part(
+            PackURI("/word/notimage.bin"), "application/octet-stream", b"x", document.part.package
+        )
+        document.part.relate_to(not_an_image, RT.IMAGE)
+
+        assert document.images == ()

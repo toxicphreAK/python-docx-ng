@@ -171,7 +171,7 @@ class DescribeReadingAnExistingObject:
         assert obj.is_linked is True
         assert obj.prog_id == "Excel.Sheet.12"
         assert obj.blob is None
-        assert obj.part_ is None
+        assert obj.embedded_part is None
         assert obj.filename is None
 
     def it_reports_None_for_an_object_with_no_OLEObject_child(self):
@@ -243,3 +243,48 @@ class DescribeOLEElementClasses:
         oleObject = obj._object.oleObject
         assert oleObject.get(qn("r:id")) is not None
         assert oleObject.get("ProgID") is not None
+
+
+class DescribeShapeIdAllocation:
+    """A shape id must be unique document-wide, and `@ShapeID` is how the object
+    names its visual — two objects sharing one id resolve to the same shape."""
+
+    def it_gives_each_object_a_distinct_shape_id(self):
+        document = docx.Document()
+        run = document.add_paragraph().add_run()
+
+        for _ in range(3):
+            run.add_embedded_object(_PAYLOAD, icon=_ICON)
+
+        shape_ids = [obj._object.shape.get("id") for obj in document.embedded_objects]
+        assert shape_ids == ["_x0000_i0001", "_x0000_i0002", "_x0000_i0003"]
+
+    def and_a_distinct_object_id(self):
+        document = docx.Document()
+        run = document.add_paragraph().add_run()
+
+        for _ in range(3):
+            run.add_embedded_object(_PAYLOAD, icon=_ICON)
+
+        object_ids = [obj._object.oleObject.ObjectID for obj in document.embedded_objects]
+        assert len(set(object_ids)) == 3
+
+    def and_the_ShapeID_still_names_its_own_shape(self):
+        document = docx.Document()
+        run = document.add_paragraph().add_run()
+
+        for _ in range(3):
+            run.add_embedded_object(_PAYLOAD, icon=_ICON)
+
+        for obj in document.embedded_objects:
+            assert obj._object.oleObject.ShapeID == obj._object.shape.get("id")
+
+    def it_does_not_reuse_a_shape_id_after_a_save(self):
+        document, _ = _document_with_object()
+        reopened = _reopened(document)
+        run = reopened.add_paragraph().add_run()
+
+        run.add_embedded_object(_PAYLOAD, icon=_ICON)
+
+        shape_ids = [obj._object.shape.get("id") for obj in reopened.embedded_objects]
+        assert len(set(shape_ids)) == 2

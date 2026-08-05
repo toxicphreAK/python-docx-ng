@@ -8,7 +8,7 @@ its own.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, List
+from typing import Callable, List
 
 from docx.oxml.ns import nsdecls, qn
 from docx.oxml.parser import parse_xml
@@ -19,9 +19,6 @@ from docx.oxml.xmlchemy import (
     ZeroOrMore,
     ZeroOrOne,
 )
-
-if TYPE_CHECKING:
-    pass
 
 
 class CT_DatastoreSchemaRef(BaseOxmlElement):

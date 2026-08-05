@@ -64,8 +64,9 @@ def import_styles(
             continue
         present = name in styles
         if present and not overwrite:
+            # -- nothing to do: the destination already defines this name, so a later
+            # -- style based on it already resolves --
             report[name] = "skipped"
-            # -- still resolve it, so a later style based on it finds it here --
             continue
         styles.copy_style_from(style, on_collision="overwrite" if overwrite else "skip")
         report[name] = "replaced" if present else "added"
