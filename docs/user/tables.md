@@ -173,3 +173,21 @@ Each edge exposes `line` (a [`WD_LINE_STYLE`][docx.enum.table.WD_LINE_STYLE] mem
 `size` (a [`Length`][docx.shared.Length]), `color` (an
 [`RGBColor`][docx.shared.RGBColor], not a hex string) and `space`. Setting `line` to
 `WD_LINE_STYLE.NONE` removes the border.
+
+## Alternative text
+
+A table carries the same two alt-text values Word's "Alt Text" pane writes for a
+picture, and they matter for the same reason — an accessibility check on a generated
+document flags a table without them:
+
+```python
+table = document.add_table(rows=2, cols=2)
+
+table.title = "Quarterly revenue"
+table.description = "Revenue by region for Q1 through Q4 2026, in thousands of euro."
+```
+
+Both are read/write on [`Table`][docx.table.Table] and both are `None` when unset;
+assigning `None` removes them. They are stored as `w:tblCaption` and `w:tblDescription`
+and are never rendered — this is metadata read by assistive technology, not a visible
+caption above or below the table.
