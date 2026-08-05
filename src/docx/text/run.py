@@ -108,7 +108,7 @@ class Run(StoryChild):
             svg_fallback=svg_fallback,
         )
         self._r.add_drawing(inline)
-        return InlineShape(inline)
+        return InlineShape(inline, self)
 
     def add_float_picture(
         self,
@@ -175,7 +175,7 @@ class Run(StoryChild):
         anchor.positionH.relativeFrom = relative_from_h
         anchor.positionV.relativeFrom = relative_from_v
         self._r.add_drawing(anchor)
-        return FloatingShape(anchor)
+        return FloatingShape(anchor, self)
 
     def add_tab(self) -> None:
         """Add a ``<w:tab/>`` element at the end of the run, which Word interprets as a
@@ -231,7 +231,7 @@ class Run(StoryChild):
     def font(self) -> Font:
         """The |Font| object providing access to the character formatting properties for
         this run, such as font name and size."""
-        return Font(self._element)
+        return Font(self._element, self)
 
     @property
     def italic(self) -> bool | None:

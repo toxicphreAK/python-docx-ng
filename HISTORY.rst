@@ -38,6 +38,16 @@ New features
 - ``ParagraphFormat.borders`` and ``Section.page_borders``, spelled the same as the
   table and cell borders API. A paragraph with only a bottom border is how Word draws a
   horizontal rule.
+- ``Document.theme``, exposing ``word/theme/theme1.xml`` — the major and minor
+  typefaces and the twelve theme colours — and ``Font.theme_typeface``, which resolves
+  a ``minorHAnsi``-style token to the font name it stands for. For a document whose
+  fonts come only from its theme, this is the first way to find out what the text is
+  actually rendered in. ``Document.theme`` is ``None`` for a document with no theme
+  part; unlike the styles and settings parts, one is never created on demand.
+- ``InlineShape.image`` and ``FloatingShape.image``, the counterpart of
+  ``Run.add_picture()``, plus ``.svg_image`` for the vector source of an SVG picture and
+  ``Document.images`` for the package-level view. ``.image`` is ``None`` rather than an
+  error for a chart, a SmartArt diagram or a linked picture.
 
 2.0.0 (2026-08-05)
 ++++++++++++++++++

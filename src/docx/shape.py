@@ -19,10 +19,105 @@ from docx.oxml.ns import nsmap
 from docx.shared import Emu, Parented
 
 if TYPE_CHECKING:
+    import docx.types as t
+    from docx.image.image import Image
     from docx.oxml.document import CT_Body
-    from docx.oxml.shape import CT_Anchor, CT_Inline
+    from docx.oxml.shape import CT_Anchor, CT_Blip, CT_GraphicalObjectData, CT_Inline
     from docx.parts.story import StoryPart
     from docx.shared import Length
+
+
+def _picture_blip(graphicData: CT_GraphicalObjectData) -> CT_Blip | None:
+    """The `a:blip` of a picture shape, or |None| when the shape is not a picture.
+
+    A chart, a SmartArt diagram and an embedded object all live in the same
+    `a:graphicData` wrapper as a picture and are told apart by its `@uri`. Only the
+    picture case has a `pic:pic` child to reach a blip through.
+    """
+    if graphicData.uri != nsmap["pic"]:
+        return None
+    return graphicData.pic.blipFill.blip
+
+
+def _image_from_rId(part: StoryPart, rId: str | None) -> Image | None:
+    """The |Image| of the image part `rId` names, or |None| when `rId` is |None|."""
+    if rId is None:
+        return None
+    return part.related_parts[rId].image
+
+
+class _PictureShape:
+    """The picture-extraction half of an inline or floating shape.
+
+    Both `wp:inline` and `wp:anchor` wrap the same `a:graphic` subtree, so finding the
+    image behind them is one implementation rather than two.
+    """
+
+    _parent: t.ProvidesStoryPart | None
+
+    @property
+    def image(self) -> Image | None:
+        """The |Image| this shape displays, or |None| when there is no image to return.
+
+        This is the counterpart of :meth:`.Run.add_picture` — extracting the pictures
+        from a document without walking the relationships by hand::
+
+            for shape in document.inline_shapes:
+                if shape.image is not None:
+                    Path(f"{shape.image.sha1}.{shape.image.ext}").write_bytes(
+                        shape.image.blob
+                    )
+
+        |None| in three cases, each of which is a real document rather than an error:
+
+        - the shape is not a picture at all — a chart, a SmartArt diagram or an
+          embedded object;
+        - the picture is *linked* rather than embedded, so the bytes are not in the
+          package and there is nothing to hand back;
+        - the shape was constructed without a parent, so there is no part to resolve
+          the relationship against.
+
+        For an SVG picture this returns the raster fallback, which is what every
+        consumer can decode; :attr:`svg_image` returns the vector source.
+
+        Several shapes can share one image part, so the |Image| returned for two shapes
+        may be the same object.
+        """
+        blip = self._blip
+        return None if blip is None else _image_from_rId(self._story_part, blip.embed)
+
+    @property
+    def svg_image(self) -> Image | None:
+        """The SVG source of this picture, or |None| when it has none.
+
+        Word records an SVG picture as an `asvg:svgBlip` extension *alongside* a raster
+        rendering of it, rather than in place of one. :attr:`image` returns the raster
+        fallback; this returns the vector original.
+        """
+        blip = self._blip
+        if blip is None:
+            return None
+        svgBlip = blip.svgBlip
+        return None if svgBlip is None else _image_from_rId(self._story_part, svgBlip.embed)
+
+    @property
+    def _blip(self) -> CT_Blip | None:
+        """The `a:blip` of this shape, or |None| when it is not a picture."""
+        raise NotImplementedError  # pragma: no cover
+
+    @property
+    def _story_part(self) -> StoryPart:
+        """The story part this shape belongs to.
+
+        Raises |ValueError| when the shape was constructed without a parent, which no
+        longer happens for shapes reached through the public API.
+        """
+        if self._parent is None:
+            raise ValueError(
+                "shape has no parent part; reach it through Document.inline_shapes,"
+                " Document.floating_shapes or Run.add_picture()"
+            )
+        return self._parent.part
 
 
 class InlineShapes(Parented):
@@ -40,10 +135,10 @@ class InlineShapes(Parented):
             msg = "inline shape index [%d] out of range" % idx
             raise IndexError(msg)
 
-        return InlineShape(inline)
+        return InlineShape(inline, self)
 
     def __iter__(self):
-        return (InlineShape(inline) for inline in self._inline_lst)
+        return (InlineShape(inline, self) for inline in self._inline_lst)
 
     def __len__(self):
         return len(self._inline_lst)
@@ -75,10 +170,10 @@ class FloatingShapes(Parented):
             anchor = self._anchor_lst[idx]
         except IndexError:
             raise IndexError("floating shape index [%d] out of range" % idx) from None
-        return FloatingShape(anchor)
+        return FloatingShape(anchor, self)
 
     def __iter__(self):
-        return (FloatingShape(anchor) for anchor in self._anchor_lst)
+        return (FloatingShape(anchor, self) for anchor in self._anchor_lst)
 
     def __len__(self) -> int:
         return len(self._anchor_lst)
@@ -88,15 +183,20 @@ class FloatingShapes(Parented):
         return self._body.xpath("//w:p/w:r/w:drawing/wp:anchor")
 
 
-class FloatingShape:
+class FloatingShape(_PictureShape):
     """Proxy for a `<wp:anchor>` element, a shape that text flows around.
 
     Reached through :attr:`.Document.floating_shapes` or returned by
     :meth:`.Run.add_float_picture`.
     """
 
-    def __init__(self, anchor: CT_Anchor):
+    def __init__(self, anchor: CT_Anchor, parent: t.ProvidesStoryPart | None = None):
         self._anchor = anchor
+        self._parent = parent
+
+    @property
+    def _blip(self) -> CT_Blip | None:
+        return _picture_blip(self._anchor.graphic.graphicData)
 
     @property
     def allow_overlap(self) -> bool:
@@ -292,13 +392,18 @@ class FloatingShape:
         self._anchor.relativeHeight = int(value)
 
 
-class InlineShape:
+class InlineShape(_PictureShape):
     """Proxy for an ``<wp:inline>`` element, representing the container for an inline
     graphical object."""
 
-    def __init__(self, inline: CT_Inline):
+    def __init__(self, inline: CT_Inline, parent: t.ProvidesStoryPart | None = None):
         super(InlineShape, self).__init__()
         self._inline = inline
+        self._parent = parent
+
+    @property
+    def _blip(self) -> CT_Blip | None:
+        return _picture_blip(self._inline.graphic.graphicData)
 
     @property
     def description(self) -> str | None:

@@ -289,3 +289,94 @@ class DescribeSvgPictureInsertion:
         blip = shape._inline.graphic.graphicData.pic.blipFill.blip
         assert blip.svgBlip is not None
         assert shape.width == Inches(2)
+
+
+class DescribeShapeImageExtraction:
+    """Unit-test suite for `InlineShape.image` and `FloatingShape.image`, issue #124."""
+
+    def it_provides_the_image_behind_an_inline_picture(self):
+        document = docx.Document()
+        document.add_picture(test_file("monty-truth.png"))
+
+        image = document.inline_shapes[0].image
+
+        assert image is not None
+        assert image.content_type == "image/png"
+        assert image.ext == "png"
+        assert image.blob[:8] == b"\x89PNG\r\n\x1a\n"
+
+    def and_the_image_behind_a_floating_picture(self):
+        document = docx.Document()
+        document.add_paragraph().add_run().add_float_picture(test_file("monty-truth.png"))
+
+        image = document.floating_shapes[0].image
+
+        assert image is not None
+        assert image.content_type == "image/png"
+
+    def it_reports_None_for_a_shape_that_is_not_a_picture(self, document_: Mock):
+        """A chart, a SmartArt diagram or an embedded object has no blip to reach."""
+        inline = cast(
+            CT_Inline, element("wp:inline/a:graphic/a:graphicData{uri=%s}" % nsmap["c"])
+        )
+
+        assert InlineShape(inline, document_).image is None
+
+    def and_it_reports_None_for_a_linked_picture(self, document_: Mock):
+        """The bytes of a linked picture are not in the package at all."""
+        inline = cast(
+            CT_Inline,
+            element(
+                "wp:inline/a:graphic/a:graphicData{uri=%s}/pic:pic/pic:blipFill/"
+                "a:blip{r:link=rId2}" % nsmap["pic"]
+            ),
+        )
+
+        assert InlineShape(inline, document_).image is None
+
+    def it_returns_the_raster_fallback_for_an_svg_picture(self):
+        """Every consumer can decode the fallback; `svg_image` is the vector source."""
+        document = docx.Document()
+        document.add_picture(
+            test_file("python-logo.svg"), svg_fallback=test_file("monty-truth.png")
+        )
+
+        shape = document.inline_shapes[0]
+
+        assert shape.image is not None
+        assert shape.image.ext == "png"
+        assert shape.svg_image is not None
+        assert shape.svg_image.ext == "svg"
+
+    def and_svg_image_is_None_for_an_ordinary_picture(self):
+        document = docx.Document()
+        document.add_picture(test_file("monty-truth.png"))
+
+        assert document.inline_shapes[0].svg_image is None
+
+    def it_raises_when_the_shape_has_no_parent_part(self):
+        inline = cast(
+            CT_Inline,
+            element(
+                "wp:inline/a:graphic/a:graphicData{uri=%s}/pic:pic/pic:blipFill/"
+                "a:blip{r:embed=rId1}" % nsmap["pic"]
+            ),
+        )
+
+        with pytest.raises(ValueError, match="shape has no parent part"):
+            InlineShape(inline).image
+
+    def it_collects_the_distinct_images_of_a_document(self):
+        """Two shapes sharing one image part are one image, not two."""
+        document = docx.Document()
+        document.add_picture(test_file("monty-truth.png"))
+        document.add_picture(test_file("monty-truth.png"))
+
+        assert len(document.inline_shapes) == 2
+        assert len(document.images) == 1
+
+    # fixtures -------------------------------------------------------
+
+    @pytest.fixture
+    def document_(self, request: FixtureRequest):
+        return instance_mock(request, Document)

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from docx.enum.text import WD_COLOR_INDEX
     from docx.oxml.text.run import CT_R
     from docx.shared import Length, RGBColor
+    from docx.theme import Theme
 
 
 class Font(ElementProxy):
@@ -293,6 +294,42 @@ class Font(ElementProxy):
         rPr = self._element.get_or_add_rPr()
         rPr.rFonts_asciiTheme = value
         rPr.rFonts_hAnsiTheme = value
+
+    @property
+    def theme_typeface(self) -> str | None:
+        """The concrete typeface this font's theme slot resolves to, or |None|.
+
+        :attr:`theme` gives the token — ``"minorHAnsi"`` — and this gives the font name
+        it stands for, by looking the token up in the document's theme part::
+
+            >>> run.font.theme
+            'minorHAnsi'
+            >>> run.font.theme_typeface
+            'Calibri'
+
+        |None| when the run has no theme slot, when the document carries no theme part,
+        or when the theme leaves that slot empty. This resolves the run's *own* theme
+        token only; it does not walk the style hierarchy, so a run whose theme font comes
+        from its style reads |None| here as it does from :attr:`theme`.
+        """
+        theme_token = self.theme
+        if theme_token is None:
+            return None
+        theme = self._theme
+        return None if theme is None else theme.typeface(theme_token)
+
+    @property
+    def _theme(self) -> Theme | None:
+        """The theme of the document this font belongs to, or |None|.
+
+        |None| both for a document with no theme part and for a |Font| built over a bare
+        element with no part behind it, as the unit tests do.
+        """
+        try:
+            part = self.part
+        except (AttributeError, ValueError, NotImplementedError):
+            return None
+        return getattr(part.package.main_document_part, "theme", None) if part.package else None
 
     @property
     def scaling(self) -> int | None:

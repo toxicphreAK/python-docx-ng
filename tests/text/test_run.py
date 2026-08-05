@@ -246,7 +246,7 @@ class DescribeRun:
 
         font = run.font
 
-        Font_.assert_called_once_with(run._element)
+        Font_.assert_called_once_with(run._element, run)
         assert font is font_
 
     @pytest.mark.parametrize(
@@ -317,7 +317,7 @@ class DescribeRun:
             image, width, height, description=None, title=None, svg_fallback=None
         )
         assert run._r.xml == xml("w:r/(wp:x,w:drawing/wp:inline{id=42})")
-        InlineShape_.assert_called_once_with(inline)
+        InlineShape_.assert_called_once_with(inline, run)
         assert picture is picture_
 
     @pytest.mark.parametrize(

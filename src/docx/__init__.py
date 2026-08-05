@@ -36,6 +36,7 @@ from docx.parts.image import ImagePart
 from docx.parts.numbering import NumberingPart
 from docx.parts.settings import SettingsPart
 from docx.parts.styles import StylesPart
+from docx.parts.theme import ThemePart
 
 
 def part_class_selector(content_type: str, reltype: str) -> Type[Part] | None:
@@ -60,6 +61,7 @@ PartFactory.part_type_for[CT.WML_FOOTNOTES] = FootnotesPart
 PartFactory.part_type_for[CT.WML_HEADER] = HeaderPart
 PartFactory.part_type_for[CT.WML_NUMBERING] = NumberingPart
 PartFactory.part_type_for[CT.WML_SETTINGS] = SettingsPart
+PartFactory.part_type_for[CT.OFC_THEME] = ThemePart
 PartFactory.part_type_for[CT.WML_STYLES] = StylesPart
 # -- a Word template holds the same main part as a document; only Word's treatment of
 # -- the file differs --
@@ -79,5 +81,6 @@ del (
     PartFactory,
     SettingsPart,
     StylesPart,
+    ThemePart,
     part_class_selector,
 )

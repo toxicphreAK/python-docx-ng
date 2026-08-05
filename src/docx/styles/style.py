@@ -200,7 +200,7 @@ class CharacterStyle(BaseStyle):
     def font(self):
         """The |Font| object providing access to the character formatting properties for
         this style, such as font name and size."""
-        return Font(self._element)
+        return Font(self._element, self)
 
 
 # -- just in case someone uses the old name in an extension function --

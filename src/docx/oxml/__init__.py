@@ -406,3 +406,42 @@ register_element_cls("w:spacing", CT_Spacing)
 register_element_cls("w:tab", CT_TabStop)
 register_element_cls("w:tabs", CT_TabStops)
 register_element_cls("w:widowControl", CT_OnOff)
+
+from .theme import (
+    CT_BaseStyles,
+    CT_ColorScheme,
+    CT_FontCollection,
+    CT_FontScheme,
+    CT_OfficeStyleSheet,
+    CT_SRgbColor,
+    CT_SystemColor,
+    CT_TextFont,
+    CT_ThemeColor,
+)
+
+# -- The `a:` theme tags. `a:cs` and `a:latin` also occur inside `a:defRPr` in a
+# -- `w:lvl` text-properties block, where they are the same `CT_TextFont`, so claiming
+# -- them globally is safe. The twelve colour-slot tags are theme-only. --
+register_element_cls("a:accent1", CT_ThemeColor)
+register_element_cls("a:accent2", CT_ThemeColor)
+register_element_cls("a:accent3", CT_ThemeColor)
+register_element_cls("a:accent4", CT_ThemeColor)
+register_element_cls("a:accent5", CT_ThemeColor)
+register_element_cls("a:accent6", CT_ThemeColor)
+register_element_cls("a:clrScheme", CT_ColorScheme)
+register_element_cls("a:cs", CT_TextFont)
+register_element_cls("a:dk1", CT_ThemeColor)
+register_element_cls("a:dk2", CT_ThemeColor)
+register_element_cls("a:ea", CT_TextFont)
+register_element_cls("a:folHlink", CT_ThemeColor)
+register_element_cls("a:fontScheme", CT_FontScheme)
+register_element_cls("a:hlink", CT_ThemeColor)
+register_element_cls("a:latin", CT_TextFont)
+register_element_cls("a:lt1", CT_ThemeColor)
+register_element_cls("a:lt2", CT_ThemeColor)
+register_element_cls("a:majorFont", CT_FontCollection)
+register_element_cls("a:minorFont", CT_FontCollection)
+register_element_cls("a:srgbClr", CT_SRgbColor)
+register_element_cls("a:sysClr", CT_SystemColor)
+register_element_cls("a:theme", CT_OfficeStyleSheet)
+register_element_cls("a:themeElements", CT_BaseStyles)

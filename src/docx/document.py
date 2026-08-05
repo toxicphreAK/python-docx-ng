@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import os
-from typing import IO, TYPE_CHECKING, Iterator, List, Sequence
+from typing import IO, TYPE_CHECKING, Iterator, List, Sequence, Tuple
 
 from docx.altchunk import AltChunk
 from docx.blkcntnr import BlockItemContainer
@@ -15,6 +15,7 @@ from docx.enum.section import WD_SECTION
 from docx.enum.text import WD_BREAK
 from docx.formfield import FormField, iter_form_fields
 from docx.opc.constants import CONTENT_TYPE as CT
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.section import Section, Sections
 from docx.shared import ElementProxy, Emu, Inches, Length, Pt, lazyproperty
 from docx.text.run import Run
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
     from docx.comments import Comment, Comments
     from docx.fields import Field
     from docx.footnotes import Footnotes
+    from docx.image.image import Image
     from docx.numbering import Numbering
     from docx.opc.customprops import CustomProperties
     from docx.oxml.document import CT_Body, CT_Document
@@ -34,6 +36,7 @@ if TYPE_CHECKING:
     from docx.styles.style import ParagraphStyle, _TableStyle
     from docx.table import Table
     from docx.text.paragraph import Paragraph
+    from docx.theme import Theme
     from docx.watermark import Watermark
 
 
@@ -309,6 +312,43 @@ class Document(ElementProxy):
         meaningless for them.
         """
         return self._part.floating_shapes
+
+    @property
+    def images(self) -> Tuple[Image, ...]:
+        """The distinct images embedded in this document's body, in relationship order.
+
+        This is the package-level view, the counterpart of reaching an image through the
+        shape that displays it. Several shapes can share one image part, so this is
+        shorter than :attr:`inline_shapes` whenever a picture is used twice, and it
+        includes images no shape displays — a picture left behind when its paragraph was
+        deleted, for instance.
+
+        Only images related from the main document part appear here. A picture in a
+        header, a footer or a comment belongs to that part's relationships instead.
+
+        A *linked* image is not included: its bytes are not in the package.
+        """
+        return tuple(
+            rel.target_part.image
+            for rel in self._part.rels.values()
+            if rel.reltype == RT.IMAGE and not rel.is_external
+        )
+
+    @property
+    def theme(self) -> Theme | None:
+        """The document's |Theme|, or |None| when it carries no theme part.
+
+        The theme is where a theme typeface token such as ``"minorHAnsi"`` becomes a
+        real font name, and where a theme colour becomes an RGB value::
+
+            document.theme.minor_font.latin   # -> 'Calibri'
+            document.theme.color("accent1")
+
+        For the large class of documents that set no explicit ``w:rFonts/@w:ascii``
+        anywhere, this is the only place the typeface the text is actually rendered in
+        can be found; see also :attr:`.Font.theme_typeface`.
+        """
+        return self._part.theme
 
     @property
     def inline_shapes(self):

@@ -26,8 +26,10 @@ if TYPE_CHECKING:
     from docx.enum.style import WD_STYLE_TYPE
     from docx.footnotes import Footnotes
     from docx.opc.coreprops import CoreProperties
+    from docx.parts.theme import ThemePart
     from docx.settings import Settings
     from docx.styles.style import BaseStyle
+    from docx.theme import Theme
 
 
 class DocumentPart(StoryPart):
@@ -185,6 +187,20 @@ class DocumentPart(StoryPart):
         """A |Settings| object providing access to the settings in the settings part of
         this document."""
         return self._settings_part.settings
+
+    @property
+    def theme(self) -> Theme | None:
+        """A |Theme| object for this document, or |None| when it has no theme part.
+
+        Unlike the styles and settings parts, a theme part is *not* created on demand.
+        A theme is a design a document was authored against; synthesising an empty one
+        would answer "what typeface is this actually in" with a fiction.
+        """
+        try:
+            theme_part = cast("ThemePart", self.part_related_by(RT.THEME))
+        except KeyError:
+            return None
+        return theme_part.theme
 
     @property
     def styles(self):
