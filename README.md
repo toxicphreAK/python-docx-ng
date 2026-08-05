@@ -1,5 +1,8 @@
 # python-docx-ng
 
+[![PyPI](https://img.shields.io/pypi/v/python-docx-ng)](https://pypi.org/project/python-docx-ng/)
+[![Downloads](https://img.shields.io/pypi/dm/python-docx-ng)](https://pypistats.org/packages/python-docx-ng)
+
 *python-docx-ng* is a Python library for reading, creating, and updating Microsoft Word
 2007+ (.docx) files.
 
