@@ -29,9 +29,13 @@ class Styles(ElementProxy):
         self._doc_part = part
 
     def __contains__(self, name):
-        """Enables `in` operator on style name."""
-        internal_name = BabelFish.ui2internal(name)
-        return any(style.name_val == internal_name for style in self._element.style_lst)
+        """Enables `in` operator on style name.
+
+        Resolved exactly as `__getitem__` resolves it, minus the deprecated lookup by
+        style id — a `__contains__` that disagrees with the subscript is worse than
+        either answer on its own.
+        """
+        return self._element.get_by_name(BabelFish.ui2internal(name)) is not None
 
     def __getitem__(self, key: str):
         """Enables dictionary-style access by UI name.

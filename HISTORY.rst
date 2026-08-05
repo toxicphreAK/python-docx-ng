@@ -108,6 +108,13 @@ Fixed
   so ``font.shading_fill = "auto"`` raised ``ValueError`` on a value the getter
   documents and returns. ``w:color/@w:val`` is assignable as ``"auto"`` for the same
   reason.
+- Style lookup matches case-insensitively when an exact match fails. A built-in style
+  has two spellings — the UI name ("Heading 1") and the internal name Word stores
+  ("heading 1") — and documents from other generators routinely store the UI casing,
+  which made the style present but unreachable: ``add_heading()`` and every
+  ``style=`` assignment raised ``KeyError`` on a document that opened fine.
+  ``name in styles`` now resolves exactly as ``styles[name]`` does. Style *definitions*
+  are unchanged on save; only lookup is tolerant.
 - Style and latent-style lookup now accepts names and style IDs containing quotes and
   other XPath metacharacters.
 - Documents with oversized attribute values, which the default ``lxml`` parser rejects,
