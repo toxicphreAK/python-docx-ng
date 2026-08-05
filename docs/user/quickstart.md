@@ -1,6 +1,6 @@
 # Quickstart
 
-Getting started with `python-docx` is easy. Let's walk through the basics.
+Getting started with `python-docx-ng` is easy. Let's walk through the basics.
 
 ## Opening a document
 

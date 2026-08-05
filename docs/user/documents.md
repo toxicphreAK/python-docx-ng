@@ -26,7 +26,8 @@ If you want more control over the final document, or if you want to change an ex
 
 Things to note:
 
-- You can open any Word 2007 or later file this way (.doc files from Word 2003 and earlier won't work). While you might not be able to manipulate all the contents yet, whatever is already in there will load and save just fine. The feature set is still being built out, so you can't add or change things like headers or footnotes yet, but if the document has them `python-docx` is polite enough to leave them alone and smart enough to save them without actually understanding what they are.
+- You can open any Word 2007 or later file this way (`.doc` files from Word 2003 and earlier won't work). Macro-enabled `.docm` files and `.dotx` / `.dotm` templates open too.
+- Not every part of a document has an API yet — embedded OLE objects and charts, for instance. Anything without one is left untouched and written back out unchanged on save, so opening and re-saving a document never silently discards content it does not understand.
 - If you use the same filename to open and save the file, `python-docx` will obediently overwrite the original file without a peep. You'll want to make sure that's what you intend.
 
 ## Files that cannot be opened

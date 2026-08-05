@@ -1,28 +1,79 @@
 # Installing
 
-!!! note
+```console
+pip install python-docx-ng
+```
 
-    python-docx versions 0.3.0 and later are not API-compatible with prior versions.
+!!! warning "The import name is `docx`"
 
-`python-docx` is hosted on PyPI, so installation is relatively simple, and just depends on what installation utilities you have installed.
+    The distribution is `python-docx-ng`, the importable package is `docx`:
 
-`python-docx` may be installed with `pip` if you have it available:
+    ```python
+    import docx
+    from docx import Document
+    ```
 
-    pip install python-docx
+    That is deliberate — it makes this a drop-in replacement for `python-docx`, so
+    existing code and every upstream example keep working. It also means
+    **`python-docx-ng` and `python-docx` cannot be installed side by side**: they claim
+    the same import name, and whichever was installed last wins. Uninstall one before
+    installing the other.
 
-`python-docx` can also be installed using `easy_install`, although this is discouraged:
+    ```console
+    pip uninstall python-docx
+    pip install python-docx-ng
+    ```
 
-    easy_install python-docx
+## Requirements
 
-If neither `pip` nor `easy_install` is available, it can be installed manually by downloading the distribution from PyPI, unpacking the tarball, and running `setup.py`:
+| | |
+| --- | --- |
+| Python | 3.9 – 3.14 |
+| [lxml](https://pypi.org/project/lxml/) | >= 6.1.0 |
+| [typing_extensions](https://pypi.org/project/typing-extensions/) | >= 4.9.0 |
 
-    tar xvzf python-docx-{version}.tar.gz
-    cd python-docx-{version}
-    python setup.py install
+Both dependencies are installed for you. There are no others — no test framework, no
+documentation tooling.
 
-`python-docx` depends on the `lxml` package. Both `pip` and `easy_install` will take care of satisfying those dependencies for you, but if you use this last method you will need to install those yourself.
+lxml is floored at 6.1.0 because that is the first release fixing CVE-2026-41066, an
+XXE-to-local-files hole in the default configuration of `iterparse()` and
+`ETCompatXMLParser()`; every 4.x and 5.x release is affected. This library uses neither
+API and sets `resolve_entities=False` on its own parser, so it was never exposed itself,
+but it will not pull a known-vulnerable XML parser into your dependency tree.
 
-## Dependencies
+!!! note "If you are pinned below lxml 6"
 
-- Python 2.6, 2.7, 3.3, or 3.4
-- lxml \>= 2.3.2
+    Another package in your environment may cap lxml below 6. In that case this release
+    will not resolve, and there is no supported workaround — the floor is a security
+    boundary rather than a compatibility one.
+
+## Other installers
+
+```console
+uv add python-docx-ng
+poetry add python-docx-ng
+pipenv install python-docx-ng
+```
+
+## Upgrading from 0.9.x
+
+2.0.0 rebases onto upstream python-docx v1.2.0 and **contains breaking changes**. Read
+the [migration guide](migrating-from-0-9.md) before upgrading.
+
+The 0.9.x releases are yanked on PyPI. They require `lxml<5`, which has no wheels for
+Python 3.13 or later, and they declare a test framework as a runtime dependency. An
+exact pin such as `python-docx-ng==0.9.7` still resolves, so existing locked builds are
+unaffected, but nothing new will select one.
+
+## Installing from source
+
+```console
+git clone https://github.com/toxicphreAK/python-docx-ng.git
+cd python-docx-ng
+uv sync
+```
+
+[uv](https://docs.astral.sh/uv/) is what this project uses; `uv sync` creates the
+environment and installs the development dependencies. See
+[CONTRIBUTING.md](https://github.com/toxicphreAK/python-docx-ng/blob/main/CONTRIBUTING.md)
+for running the tests.
