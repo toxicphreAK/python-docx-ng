@@ -186,7 +186,7 @@ class Styles(ElementProxy):
 
             document.styles.default_font.name = "Calibri"
 
-        As with :attr:`.latent_styles`, the wrapping elements are created on first access
+        As with :attr:`.Styles.latent_styles`, the wrapping elements are created on first access
         so the returned |Font| always has somewhere to write.
         """
         docDefaults = self._element.get_or_add_docDefaults()
