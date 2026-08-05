@@ -131,6 +131,12 @@ from .coreprops import CT_CoreProperties
 
 register_element_cls("cp:coreProperties", CT_CoreProperties)
 
+from .customxml import CT_DatastoreItem, CT_DatastoreSchemaRef, CT_DatastoreSchemaRefs
+
+register_element_cls("ds:datastoreItem", CT_DatastoreItem)
+register_element_cls("ds:schemaRef", CT_DatastoreSchemaRef)
+register_element_cls("ds:schemaRefs", CT_DatastoreSchemaRefs)
+
 from .customprops import CT_CustomProperties, CT_Property
 
 register_element_cls("cust:Properties", CT_CustomProperties)

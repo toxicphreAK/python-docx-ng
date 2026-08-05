@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from docx.math import Math
     from docx.numbering import Numbering
     from docx.opc.customprops import CustomProperties
+    from docx.opc.parts.custom_xml import CustomXmlPart
     from docx.oxml.document import CT_Body, CT_Document
     from docx.parts.document import DocumentPart
     from docx.revisions import Revision
@@ -279,6 +280,93 @@ class Document(ElementProxy):
         never touches it gains no `/word/footnotes.xml`.
         """
         return self._part.footnotes
+
+    def add_custom_xml_part(
+        self, xml: str | bytes, schema_refs: Tuple[str, ...] = ()
+    ) -> CustomXmlPart:
+        """Add an item to the custom XML data store and return its part.
+
+        The custom XML data store is where a document-generation pipeline keeps its
+        data: whole XML documents against a caller-supplied schema, which content
+        controls in the document bind to through `w:dataBinding` and Word keeps in step
+        with what it displays::
+
+            document.add_custom_xml_part(
+                "<invoice><total>42.00</total></invoice>",
+                schema_refs=("urn:example:invoice",),
+            )
+
+        This is a different thing from :attr:`custom_properties`, which is a flat list
+        of named scalars in `docProps/custom.xml`.
+
+        A `customXml/itemN.xml` part is created for `xml`, along with the
+        `itemPropsN.xml` sidecar Word identifies it by, carrying a freshly generated
+        GUID and the namespaces named in `schema_refs`.
+        """
+        return self._part.add_custom_xml_part(xml, schema_refs)
+
+    @property
+    def custom_xml_parts(self) -> Tuple[CustomXmlPart, ...]:
+        """The custom XML data store items of this document, in relationship order.
+
+        Each part offers `.item_id`, `.schema_refs`, `.element` and `.xml`. The item
+        content is arbitrary caller-supplied XML, so `.element` is a plain parsed tree
+        with no element classes of its own.
+        """
+        return self._part.custom_xml_parts
+
+    @property
+    def has_macros(self) -> bool:
+        """|True| when this document carries a VBA project.
+
+        The cheap predicate; :attr:`vba_project` is what reads the bytes.
+        """
+        return self._part.has_macros
+
+    @property
+    def vba_project(self) -> bytes | None:
+        """The macro project of this document as bytes, or |None| when it has none.
+
+        A `.docm` or `.dotm` carries its macros in `word/vbaProject.bin`, an OLE
+        compound file. This library does not parse it, but it round-trips untouched, so
+        the two operations people actually want are expressible:
+
+        **Strip the macros** from a document received from elsewhere::
+
+            del document.vba_project
+            document.save("clean.docx")
+
+        **Transplant a project** authored in Word into a generated document::
+
+            document.vba_project = donor.vba_project
+
+        Assigning switches the main part to the macro-enabled content type, and removing
+        switches it back. Word silently ignores macros in a document whose main part
+        does not claim to be macro-enabled, and warns the user about macros in one that
+        claims to be but is not, so the two are kept in step rather than left to the
+        caller.
+
+        Note this sets the content type; it does not choose the file extension for you.
+        A macro-enabled document conventionally has a `.docm` extension.
+        """
+        return self._part.vba_project
+
+    @vba_project.setter
+    def vba_project(self, blob: bytes | None) -> None:
+        self._part.vba_project = blob
+
+    @vba_project.deleter
+    def vba_project(self) -> None:
+        self._part.remove_vba_project()
+
+    def remove_vba_project(self) -> int:
+        """Remove this document's VBA project; return how many parts were removed.
+
+        The `word/vbaData.xml` sibling, which holds command-bar and macro-name
+        customisations, goes with it rather than being left orphaned. Zero for a
+        document that carries no project. Equivalent to ``del document.vba_project``.
+        """
+        return self._part.remove_vba_project()
 
     @property
     def endnotes(self) -> Endnotes:

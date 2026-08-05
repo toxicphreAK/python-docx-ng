@@ -25,6 +25,7 @@ from docx.opc.constants import CONTENT_TYPE as CT
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.opc.part import PartFactory
 from docx.opc.parts.coreprops import CorePropertiesPart
+from docx.opc.parts.custom_xml import CustomXmlPart, CustomXmlPropertiesPart
 from docx.opc.parts.customprops import CustomPropertiesPart
 from docx.opc.parts.extendedprops import ExtendedPropertiesPart
 from docx.parts.altchunk import AltChunkPart
@@ -47,12 +48,17 @@ def part_class_selector(content_type: str, reltype: str) -> Type[Part] | None:
     # -- can only be recognized by the relationship that reaches it --
     if reltype == RT.A_F_CHUNK:
         return AltChunkPart
+    # -- a custom XML data store item is `application/xml`, which is far too generic to
+    # -- dispatch on; the relationship that reaches it is what identifies it --
+    if reltype == RT.CUSTOM_XML:
+        return CustomXmlPart
     return None
 
 
 PartFactory.part_class_selector = part_class_selector
 PartFactory.part_type_for[CT.OFC_EXTENDED_PROPERTIES] = ExtendedPropertiesPart
 PartFactory.part_type_for[CT.OFC_CUSTOM_PROPERTIES] = CustomPropertiesPart
+PartFactory.part_type_for[CT.OFC_CUSTOM_XML_PROPERTIES] = CustomXmlPropertiesPart
 PartFactory.part_type_for[CT.OPC_CORE_PROPERTIES] = CorePropertiesPart
 PartFactory.part_type_for[CT.WML_COMMENTS] = CommentsPart
 PartFactory.part_type_for[CT.WML_DOCUMENT_MAIN] = DocumentPart
@@ -73,6 +79,7 @@ PartFactory.part_type_for[CT.WML_TEMPLATE_MACRO_ENABLED_MAIN] = DocumentPart
 del (
     CT,
     CorePropertiesPart,
+    CustomXmlPropertiesPart,
     ExtendedPropertiesPart,
     CommentsPart,
     DocumentPart,

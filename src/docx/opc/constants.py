@@ -17,6 +17,7 @@ class CONTENT_TYPE:
     GIF = "image/gif"
     JPEG = "image/jpeg"
     MS_PHOTO = "image/vnd.ms-photo"
+    MS_VBA_PROJECT = "application/vnd.ms-office.vbaProject"
     OFC_CUSTOM_PROPERTIES = "application/vnd.openxmlformats-officedocument.custom-properties+xml"
     OFC_CUSTOM_XML_PROPERTIES = (
         "application/vnd.openxmlformats-officedocument.customXmlProperties+xml"
@@ -155,6 +156,7 @@ class CONTENT_TYPE:
     WML_TEMPLATE_MAIN = (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml"
     )
+    WML_VBA_DATA = "application/vnd.ms-word.vbaData+xml"
     WML_WEB_SETTINGS = (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.webSettings+xml"
     )
@@ -312,4 +314,6 @@ class RELATIONSHIP_TYPE:
     WORKSHEET_SOURCE = (
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheetSource"
     )
+    VBA_DATA = "http://schemas.microsoft.com/office/2006/relationships/wordVbaData"
+    VBA_PROJECT = "http://schemas.microsoft.com/office/2006/relationships/vbaProject"
     XML_MAPS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/xmlMaps"

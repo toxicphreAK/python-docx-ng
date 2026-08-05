@@ -38,6 +38,16 @@ New features
 - ``ParagraphFormat.borders`` and ``Section.page_borders``, spelled the same as the
   table and cell borders API. A paragraph with only a bottom border is how Word draws a
   horizontal rule.
+- ``Document.custom_xml_parts`` and ``Document.add_custom_xml_part()``, exposing the
+  custom XML data store (``customXml/item1.xml`` and its ``itemProps`` sidecar). This
+  is where a document-generation pipeline keeps the data its content controls are bound
+  to, and is a different thing from the flat named scalars in
+  ``Document.custom_properties``.
+- ``Document.vba_project``, ``Document.has_macros`` and
+  ``Document.remove_vba_project()``. Reading, transplanting and stripping a macro
+  project are now expressible; assigning or removing one switches the main part's
+  content type with it, since Word ignores macros in a document that does not claim to
+  be macro-enabled and warns about macros in one that claims to be but is not.
 - Endnotes: ``Document.endnotes``, ``Endnotes.add_endnote()``, ``Endnote.text``,
   ``Endnote.endnote_id`` and ``Run.add_endnote_reference()``, mirroring the footnote
   API. ``word/endnotes.xml`` is created on demand, as the footnotes part is, and
