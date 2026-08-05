@@ -58,6 +58,16 @@ New features
 - ``ParagraphFormat.borders`` and ``Section.page_borders``, spelled the same as the
   table and cell borders API. A paragraph with only a bottom border is how Word draws a
   horizontal rule.
+- Numbering definitions are writable: ``Numbering.add_definition()`` defines a list
+  from scratch, ``add_numbered_definition()`` and ``add_bulleted_definition()`` are the
+  shorthands for the two common cases, and ``NumberingLevel.set()`` changes a level's
+  format, level text, suffix, alignment and indents. A list format the template does not
+  already contain no longer means hand-building ``w:abstractNum`` XML.
+- ``Document.add_caption()`` and ``_Cell.add_caption()``, which put together the label,
+  the self-renumbering ``SEQ`` field and the ``_Ref``-prefixed bookmark a
+  cross-reference needs. The naming matters: Word's cross-reference dialogue offers only
+  targets that follow the ``_Ref`` convention, so a caption bookmarked otherwise is one
+  the user cannot reference from the UI.
 - ``copy_to()`` on ``Paragraph``, ``Run``, ``_Row`` and ``Table``. Duplicating content
   is the most-written-by-hand operation against this library, and the hand-written
   deep-copy version quietly breaks: a picture's ``r:embed`` and a hyperlink's ``r:id``

@@ -17,6 +17,7 @@ from docx.shared import Inches, Parented, Pct, StoryChild, lazyproperty
 if TYPE_CHECKING:
     import docx.types as t
     from docx.blkcntnr import BlockItemContainer
+    from docx.caption import Caption
     from docx.document import Document
     from docx.enum.table import (
         WD_ROW_HEIGHT_RULE,
@@ -642,6 +643,32 @@ class _Cell(BlockItemContainer):
         )
         self.add_paragraph()
         return table
+
+    def add_caption(
+        self,
+        label: str,
+        text: str = "",
+        *,
+        style: str | None = "Caption",
+        separator: str = " ",
+        restart_at_heading_level: int | None = None,
+        before: Paragraph | None = None,
+    ) -> Caption:
+        """Add a numbered, cross-referenceable caption to this cell and return it.
+
+        See :meth:`.Document.add_caption`.
+        """
+        from docx.caption import add_caption
+
+        return add_caption(
+            self,
+            label,
+            text,
+            style=style,
+            separator=separator,
+            restart_at_heading_level=restart_at_heading_level,
+            before=before,
+        )
 
     @lazyproperty
     def borders(self) -> _CellBorders:

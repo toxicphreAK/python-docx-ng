@@ -22,6 +22,7 @@ from docx.text.run import Run
 
 if TYPE_CHECKING:
     import docx.types as t
+    from docx.caption import Caption
     from docx.cleanup import CleanupResult
     from docx.comments import Comment, Comments
     from docx.fields import Field
@@ -125,6 +126,53 @@ class Document(ElementProxy):
         first_run.mark_comment_range(last_run, comment.comment_id)
 
         return comment
+
+    def add_caption(
+        self,
+        label: str,
+        text: str = "",
+        *,
+        style: str | None = "Caption",
+        separator: str = " ",
+        restart_at_heading_level: int | None = None,
+        before: Paragraph | None = None,
+    ) -> Caption:
+        """Add a numbered, cross-referenceable caption and return it.
+
+        Word numbers each `label` series independently and renumbers the whole series
+        when one is inserted, which is the point of using a `SEQ` field rather than a
+        typed number. The number is therefore *not* in the document until Word computes
+        it; set :attr:`.Settings.update_fields_on_open` to have it do so on open.
+
+        The caption is bookmarked with a `_Ref`-prefixed name and the returned object
+        carries it, so a cross-reference is a one-liner::
+
+            caption = document.add_caption("Figure", "Cross-section of the assembly")
+            document.add_paragraph().add_field(
+                fields.cross_reference(caption.bookmark_name)
+            )
+
+        The `_Ref` naming is not decoration: Word's own cross-reference dialogue offers
+        only targets whose bookmark name follows it, so a caption bookmarked with an
+        arbitrary name is one the user cannot reference from the UI.
+
+        `style` is the paragraph style, "Caption" by default, which is what Word uses;
+        pass |None| to leave the paragraph unstyled. `separator` goes between the number
+        and `text`. `restart_at_heading_level` restarts the numbering at each heading of
+        that level, giving the "Figure 2-1" style. `before` places the caption
+        immediately before an existing paragraph, which is where a table caption goes.
+        """
+        from docx.caption import add_caption
+
+        return add_caption(
+            self._body,
+            label,
+            text,
+            style=style,
+            separator=separator,
+            restart_at_heading_level=restart_at_heading_level,
+            before=before,
+        )
 
     def add_heading(self, text: str = "", level: int = 1):
         """Return a heading paragraph newly added to the end of the document.

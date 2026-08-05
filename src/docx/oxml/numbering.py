@@ -61,6 +61,40 @@ def _int_val(parent: BaseOxmlElement, tag: str) -> int | None:
         return None
 
 
+def _set_val(parent: BaseOxmlElement, tag: str, value: object, tag_seq: tuple[str, ...]) -> None:
+    """Set the `w:val` of the `tag` child of `parent`, creating it in schema order.
+
+    Removes the child when `value` is |None|. The children here are not registered
+    element classes — their tag names are reused elsewhere in the schema with other
+    types — so they are created and placed by hand rather than through `ZeroOrOne`.
+    """
+    child = parent.find(qn(tag))
+    if value is None:
+        if child is not None:
+            parent.remove(child)
+        return
+    if child is None:
+        child = OxmlElement(tag)
+        _insert_in_order(parent, child, tag, tag_seq)
+    child.set(qn("w:val"), str(value))
+
+
+def _insert_in_order(
+    parent: BaseOxmlElement, child: BaseOxmlElement, tag: str, tag_seq: tuple[str, ...]
+) -> None:
+    """Insert `child` at the position `tag` occupies in `tag_seq`.
+
+    `CT_Lvl` and `CT_AbstractNum` are both `xsd:sequence`, and Word rejects a document
+    whose child order violates the schema.
+    """
+    for successor_tag in tag_seq[tag_seq.index(tag) + 1 :]:
+        successor = parent.find(qn(successor_tag))
+        if successor is not None:
+            successor.addprevious(child)
+            return
+    parent.append(child)
+
+
 class CT_Lvl(BaseOxmlElement):
     """`w:lvl` element, the definition of one of the nine levels of a list."""
 
@@ -89,6 +123,10 @@ class CT_Lvl(BaseOxmlElement):
         """
         return _int_val(self, "w:start")
 
+    @start.setter
+    def start(self, value: int | None) -> None:
+        _set_val(self, "w:start", value, self._tag_seq)
+
     @property
     def num_fmt(self) -> WD_NUMBER_FORMAT | None:
         """Member of :ref:`WdNumberFormat` this level renders its counter as.
@@ -107,6 +145,14 @@ class CT_Lvl(BaseOxmlElement):
         except ValueError:
             return None
 
+    @num_fmt.setter
+    def num_fmt(self, value: WD_NUMBER_FORMAT | str | None) -> None:
+        from docx.enum.numbering import WD_NUMBER_FORMAT
+
+        if isinstance(value, WD_NUMBER_FORMAT):
+            value = WD_NUMBER_FORMAT.to_xml(value)
+        _set_val(self, "w:numFmt", value, self._tag_seq)
+
     @property
     def lvl_restart(self) -> int | None:
         """The one-based level whose increment restarts this one, or |None|.
@@ -116,6 +162,10 @@ class CT_Lvl(BaseOxmlElement):
         """
         return _int_val(self, "w:lvlRestart")
 
+    @lvl_restart.setter
+    def lvl_restart(self, value: int | None) -> None:
+        _set_val(self, "w:lvlRestart", value, self._tag_seq)
+
     @property
     def lvl_text(self) -> str | None:
         """The pattern this level displays, e.g. `"%1."` or `"%1.%2"`, or |None|.
@@ -124,6 +174,10 @@ class CT_Lvl(BaseOxmlElement):
         bullet level the text is the bullet character itself and holds no placeholder.
         """
         return _val(self, "w:lvlText")
+
+    @lvl_text.setter
+    def lvl_text(self, value: str | None) -> None:
+        _set_val(self, "w:lvlText", value, self._tag_seq)
 
     @property
     def is_lgl(self) -> bool:
@@ -138,6 +192,17 @@ class CT_Lvl(BaseOxmlElement):
         val = isLgl.get(qn("w:val"))
         return val is None or val not in ("0", "false", "off")
 
+    @is_lgl.setter
+    def is_lgl(self, value: bool) -> None:
+        isLgl = self.find(qn("w:isLgl"))
+        if not value:
+            if isLgl is not None:
+                self.remove(isLgl)
+            return
+        if isLgl is None:
+            isLgl = OxmlElement("w:isLgl")
+            _insert_in_order(self, isLgl, "w:isLgl", self._tag_seq)
+
     @property
     def p_style(self) -> str | None:
         """The style id this level is linked to, or |None|.
@@ -147,11 +212,78 @@ class CT_Lvl(BaseOxmlElement):
         """
         return _val(self, "w:pStyle")
 
+    @p_style.setter
+    def p_style(self, value: str | None) -> None:
+        _set_val(self, "w:pStyle", value, self._tag_seq)
+
+    @property
+    def suffix(self) -> str | None:
+        """What separates the number from the text: `"tab"`, `"space"` or `"nothing"`.
+
+        |None| when the level does not say, which Word treats as `"tab"`. This is the
+        gap between the bullet or number and the paragraph text, and setting it to
+        `"space"` is the usual way to tighten up a compact list.
+        """
+        return _val(self, "w:suff")
+
+    @suffix.setter
+    def suffix(self, value: str | None) -> None:
+        if value is not None and value not in ("tab", "space", "nothing"):
+            raise ValueError(
+                "suffix must be one of 'tab', 'space' or 'nothing', got %r" % value
+            )
+        _set_val(self, "w:suff", value, self._tag_seq)
+
+    @property
+    def jc(self) -> str | None:
+        """Alignment of the number within its indent: `"left"`, `"center"`, `"right"`.
+
+        |None| when the level does not say, which Word treats as left.
+        """
+        return _val(self, "w:lvlJc")
+
+    @jc.setter
+    def jc(self, value: str | None) -> None:
+        _set_val(self, "w:lvlJc", value, self._tag_seq)
+
+    @property
+    def pPr(self) -> BaseOxmlElement | None:
+        """The `w:pPr` of this level, or |None| when it has none.
+
+        This is where a level's indent lives, as an ordinary `w:ind`.
+        """
+        return self.find(qn("w:pPr"))
+
+    def get_or_add_pPr(self) -> BaseOxmlElement:
+        """The `w:pPr` of this level, added in schema order if not already there."""
+        pPr = self.pPr
+        if pPr is None:
+            pPr = OxmlElement("w:pPr")
+            _insert_in_order(self, pPr, "w:pPr", self._tag_seq)
+        return pPr
+
+    @classmethod
+    def new(cls, ilvl: int) -> CT_Lvl:
+        """A new empty `w:lvl` for level `ilvl`."""
+        lvl = OxmlElement("w:lvl")
+        lvl.set(qn("w:ilvl"), str(ilvl))
+        return lvl  # pyright: ignore[reportReturnType]
+
 
 class CT_AbstractNum(BaseOxmlElement):
     """`w:abstractNum` element, the shared definition behind one or more `w:num`."""
 
     lvl_lst: List[CT_Lvl]
+
+    _tag_seq = (
+        "w:nsid",
+        "w:multiLevelType",
+        "w:tmpl",
+        "w:name",
+        "w:styleLink",
+        "w:numStyleLink",
+        "w:lvl",
+    )
 
     lvl = ZeroOrMore("w:lvl", successors=())
 
@@ -163,6 +295,42 @@ class CT_AbstractNum(BaseOxmlElement):
     def multi_level_type(self) -> str | None:
         """`"singleLevel"`, `"multilevel"` or `"hybridMultilevel"`, or |None|."""
         return _val(self, "w:multiLevelType")
+
+    @multi_level_type.setter
+    def multi_level_type(self, value: str | None) -> None:
+        valid = ("singleLevel", "multilevel", "hybridMultilevel")
+        if value is not None and value not in valid:
+            raise ValueError("multi_level_type must be one of %s, got %r" % (valid, value))
+        _set_val(self, "w:multiLevelType", value, self._tag_seq)
+
+    @classmethod
+    def new(cls, abstract_num_id: int) -> CT_AbstractNum:
+        """A new empty `w:abstractNum` with `abstract_num_id`.
+
+        `w:nsid` and `w:tmpl` are deliberately not written. They are what Word uses to
+        recognise a definition as one of its own list-gallery entries; inventing values
+        for them would claim a provenance this definition does not have, and Word opens
+        a document without them perfectly well.
+        """
+        abstractNum = OxmlElement("w:abstractNum")
+        abstractNum.set(qn("w:abstractNumId"), str(abstract_num_id))
+        return abstractNum  # pyright: ignore[reportReturnType]
+
+    def add_level(self, ilvl: int) -> CT_Lvl:
+        """A `w:lvl` for level `ilvl`, newly added in ascending `w:ilvl` order.
+
+        Word rejects an abstract definition whose levels are out of order.
+        """
+        existing = self.lvl_having_ilvl(ilvl)
+        if existing is not None:
+            return existing
+        lvl = CT_Lvl.new(ilvl)
+        for sibling in self.lvl_lst:
+            if sibling.ilvl > ilvl:
+                sibling.addprevious(lvl)
+                return lvl
+        _insert_in_order(self, lvl, "w:lvl", self._tag_seq)
+        return lvl
 
     @property
     def num_style_link(self) -> str | None:
