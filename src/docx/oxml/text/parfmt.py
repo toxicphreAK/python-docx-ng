@@ -7,11 +7,13 @@ from typing import TYPE_CHECKING, Callable
 from docx.enum.text import (
     WD_ALIGN_PARAGRAPH,
     WD_LINE_SPACING,
+    WD_SHADING_PATTERN,
     WD_TAB_ALIGNMENT,
     WD_TAB_LEADER,
 )
 from docx.oxml.shared import CT_DecimalNumber
 from docx.oxml.simpletypes import ST_SignedTwipsMeasure, ST_TwipsMeasure
+from docx.oxml.text.font import _ensure_shd_val, _shd_val
 from docx.oxml.xmlchemy import (
     BaseOxmlElement,
     OneOrMore,
@@ -144,7 +146,11 @@ class CT_PPr(BaseOxmlElement):
 
     @property
     def shd_fill(self) -> RGBColor | str | None:
-        """Value of `./w:shd/@w:fill`, or |None| when no shading is applied."""
+        """Value of `./w:shd/@w:fill`, or |None| when there is none.
+
+        |None| both when there is no `w:shd` at all and when it carries a pattern but no
+        fill, which is valid — `<w:shd w:val="pct25" w:color="FF0000"/>` for instance.
+        """
         shd = self.shd
         if shd is None:
             return None
@@ -157,7 +163,41 @@ class CT_PPr(BaseOxmlElement):
             return
         if isinstance(value, str) and value != "auto":
             value = RGBColor.from_string(value)
-        self.get_or_add_shd().fill = value
+        shd = self.get_or_add_shd()
+        _ensure_shd_val(shd)
+        shd.fill = value
+
+    @property
+    def shd_val(self) -> WD_SHADING_PATTERN | None:
+        """The `w:shd/@w:val` shading pattern, or |None| when no shading is applied."""
+        return _shd_val(self.shd)
+
+    @shd_val.setter
+    def shd_val(self, value: WD_SHADING_PATTERN | None) -> None:
+        if value is None:
+            self._remove_shd()
+            return
+        self.get_or_add_shd().val = value
+
+    @property
+    def shd_color(self) -> RGBColor | str | None:
+        """Value of `./w:shd/@w:color`, the pattern foreground, or |None|."""
+        shd = self.shd
+        if shd is None:
+            return None
+        return shd.color
+
+    @shd_color.setter
+    def shd_color(self, value: RGBColor | str | None) -> None:
+        if value is None:
+            if self.shd is not None:
+                self.shd.color = None
+            return
+        if isinstance(value, str) and value != "auto":
+            value = RGBColor.from_string(value)
+        shd = self.get_or_add_shd()
+        _ensure_shd_val(shd)
+        shd.color = value
 
     @property
     def first_line_indent(self) -> Length | None:

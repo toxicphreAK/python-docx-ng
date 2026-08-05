@@ -367,9 +367,29 @@ class CT_Styles(BaseOxmlElement):
     def get_by_name(self, name: str) -> CT_Style | None:
         """`w:style` child with `w:name` grandchild having value `name`.
 
+        Matched exactly first, then case-insensitively. Word treats style names as
+        case-insensitive, and a built-in style has two spellings — the UI name
+        ("Heading 1") and the internal name Word stores ("heading 1"). Documents
+        written by other generators routinely store the UI casing, and without the
+        second pass the style is present but unreachable.
+
+        The exact pass runs first so that a document containing both spellings resolves
+        to the one asked for rather than to whichever comes first.
+
         |None| if not found.
         """
-        return next(iter(self.xpath("w:style[w:name/@w:val=$name]", name=name)), None)
+        exact = next(iter(self.xpath("w:style[w:name/@w:val=$name]", name=name)), None)
+        if exact is not None:
+            return exact
+
+        # -- no XPath 1.0 lower-case function, so fold in Python. Only reached when the
+        # -- exact match fails, which for a Word-authored document is never. --
+        folded = name.lower()
+        for style in self.xpath("w:style"):
+            style_name = style.name_val
+            if style_name is not None and style_name.lower() == folded:
+                return style
+        return None
 
     def _iter_styles(self):
         """Generate each of the `w:style` child elements in document order."""
