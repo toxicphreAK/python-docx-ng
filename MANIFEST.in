@@ -1,4 +1,4 @@
-include HISTORY.rst LICENSE
+include HISTORY.rst LICENSE CONTRIBUTORS.md
 graft src/docx/templates
 graft features
 graft tests

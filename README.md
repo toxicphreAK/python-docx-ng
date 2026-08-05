@@ -143,19 +143,12 @@ uv run ruff check .  # lint
 
 ## Contributors
 
-Thank you to everyone who has sent a patch.
-
-**2.0.0**
-
 - [@lyydsheep](https://github.com/lyydsheep) — `os.PathLike` support throughout document open and save ([#130](https://github.com/toxicphreAK/python-docx-ng/pull/130))
 - [@builtbyhuy](https://github.com/builtbyhuy) — XPath variable binding, so style names containing quotes are reachable ([#131](https://github.com/toxicphreAK/python-docx-ng/pull/131))
 - [@BortnikMaxim](https://github.com/BortnikMaxim) — table alternative text, `Table.title` and `Table.description` ([#132](https://github.com/toxicphreAK/python-docx-ng/pull/132))
 
-The [contributors graph](https://github.com/toxicphreAK/python-docx-ng/graphs/contributors)
-lists everyone across the project's whole history, including the upstream work this is
-built on.
-
-Patches are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+The full list, by release, is in [CONTRIBUTORS.md](CONTRIBUTORS.md). Patches are
+welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
