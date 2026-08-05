@@ -27,7 +27,7 @@ class DescribeStyleUsage:
 
         usage = document.styles.usage()
 
-        assert len(usage.defined) == 164
+        assert len(usage.defined) == 168
         assert "Heading1" in usage.used
         assert "Normal" in usage.used
         assert len(usage.used) < len(usage.defined)

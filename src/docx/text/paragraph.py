@@ -33,11 +33,6 @@ if TYPE_CHECKING:
     from docx.text.hyperlink import Hyperlink
 
 
-# -- the character style Word applies to hyperlink text, and adds to a document the
-# -- first time a link is inserted into one --
-_HYPERLINK_STYLE_NAME = "Hyperlink"
-
-
 class Paragraph(StoryChild):
     """Proxy object wrapping a `<w:p>` element."""
 
@@ -118,11 +113,10 @@ class Paragraph(StoryChild):
         cross-reference or a table-of-contents entry is.
 
         `style` is the character style applied to the link text, "Hyperlink" by
-        default, which is the style Word uses. A document that does not define it — the
-        bundled default template among them — has it added, blue and underlined as Word
-        defines it, since an unstyled hyperlink is indistinguishable from body text.
-        Pass |None| to skip styling deliberately, or the name of another character
-        style to use that instead.
+        default, which is the style Word uses and which the bundled template defines.
+        Pass |None| to skip styling deliberately, or the name of another character style
+        to use that instead. A named style the document does not define raises
+        |KeyError|, as assigning a missing style always has.
 
         The returned |Hyperlink| exposes its `.runs`, so the link text can be formatted
         further::
@@ -148,41 +142,8 @@ class Paragraph(StoryChild):
         run = Run(hyperlink.add_r(), self)
         run.text = text
         if style is not None:
-            self._apply_hyperlink_style(run, style)
-        return Hyperlink(hyperlink, self._parent)
-
-    def _apply_hyperlink_style(self, run: Run, style: str | CharacterStyle) -> None:
-        """Apply `style` to `run`, defining the default hyperlink style if it is absent.
-
-        Word adds the "Hyperlink" style to a document the first time a link is inserted
-        into it, and a link that inherits body-text formatting does not look like a
-        link at all. Any other named style that is missing is the caller's problem and
-        raises, as assigning a missing style always has.
-        """
-        try:
             run.style = style
-        except KeyError:
-            if style != _HYPERLINK_STYLE_NAME:
-                raise
-            run.style = self._add_default_hyperlink_style()
-
-    def _add_default_hyperlink_style(self) -> CharacterStyle:
-        """Add and return the "Hyperlink" character style, blue and underlined."""
-        from docx.enum.style import WD_STYLE_TYPE
-        from docx.enum.text import WD_UNDERLINE
-        from docx.shared import RGBColor
-
-        style = cast(
-            "CharacterStyle",
-            self.part.document.styles.add_style(
-                _HYPERLINK_STYLE_NAME, WD_STYLE_TYPE.CHARACTER, builtin=True
-            ),
-        )
-        style.font.color.rgb = RGBColor(0x05, 0x63, 0xC1)
-        style.font.underline = WD_UNDERLINE.SINGLE
-        style.priority = 99
-        style.unhide_when_used = True
-        return style
+        return Hyperlink(hyperlink, self._parent)
 
     def add_bookmark(self, name: str) -> Bookmark:
         """Return a |Bookmark| named `name` spanning the content of this paragraph.

@@ -6,6 +6,26 @@ Release History
 Unreleased
 ++++++++++
 
+Behaviour changes
+~~~~~~~~~~~~~~~~~
+
+- The bundled template no longer ships ``word/stylesWithEffects.xml``,
+  ``docProps/thumbnail.jpeg`` or the template author's ``customXml`` bibliography
+  store. That is 447 KB off every generated document — the uncompressed package drops
+  from 826 KB to 376 KB — and it stops ``Document.custom_xml_parts`` reporting a data
+  store the caller never added. Only the *bundled* template is affected; a document you
+  open keeps its own thumbnail and data store.
+- The bundled template now defines ``Hyperlink``, ``CommentText``, ``CommentTextChar``
+  and ``CommentReference``, lifted verbatim from a Word-authored fixture in the repo.
+  ``Paragraph.add_hyperlink()`` no longer synthesises a ``Hyperlink`` style on first
+  use; it resolves the real one like any other style. **Links in documents created
+  after this change look slightly different**: the real definition is theme-linked
+  (``w:themeColor="hyperlink"``) where the synthesised one was hardcoded blue. Passing
+  a style name the document does not define now raises ``KeyError`` for
+  ``"Hyperlink"`` as it always has for every other name.
+- ``StylesPart.default()`` — the styles part built for a document that has none — grows
+  from four style definitions to eight, for the same reason.
+
 New features
 ~~~~~~~~~~~~
 
