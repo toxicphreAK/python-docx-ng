@@ -20,7 +20,9 @@ from docx.text.run import Run
 
 if TYPE_CHECKING:
     import docx.types as t
+    from docx.blkcntnr import BlockItemContainer
     from docx.bookmark import Bookmark
+    from docx.document import Document
     from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
     from docx.fields import Field
     from docx.math import Math
@@ -30,6 +32,7 @@ if TYPE_CHECKING:
     from docx.revisions import Revision
     from docx.sdt import ContentControl
     from docx.styles.style import CharacterStyle
+    from docx.table import Table
     from docx.text.hyperlink import Hyperlink
 
 
@@ -273,6 +276,58 @@ class Paragraph(StoryChild):
         if style is not None:
             paragraph.style = style
         return paragraph
+
+    def copy_to(
+        self,
+        container: BlockItemContainer | Document,
+        *,
+        before: Paragraph | Table | None = None,
+        after: Paragraph | Table | None = None,
+        missing_style: str = "copy",
+    ) -> Paragraph:
+        """Return a copy of this paragraph, newly placed in `container`.
+
+        Duplicating a template paragraph is the most common thing people write by hand
+        against this library, and the hand-written version has the bugs below::
+
+            new = paragraph.copy_to(document)
+            new = paragraph.copy_to(cell, before=cell.paragraphs[0])
+
+        `container` is where the copy goes — a |Document|, a table |_Cell|, a header or
+        any other block-item container. `before` and `after` place the copy relative to
+        an existing paragraph or table in that container; with neither, it is appended.
+
+        Everything a deep copy would get wrong is repaired:
+
+        - **Relationships.** A picture's `r:embed` and a hyperlink's `r:id` name
+          relationships of the *source* part, which mean something else or nothing in
+          the destination. They are related in afresh. Relating the same image blob back
+          in gives the sha1 deduplication for free, so a copy within one document does
+          not duplicate the media.
+        - **Drawing ids.** `wp:docPr/@id` must be unique document-wide; each copied
+          drawing is reassigned one that is free in the destination.
+        - **Bookmarks.** These are *dropped* rather than duplicated. A bookmark name is
+          document-wide, and a second bookmark of the same name is not a copy — anything
+          referring to the name resolves to whichever it happens to find first. Use
+          `add_bookmark()` on the copy to bookmark it afresh.
+
+        Copying into a *different* document also has to resolve what the content refers
+        to there. A style the destination does not define is copied across with its
+        `w:basedOn` / `w:next` / `w:link` closure, and a numbering definition is copied
+        and the reference repointed, so a numbered paragraph does not silently join
+        whatever list happens to hold that id here. `missing_style` chooses what happens
+        instead: ``"copy"`` (the default) brings the style over, ``"drop"`` removes the
+        reference so the content takes the destination's default, and ``"raise"`` raises
+        |ValueError|.
+
+        Raises |ValueError| when both `before` and `after` are given.
+        """
+        from docx.copy import copy_content, destination_for, place
+
+        dest_part, dest_element = destination_for(container)
+        new_p = copy_content(self._p, self.part, dest_part, missing_style=missing_style)
+        place(new_p, dest_element, before, after)
+        return Paragraph(new_p, container)  # pyright: ignore[reportArgumentType]
 
     def iter_inner_content(self) -> Iterator[Run | Hyperlink]:
         """Generate the runs and hyperlinks in this paragraph, in the order they appear.

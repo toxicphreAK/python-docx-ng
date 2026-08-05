@@ -58,6 +58,14 @@ New features
 - ``ParagraphFormat.borders`` and ``Section.page_borders``, spelled the same as the
   table and cell borders API. A paragraph with only a bottom border is how Word draws a
   horizontal rule.
+- ``copy_to()`` on ``Paragraph``, ``Run``, ``_Row`` and ``Table``. Duplicating content
+  is the most-written-by-hand operation against this library, and the hand-written
+  deep-copy version quietly breaks: a picture's ``r:embed`` and a hyperlink's ``r:id``
+  name relationships of the *source* part, ``wp:docPr/@id`` must be unique
+  document-wide, and a duplicated bookmark name competes for anything referring to it.
+  All of that is repaired, and a copy into another document also brings the styles and
+  numbering the content refers to, so a numbered paragraph does not silently join
+  whichever list happens to hold that id there.
 - ``add_picture()`` and ``add_float_picture()`` honour a photo's EXIF ``Orientation``.
   A portrait photo off a phone is stored landscape with a tag saying to turn it, and
   was previously inserted sideways and — when only a width was given — at the wrong

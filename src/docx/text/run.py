@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from docx.footnotes import Endnote, Footnote
     from docx.oxml.text.run import CT_R, CT_Text
     from docx.shared import Length
+    from docx.text.paragraph import Paragraph
 
 
 class Run(StoryChild):
@@ -221,6 +222,38 @@ class Run(StoryChild):
     @bold.setter
     def bold(self, value: bool | None):
         self.font.bold = value
+
+    def copy_to(
+        self,
+        paragraph: Paragraph,
+        *,
+        before: Run | None = None,
+        after: Run | None = None,
+        missing_style: str = "copy",
+    ) -> Run:
+        """Return a copy of this run, newly placed in `paragraph`.
+
+        `before` and `after` place the copy relative to an existing run; with neither it
+        is appended.
+
+        See :meth:`.Paragraph.copy_to` for what is repaired on the way — relationships,
+        drawing ids, bookmarks, and, for a copy into another document, styles.
+        """
+        from docx.copy import copy_content
+
+        new_r = copy_content(
+            self._r, self.part, paragraph.part, missing_style=missing_style
+        )
+
+        if before is not None and after is not None:
+            raise ValueError("pass at most one of `before` and `after`")
+        if before is not None:
+            before._r.addprevious(new_r)
+        elif after is not None:
+            after._r.addnext(new_r)
+        else:
+            paragraph._p.append(new_r)  # pyright: ignore[reportPrivateUsage]
+        return Run(new_r, paragraph)
 
     def clear(self):
         """Return reference to this run after removing all its content.

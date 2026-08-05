@@ -16,6 +16,8 @@ from docx.shared import Inches, Parented, Pct, StoryChild, lazyproperty
 
 if TYPE_CHECKING:
     import docx.types as t
+    from docx.blkcntnr import BlockItemContainer
+    from docx.document import Document
     from docx.enum.table import (
         WD_ROW_HEIGHT_RULE,
         WD_TABLE_ALIGNMENT,
@@ -34,6 +36,7 @@ if TYPE_CHECKING:
         ParagraphStyle,
         _TableStyle,  # pyright: ignore[reportPrivateUsage]
     )
+    from docx.text.paragraph import Paragraph
 
 TableParent: TypeAlias = "Table | _Columns | _Rows"
 
@@ -451,6 +454,29 @@ class Table(StoryChild):
         if value is None and tblPr.tblW is None:
             return
         tblPr.get_or_add_tblW().value = value
+
+    def copy_to(
+        self,
+        container: BlockItemContainer | Document,
+        *,
+        before: Paragraph | Table | None = None,
+        after: Paragraph | Table | None = None,
+        missing_style: str = "copy",
+    ) -> Table:
+        """Return a copy of this table, newly placed in `container`::
+
+            new_table = table.copy_to(document)
+
+        See :meth:`.Paragraph.copy_to` for what is repaired on the way — relationships,
+        drawing ids, bookmarks, and, for a copy into another document, styles and
+        numbering.
+        """
+        from docx.copy import copy_content, destination_for, place
+
+        dest_part, dest_element = destination_for(container)
+        new_tbl = copy_content(self._tbl, self.part, dest_part, missing_style=missing_style)
+        place(new_tbl, dest_element, before, after)
+        return Table(new_tbl, container)  # pyright: ignore[reportArgumentType]
 
     def delete(self) -> None:
         """Remove this table from the document.
@@ -930,6 +956,48 @@ class _Row(Parented):
                 yield from iter_tc_cells(tc)
 
         return tuple(_iter_row_cells())
+
+    def copy_to(
+        self,
+        table: Table,
+        *,
+        before: _Row | None = None,
+        after: _Row | None = None,
+        missing_style: str = "copy",
+    ) -> _Row:
+        """Return a copy of this row, newly placed in `table`.
+
+        "Duplicate this table row N times" is the other most-written-by-hand operation::
+
+            for _ in range(9):
+                template_row.copy_to(table)
+
+        `before` and `after` place the copy relative to an existing row; with neither it
+        is appended.
+
+        The copy keeps this row's own cell widths and spans. It is not adjusted to
+        `table`'s grid, so copying a row into a table of a different column count
+        produces a row that does not line up — which is what the XML says and what Word
+        will render.
+
+        See :meth:`.Paragraph.copy_to` for what is repaired on the way — relationships,
+        drawing ids, bookmarks, and, for a copy into another document, styles and
+        numbering.
+        """
+        from docx.copy import copy_content
+
+        dest_part = table.part
+        new_tr = copy_content(self._tr, self.part, dest_part, missing_style=missing_style)
+
+        if before is not None and after is not None:
+            raise ValueError("pass at most one of `before` and `after`")
+        if before is not None:
+            before._tr.addprevious(new_tr)
+        elif after is not None:
+            after._tr.addnext(new_tr)
+        else:
+            table._tbl.append(new_tr)
+        return _Row(new_tr, table)  # pyright: ignore[reportArgumentType]
 
     def delete(self) -> None:
         """Remove this row from its table.
