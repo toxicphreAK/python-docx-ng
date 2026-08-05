@@ -2,7 +2,7 @@
 
 import pytest
 
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING, WD_SHADING_PATTERN
 from docx.shared import Pt, RGBColor
 from docx.text.parfmt import ParagraphFormat
 from docx.text.tabstops import TabStops
@@ -55,8 +55,12 @@ class DescribeParagraphFormat:
         [
             ("w:p", None),
             ("w:p/w:pPr", None),
+            ("w:p/w:pPr/w:shd{w:val=clear,w:fill=C0C0C0}", RGBColor(0xC0, 0xC0, 0xC0)),
+            ("w:p/w:pPr/w:shd{w:val=clear,w:fill=auto}", "auto"),
+            # -- a `w:shd` written before 2.0.0, with no `w:val`, still reads --
             ("w:p/w:pPr/w:shd{w:fill=C0C0C0}", RGBColor(0xC0, 0xC0, 0xC0)),
-            ("w:p/w:pPr/w:shd{w:fill=auto}", "auto"),
+            # -- a pattern with no fill is valid and reports no fill rather than raising --
+            ("w:p/w:pPr/w:shd{w:val=pct25,w:color=FF0000}", None),
         ],
     )
     def it_knows_its_shading_fill(self, p_cxml, expected_value):
@@ -66,9 +70,22 @@ class DescribeParagraphFormat:
     @pytest.mark.parametrize(
         ("p_cxml", "value", "expected_p_cxml"),
         [
-            ("w:p", RGBColor(0xC0, 0xC0, 0xC0), "w:p/w:pPr/w:shd{w:fill=C0C0C0}"),
-            ("w:p", "#FF0000", "w:p/w:pPr/w:shd{w:fill=FF0000}"),
-            ("w:p/w:pPr/w:shd{w:fill=C0C0C0}", None, "w:p/w:pPr"),
+            # -- `w:val` is required by the schema; a fill alone is not a valid `w:shd` --
+            (
+                "w:p",
+                RGBColor(0xC0, 0xC0, 0xC0),
+                "w:p/w:pPr/w:shd{w:val=clear,w:fill=C0C0C0}",
+            ),
+            ("w:p", "#FF0000", "w:p/w:pPr/w:shd{w:val=clear,w:fill=FF0000}"),
+            ("w:p/w:pPr/w:shd{w:val=clear,w:fill=C0C0C0}", None, "w:p/w:pPr"),
+            # -- "auto" is half of the ST_HexColor union; readable but not assignable --
+            ("w:p", "auto", "w:p/w:pPr/w:shd{w:val=clear,w:fill=auto}"),
+            # -- an existing pattern is preserved, not overwritten with "clear" --
+            (
+                "w:p/w:pPr/w:shd{w:val=pct25}",
+                "C0C0C0",
+                "w:p/w:pPr/w:shd{w:val=pct25,w:fill=C0C0C0}",
+            ),
         ],
     )
     def it_can_change_its_shading_fill(self, p_cxml, value, expected_p_cxml):
@@ -79,6 +96,45 @@ class DescribeParagraphFormat:
 
         assert paragraph_format._element.xml == expected_xml
 
+    @pytest.mark.parametrize(
+        ("p_cxml", "expected_value"),
+        [
+            ("w:p", None),
+            ("w:p/w:pPr", None),
+            ("w:p/w:pPr/w:shd{w:val=clear,w:fill=C0C0C0}", WD_SHADING_PATTERN.CLEAR),
+            ("w:p/w:pPr/w:shd{w:val=pct25}", WD_SHADING_PATTERN.PCT_25),
+            ("w:p/w:pPr/w:shd{w:fill=C0C0C0}", WD_SHADING_PATTERN.CLEAR),
+        ],
+    )
+    def it_knows_its_shading_pattern(self, p_cxml, expected_value):
+        paragraph_format = ParagraphFormat(element(p_cxml))
+        assert paragraph_format.shading_pattern == expected_value
+
+    @pytest.mark.parametrize(
+        ("p_cxml", "value", "expected_p_cxml"),
+        [
+            ("w:p", WD_SHADING_PATTERN.PCT_25, "w:p/w:pPr/w:shd{w:val=pct25}"),
+            ("w:p", WD_SHADING_PATTERN.CLEAR, "w:p/w:pPr/w:shd{w:val=clear}"),
+            ("w:p/w:pPr/w:shd{w:val=pct25}", None, "w:p/w:pPr"),
+        ],
+    )
+    def it_can_change_its_shading_pattern(self, p_cxml, value, expected_p_cxml):
+        paragraph_format = ParagraphFormat(element(p_cxml))
+        expected_xml = xml(expected_p_cxml)
+
+        paragraph_format.shading_pattern = value
+
+        assert paragraph_format._element.xml == expected_xml
+
+    def it_can_change_its_shading_color(self):
+        paragraph_format = ParagraphFormat(element("w:p/w:pPr/w:shd{w:val=pct25}"))
+
+        paragraph_format.shading_color = "FF0000"
+
+        assert paragraph_format._element.xml == xml(
+            "w:p/w:pPr/w:shd{w:val=pct25,w:color=FF0000}"
+        )
+
     def it_inserts_shading_in_schema_order(self):
         """`w:shd` must precede `w:spacing`, or Word rejects the document."""
         paragraph_format = ParagraphFormat(element("w:p/w:pPr/w:spacing{w:after=240}"))
@@ -86,7 +142,7 @@ class DescribeParagraphFormat:
         paragraph_format.shading_fill = "C0C0C0"
 
         assert paragraph_format._element.xml == xml(
-            "w:p/w:pPr/(w:shd{w:fill=C0C0C0},w:spacing{w:after=240})"
+            "w:p/w:pPr/(w:shd{w:val=clear,w:fill=C0C0C0},w:spacing{w:after=240})"
         )
 
     def it_knows_its_alignment_value(self, alignment_get_fixture):

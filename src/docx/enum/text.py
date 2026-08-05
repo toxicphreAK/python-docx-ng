@@ -308,6 +308,142 @@ class WD_LINE_SPACING(BaseXmlEnum):
        change the line spacing proportionately."""
 
 
+class WD_SHADING_PATTERN(BaseXmlEnum):
+    """Specifies the pattern drawn over the background of shaded content.
+
+    The pattern is drawn in the shading *color* over the shading *fill*. The common
+    case is |CLEAR|, which draws no pattern and leaves the fill as a solid background.
+
+    * ISO/IEC 29500-1 §17.18.78 (`ST_Shd`)
+    """
+
+    NIL = (0, "nil", "No shading. Equivalent to no `w:shd` element at all.")
+    """No shading. Equivalent to no `w:shd` element at all."""
+
+    CLEAR = (1, "clear", "No pattern; the fill color forms a solid background.")
+    """No pattern; the fill color forms a solid background.
+
+    This is what Word writes for an ordinary background color, and what this library
+    writes when shading is applied without naming a pattern.
+    """
+
+    SOLID = (2, "solid", "The pattern color entirely covers the fill color.")
+    """The pattern color entirely covers the fill color.
+
+    Note the reversal: with |SOLID| the visible background is the shading *color*, not
+    the fill.
+    """
+
+    HORZ_STRIPE = (3, "horzStripe", "Horizontal stripes.")
+    """Horizontal stripes."""
+
+    VERT_STRIPE = (4, "vertStripe", "Vertical stripes.")
+    """Vertical stripes."""
+
+    REVERSE_DIAG_STRIPE = (5, "reverseDiagStripe", "Diagonal stripes, upward to right.")
+    """Diagonal stripes running upward to the right."""
+
+    DIAG_STRIPE = (6, "diagStripe", "Diagonal stripes, downward to right.")
+    """Diagonal stripes running downward to the right."""
+
+    HORZ_CROSS = (7, "horzCross", "A horizontal and vertical crosshatch.")
+    """A horizontal and vertical crosshatch."""
+
+    DIAG_CROSS = (8, "diagCross", "A diagonal crosshatch.")
+    """A diagonal crosshatch."""
+
+    THIN_HORZ_STRIPE = (9, "thinHorzStripe", "Narrow horizontal stripes.")
+    """Narrow horizontal stripes."""
+
+    THIN_VERT_STRIPE = (10, "thinVertStripe", "Narrow vertical stripes.")
+    """Narrow vertical stripes."""
+
+    THIN_REVERSE_DIAG_STRIPE = (
+        11,
+        "thinReverseDiagStripe",
+        "Narrow diagonal stripes, upward to right.",
+    )
+    """Narrow diagonal stripes running upward to the right."""
+
+    THIN_DIAG_STRIPE = (12, "thinDiagStripe", "Narrow diagonal stripes, downward to right.")
+    """Narrow diagonal stripes running downward to the right."""
+
+    THIN_HORZ_CROSS = (13, "thinHorzCross", "A narrow horizontal and vertical crosshatch.")
+    """A narrow horizontal and vertical crosshatch."""
+
+    THIN_DIAG_CROSS = (14, "thinDiagCross", "A narrow diagonal crosshatch.")
+    """A narrow diagonal crosshatch."""
+
+    PCT_5 = (15, "pct5", "5% of the pattern color over the fill color.")
+    """5% of the pattern color over the fill color."""
+
+    PCT_10 = (16, "pct10", "10% of the pattern color over the fill color.")
+    """10% of the pattern color over the fill color."""
+
+    PCT_12 = (17, "pct12", "12.5% of the pattern color over the fill color.")
+    """12.5% of the pattern color over the fill color."""
+
+    PCT_15 = (18, "pct15", "15% of the pattern color over the fill color.")
+    """15% of the pattern color over the fill color."""
+
+    PCT_20 = (19, "pct20", "20% of the pattern color over the fill color.")
+    """20% of the pattern color over the fill color."""
+
+    PCT_25 = (20, "pct25", "25% of the pattern color over the fill color.")
+    """25% of the pattern color over the fill color."""
+
+    PCT_30 = (21, "pct30", "30% of the pattern color over the fill color.")
+    """30% of the pattern color over the fill color."""
+
+    PCT_35 = (22, "pct35", "35% of the pattern color over the fill color.")
+    """35% of the pattern color over the fill color."""
+
+    PCT_37 = (23, "pct37", "37.5% of the pattern color over the fill color.")
+    """37.5% of the pattern color over the fill color."""
+
+    PCT_40 = (24, "pct40", "40% of the pattern color over the fill color.")
+    """40% of the pattern color over the fill color."""
+
+    PCT_45 = (25, "pct45", "45% of the pattern color over the fill color.")
+    """45% of the pattern color over the fill color."""
+
+    PCT_50 = (26, "pct50", "50% of the pattern color over the fill color.")
+    """50% of the pattern color over the fill color."""
+
+    PCT_55 = (27, "pct55", "55% of the pattern color over the fill color.")
+    """55% of the pattern color over the fill color."""
+
+    PCT_60 = (28, "pct60", "60% of the pattern color over the fill color.")
+    """60% of the pattern color over the fill color."""
+
+    PCT_62 = (29, "pct62", "62.5% of the pattern color over the fill color.")
+    """62.5% of the pattern color over the fill color."""
+
+    PCT_65 = (30, "pct65", "65% of the pattern color over the fill color.")
+    """65% of the pattern color over the fill color."""
+
+    PCT_70 = (31, "pct70", "70% of the pattern color over the fill color.")
+    """70% of the pattern color over the fill color."""
+
+    PCT_75 = (32, "pct75", "75% of the pattern color over the fill color.")
+    """75% of the pattern color over the fill color."""
+
+    PCT_80 = (33, "pct80", "80% of the pattern color over the fill color.")
+    """80% of the pattern color over the fill color."""
+
+    PCT_85 = (34, "pct85", "85% of the pattern color over the fill color.")
+    """85% of the pattern color over the fill color."""
+
+    PCT_87 = (35, "pct87", "87.5% of the pattern color over the fill color.")
+    """87.5% of the pattern color over the fill color."""
+
+    PCT_90 = (36, "pct90", "90% of the pattern color over the fill color.")
+    """90% of the pattern color over the fill color."""
+
+    PCT_95 = (37, "pct95", "95% of the pattern color over the fill color.")
+    """95% of the pattern color over the fill color."""
+
+
 class WD_TAB_ALIGNMENT(BaseXmlEnum):
     """Specifies the tab stop alignment to apply.
 
