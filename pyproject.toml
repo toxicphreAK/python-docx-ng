@@ -20,15 +20,27 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Office/Business :: Office Suites",
     "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
 dependencies = [
-    # -- 4.5.2 is the oldest release with wheels for any Python this package
-    # -- supports; anything earlier would have to be built from source --
-    "lxml>=4.5.2",
+    # -- 6.1.0 is the first release fixing CVE-2026-41066, an XXE-to-local-files hole
+    # -- in the default configuration of `iterparse()` and `ETCompatXMLParser()`. Every
+    # -- 4.x and 5.x release is affected. This package uses neither API and sets
+    # -- `resolve_entities=False` on its own parser, so it was never exposed itself —
+    # -- but a document library has no business pulling a known-vulnerable XML parser
+    # -- into a dependency tree, and a caller reaching for lxml directly gets the fix.
+    # --
+    # -- 6.1.x ships wheels for CPython 3.9 through 3.14 and requires Python >=3.8, so
+    # -- this costs no supported interpreter. Output is byte-identical to 4.9.4 and
+    # -- 5.4.0, so the reproducibility guarantee is unaffected.
+    # --
+    # -- `tests/test_packaging.py` pins both this floor and the rule that nothing else
+    # -- joins this list without being a deliberate choice.
+    "lxml>=6.1.0",
     "typing_extensions>=4.9.0",
 ]
 description = "Create, read and update Microsoft Word (.docx) files."

@@ -22,6 +22,10 @@ pip install python-docx-ng
 > Note: the importable package is `docx`, not `python_docx_ng` — use `import docx`.
 > `python-docx-ng` and `python-docx` therefore cannot be installed side by side.
 
+Python 3.9 through 3.14. The only runtime dependencies are `lxml` and
+`typing_extensions`; `lxml` is floored at 6.1.0, the first release fixing
+CVE-2026-41066.
+
 ## Example
 
 ```python

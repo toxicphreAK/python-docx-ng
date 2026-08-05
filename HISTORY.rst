@@ -151,7 +151,17 @@ Packaging
 - The license is declared as an SPDX expression (PEP 639) rather than the deprecated
   table form, and ``LICENSE`` is declared through ``license-files``
 - ``Typing :: Typed`` is declared; the package has shipped ``py.typed`` since 1.2.0
-- The ``lxml`` floor is ``4.5.2``, the oldest release with wheels for a supported Python
+- Python 3.14 is supported and tested. The matrix is 3.9 through 3.14.
+- The ``lxml`` floor is ``6.1.0``, raised from ``4.5.2``. 6.1.0 is the first release
+  fixing CVE-2026-41066, an XXE-to-local-files hole in the default configuration of
+  ``iterparse()`` and ``ETCompatXMLParser()``; every 4.x and 5.x release is affected.
+  This package uses neither API and sets ``resolve_entities=False`` on its own parser,
+  so it was never exposed itself — but it has no business pulling a known-vulnerable XML
+  parser into a dependency tree. lxml 6.1.x ships wheels for CPython 3.9 through 3.14
+  and requires Python 3.8+, so no supported interpreter is lost, and generated documents
+  are byte-identical to those produced against 4.9.4 and 5.4.0.
+  **If you are pinned below lxml 6 for another reason, this release will not resolve
+  for you.**
 - The unpacked ``default-docx-template/`` is no longer installed. It is the editable
   source of ``default.docx``, is read by nothing at run time, and stays in the sdist
 - The ``requirements*.txt`` files are removed. ``[dependency-groups]`` in
