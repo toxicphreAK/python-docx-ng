@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import IO, TYPE_CHECKING, Iterator, cast
+from typing import IO, TYPE_CHECKING, Iterator, List, cast
 
 from docx.drawing import Drawing
 from docx.enum.shape import (
@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from docx.bookmark import Bookmark
     from docx.enum.text import WD_UNDERLINE
     from docx.footnotes import Endnote, Footnote
+    from docx.object import EmbeddedObject
     from docx.oxml.text.run import CT_R, CT_Text
     from docx.shared import Length
     from docx.text.paragraph import Paragraph
@@ -222,6 +223,60 @@ class Run(StoryChild):
     @bold.setter
     def bold(self, value: bool | None):
         self.font.bold = value
+
+    def add_embedded_object(
+        self,
+        path_or_stream: str | IO[bytes],
+        *,
+        icon: str | IO[bytes],
+        prog_id: str | None = None,
+        width: Length | None = None,
+        height: Length | None = None,
+    ) -> EmbeddedObject:
+        """Embed a file in this run as an OLE object and return it.
+
+        An embedded object is a whole file carried inside the document — a spreadsheet,
+        a PDF, another document — shown as an icon that opens the original application
+        on double-click::
+
+            run.add_embedded_object("budget.xlsx", icon="excel-icon.png",
+                                    prog_id="Excel.Sheet.12")
+
+        This is a different thing from :meth:`.Document.add_alt_chunk`, which imports
+        content and dissolves it into the document when Word opens the file; an embedded
+        object stays a distinct file.
+
+        `icon` is the image Word displays for the object and is required: Word cannot
+        render the embedded file itself, and an object with no visual is invisible in
+        the document. `width` and `height` size the visual, defaulting to the icon's own
+        size.
+
+        `prog_id` is what tells Word which application to launch —
+        ``"Excel.Sheet.12"``, ``"Word.Document.12"``, ``"AcroExch.Document"``. Getting
+        it wrong produces an object Word shows but cannot open, so it is worth passing
+        the right one; the default of ``"Package"`` is Word's generic "some file" entry,
+        which prompts the user to choose an application.
+
+        The visual is VML rather than DrawingML, so this shares nothing with
+        :meth:`add_picture` beyond relating the icon image in.
+        """
+        from docx.object import add_embedded_object
+
+        return add_embedded_object(
+            self,
+            path_or_stream,
+            icon=icon,
+            prog_id=prog_id,
+            width=width,
+            height=height,
+        )
+
+    @property
+    def embedded_objects(self) -> List[EmbeddedObject]:
+        """The OLE objects embedded in this run, in document order."""
+        from docx.object import iter_embedded_objects
+
+        return iter_embedded_objects(self._r, self)
 
     def copy_to(
         self,

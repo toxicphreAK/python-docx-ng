@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from docx.image.image import Image
     from docx.math import Math
     from docx.numbering import Numbering
+    from docx.object import EmbeddedObject
     from docx.opc.customprops import CustomProperties
     from docx.opc.parts.custom_xml import CustomXmlPart
     from docx.oxml.document import CT_Body, CT_Document
@@ -504,6 +505,25 @@ class Document(ElementProxy):
         meaningless for them.
         """
         return self._part.floating_shapes
+
+    @property
+    def embedded_objects(self) -> List[EmbeddedObject]:
+        """The OLE objects embedded in the document body, in document order.
+
+        An embedded object is a whole file carried inside the document — a spreadsheet,
+        a PDF, another document — which Word opens in its own application on
+        double-click. Extracting them is the useful half::
+
+            for obj in document.embedded_objects:
+                if obj.blob is not None:
+                    Path(obj.filename or "attachment").write_bytes(obj.blob)
+
+        Objects in a header, a footer or a footnote belong to those parts and are not
+        included; reach them through the container concerned.
+        """
+        from docx.object import iter_embedded_objects
+
+        return iter_embedded_objects(self._element.body, self._part)
 
     @property
     def images(self) -> Tuple[Image, ...]:

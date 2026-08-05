@@ -58,6 +58,15 @@ New features
 - ``ParagraphFormat.borders`` and ``Section.page_borders``, spelled the same as the
   table and cell borders API. A paragraph with only a bottom border is how Word draws a
   horizontal rule.
+- ``Run.add_embedded_object()``, ``Run.embedded_objects`` and
+  ``Document.embedded_objects`` — OLE objects, the whole files a document can carry
+  inside it. The read side matters on its own: a document with embedded attachments
+  previously gave no way to discover they exist, let alone extract them.
+- A ``python -m docx`` command line: ``info`` (the part inventory with sizes),
+  ``styles report`` / ``styles list`` / ``styles extract``, and ``cleanup``. argparse
+  only, no new dependency, and every subcommand is a thin shell over one public library
+  operation. ``cleanup`` never writes to its input and its ``--check`` mode exits
+  non-zero when there is something to remove, so it can be a CI gate.
 - Numbering definitions are writable: ``Numbering.add_definition()`` defines a list
   from scratch, ``add_numbered_definition()`` and ``add_bulleted_definition()`` are the
   shorthands for the two common cases, and ``NumberingLevel.set()`` changes a level's

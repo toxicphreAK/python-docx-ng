@@ -456,6 +456,14 @@ register_element_cls("a:sysClr", CT_SystemColor)
 register_element_cls("a:theme", CT_OfficeStyleSheet)
 register_element_cls("a:themeElements", CT_BaseStyles)
 
+from .object import CT_Object, CT_OLEObject
+
+# -- `w:object` and its `o:OLEObject` child. The VML `v:shape` inside is left
+# -- untyped: VML is a large schema this library does not otherwise model, and an
+# -- element class for it would claim more than the OLE feature needs. --
+register_element_cls("o:OLEObject", CT_OLEObject)
+register_element_cls("w:object", CT_Object)
+
 from .math import CT_OMath, CT_OMathPara
 
 register_element_cls("m:oMath", CT_OMath)
