@@ -46,6 +46,15 @@ Breaking changes
   ``Paragraph.runs`` likewise now includes runs inside a ``w:ins``.
 - ``Paragraph.text`` also now includes the cached result of a ``w:fldSimple`` — a page
   number or cross-reference displayed by such a field was previously missing from it.
+- ``Paragraph.text`` and ``.runs`` now look through ``w:smartTag`` and ``w:customXml``.
+  Word writes a ``w:smartTag`` around a recognised date, name or place, and its ``w:r``
+  children are ordinary runs one level down — previously invisible, so the text was
+  silently dropped and the run missing from ``.runs``. ``Paragraph.original_text``
+  reads them too. A block-level ``w:customXml``, which wraps whole paragraphs and
+  tables, is looked through as well — its content was previously absent from
+  ``Document.paragraphs`` and ``.tables`` altogether. Text inside a text box
+  (``w:txbxContent``) is still not included; that is a separate container rather than a
+  transparent wrapper.
 - Assigning ``Section.orientation`` now exchanges ``page_width`` and ``page_height`` as
   well, so the page is actually rotated. Previously it set ``w:pgSz/@w:orient`` alone,
   leaving a section declared landscape at portrait dimensions — which Word renders as
@@ -90,7 +99,8 @@ Added
 - ``.docm`` macro-enabled document support, and ``.dotx``/``.dotm`` template support
 - Content controls — reading text wrapped in a ``w:sdt``
 - East Asian and complex-script typefaces, ``w:szCs``, character scaling, theme fonts
-- Paragraph and run shading, and paragraph outline level
+- Paragraph and run shading — ``shading_fill``, plus ``shading_pattern`` and
+  ``shading_color`` and the ``WD_SHADING_PATTERN`` enum — and paragraph outline level
 - Multi-column section layout
 - Alt text on pictures and inline shapes
 - ``_Row.dont_split``, and the merge extent and origin of a table cell
@@ -103,6 +113,28 @@ Added
 Fixed
 ~~~~~
 
+- ``w:shd`` is modelled correctly. The schema requires ``w:val`` and makes ``w:fill``
+  optional; this library required ``w:fill`` and never wrote ``w:val``, so it emitted
+  shading a validating consumer rejects and raised on the pattern shading Word writes
+  for most of its presets. Shading now carries an explicit ``w:val``, and a ``w:shd``
+  with a pattern but no fill reads as |None| rather than raising. A ``w:shd`` written by
+  an earlier version, with no ``w:val``, still reads.
+- ``ST_HexColor`` accepts ``"auto"`` on assignment as well as on read. The schema type
+  is a union of an RGB triple and that literal, but only the read direction handled it,
+  so ``font.shading_fill = "auto"`` raised ``ValueError`` on a value the getter
+  documents and returns. ``w:color/@w:val`` is assignable as ``"auto"`` for the same
+  reason.
+- Style lookup matches case-insensitively when an exact match fails. A built-in style
+  has two spellings — the UI name ("Heading 1") and the internal name Word stores
+  ("heading 1") — and documents from other generators routinely store the UI casing,
+  which made the style present but unreachable: ``add_heading()`` and every
+  ``style=`` assignment raised ``KeyError`` on a document that opened fine.
+  ``name in styles`` now resolves exactly as ``styles[name]`` does. Style *definitions*
+  are unchanged on save; only lookup is tolerant.
+- An ISO/IEC 29500 Strict document now raises ``StrictOoxmlNotSupportedError``, naming
+  the format and how to convert it, rather than ``AttributeError: 'lxml.etree._Element'
+  object has no attribute 'body'``. Strict is an option in Word's Save As dialogue and
+  the default in some regulated environments; reading it is still not supported.
 - Style and latent-style lookup now accepts names and style IDs containing quotes and
   other XPath metacharacters.
 - Documents with oversized attribute values, which the default ``lxml`` parser rejects,

@@ -49,6 +49,48 @@ class DescribeStyles:
 
         assert styles[name]._element is added_style._element
 
+    @pytest.mark.parametrize(
+        ("stored_name", "key"),
+        [
+            # -- what Word writes, asked for by its UI name --
+            ("heading 1", "Heading 1"),
+            # -- what several other generators write; the case #110 is about --
+            ("Heading 1", "Heading 1"),
+            ("Heading 1", "heading 1"),
+            ("HEADING 1", "Heading 1"),
+            # -- casing tolerance is not limited to the built-in aliases --
+            ("Foo Bar", "foo bar"),
+        ],
+    )
+    def it_finds_a_built_in_style_whichever_casing_the_document_stores(
+        self, stored_name: str, key: str
+    ):
+        styles = Styles(
+            element("w:styles/w:style{w:type=paragraph}/w:name{w:val=%s}" % stored_name)
+        )
+
+        assert key in styles
+        assert styles[key]._element is styles._element.style_lst[0]
+
+    def it_prefers_an_exact_name_match_over_a_case_insensitive_one(self):
+        """A document carrying both spellings must resolve to the one asked for."""
+        styles = Styles(
+            element(
+                "w:styles/(w:style{w:type=paragraph}/w:name{w:val=Heading 1},"
+                "w:style{w:type=paragraph}/w:name{w:val=heading 1})"
+            )
+        )
+
+        assert styles["heading 1"]._element is styles._element.style_lst[1]
+
+    def it_does_not_report_a_style_it_cannot_return(self):
+        """`in` and `[]` must agree; a `__contains__` that lies is worse than either."""
+        styles = Styles(element("w:styles/w:style{w:type=paragraph}/w:name{w:val=heading 1}"))
+
+        assert "Heading 2" not in styles
+        with pytest.raises(KeyError):
+            styles["Heading 2"]
+
     def it_raises_on_style_not_found(self, get_raises_fixture):
         styles, key = get_raises_fixture
         with pytest.raises(KeyError):
@@ -179,6 +221,9 @@ class DescribeStyles:
         name, name_, style_type, builtin = request.param
         styles = Styles(styles_elm_)
         _getitem_.return_value = None
+        # -- `add_style()` tests for a duplicate with `in`, which resolves through
+        # -- `get_by_name()`; None is "no style of that name is present" --
+        styles_elm_.get_by_name.return_value = None
         styles_elm_.add_style_of_type.return_value = style_elm_
         StyleFactory_.return_value = style_
         return (

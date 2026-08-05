@@ -43,6 +43,30 @@ class DescribeBlockContentWalking:
 
         assert actual == expected
 
+    @pytest.mark.parametrize(
+        ("body_cxml", "expected"),
+        [
+            # -- `CT_CustomXmlBlock` wraps whole paragraphs and tables --
+            ("w:body/w:customXml/w:p", ["p"]),
+            ("w:body/(w:p,w:customXml/(w:p,w:tbl),w:p)", ["p", "p", "tbl", "p"]),
+            # -- nesting, and composing with a content control --
+            ("w:body/w:customXml/w:customXml/w:p", ["p"]),
+            ("w:body/w:sdt/w:sdtContent/w:customXml/w:p", ["p"]),
+            ("w:body/w:customXml/w:sdt/w:sdtContent/w:p", ["p"]),
+            # -- an empty wrapper contributes nothing rather than raising --
+            ("w:body/(w:customXml,w:p)", ["p"]),
+        ],
+    )
+    def it_looks_through_a_block_level_custom_xml_wrapper(
+        self, body_cxml: str, expected: list[str]
+    ):
+        """Skipping it would drop the paragraphs it wraps from the document entirely."""
+        body = cast(BaseOxmlElement, element(body_cxml))
+
+        actual = [e.tag.split("}")[1] for e in iter_block_content(body)]
+
+        assert actual == expected
+
     def it_leaves_a_sectPr_and_other_non_content_children_out(self):
         body = cast(BaseOxmlElement, element("w:body/(w:p,w:sectPr)"))
 
@@ -65,6 +89,36 @@ class DescribeRunContentWalking:
         ],
     )
     def it_looks_through_a_run_level_content_control(self, p_cxml: str, expected: list[str]):
+        p = cast(BaseOxmlElement, element(p_cxml))
+
+        actual = [e.tag.split("}")[1] for e in iter_run_content(p)]
+
+        assert actual == expected
+
+    @pytest.mark.parametrize(
+        ("p_cxml", "expected"),
+        [
+            # -- the runs Word wraps around a recognised date, name or place --
+            ("w:p/(w:r,w:smartTag/w:r,w:r)", ["r", "r", "r"]),
+            ("w:p/w:smartTag/(w:r,w:r)", ["r", "r"]),
+            # -- Word does nest them --
+            ("w:p/w:smartTag/w:smartTag/w:r", ["r"]),
+            # -- `w:customXml` has the same shape --
+            ("w:p/(w:r,w:customXml/w:r)", ["r", "r"]),
+            ("w:p/w:customXml/w:smartTag/w:r", ["r"]),
+            # -- a hyperlink inside one is still a hyperlink --
+            ("w:p/w:smartTag/w:hyperlink", ["hyperlink"]),
+            # -- composes with the wrappers already looked through --
+            ("w:p/w:smartTag/w:sdt/w:sdtContent/w:r", ["r"]),
+            ("w:p/w:smartTag/w:ins/w:r", ["r"]),
+            # -- and a deletion inside one is still skipped --
+            ("w:p/w:smartTag/w:del/w:r", []),
+        ],
+    )
+    def it_looks_through_a_smart_tag_and_custom_xml_wrapper(
+        self, p_cxml: str, expected: list[str]
+    ):
+        """`w:smartTag` and `w:customXml` are transparent; their runs are ordinary runs."""
         p = cast(BaseOxmlElement, element(p_cxml))
 
         actual = [e.tag.split("}")[1] for e in iter_run_content(p)]

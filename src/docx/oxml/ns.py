@@ -37,6 +37,25 @@ nsmap = {
 
 pfxmap = {value: key for key, value in nsmap.items()}
 
+# -- ISO/IEC 29500 **Strict** namespaces. Word's "Strict Open XML Document" save format
+# -- writes the same element names under these URIs instead of the Transitional ones in
+# -- `nsmap`. Kept deliberately *out* of `nsmap`: that mapping supplies the prefixes on
+# -- serialized output as well as the parser's lookup, so adding these would change what
+# -- gets written. This is a read-side constant, used to recognise such a document and
+# -- say so — see `StrictOoxmlNotSupportedError`. --
+STRICT_NS_PREFIX = "http://purl.oclc.org/ooxml/"
+
+STRICT_WML_MAIN = STRICT_NS_PREFIX + "wordprocessingml/main"
+
+
+def is_strict_ooxml_tag(tag: object) -> bool:
+    """True if `tag` is a Clark-notation tag name in an ISO Strict namespace.
+
+    False for anything that is not a string tag, which covers lxml's comment and
+    processing-instruction elements.
+    """
+    return isinstance(tag, str) and tag.startswith("{" + STRICT_NS_PREFIX)
+
 
 class NamespacePrefixedTag(str):
     """Value object that knows the semantics of an XML tag having a namespace prefix."""

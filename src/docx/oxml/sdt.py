@@ -44,9 +44,21 @@ _CONTROL_TYPE_TAGS = (
 )
 
 
+# -- Wrappers that contribute nothing of their own and whose `w:r` children are ordinary
+# -- runs one level down. `w:smartTag` is what Word puts around a recognised entity — a
+# -- date, a name, a place; Word 2003 wrote them freely and they still round-trip
+# -- through modern Word. `w:customXml` has the same shape. Both are transparent under
+# -- either reading of a revised document, so they are shared with the original-text
+# -- walk in `docx.oxml.revision` rather than listed twice. --
+TRANSPARENT_WRAPPER_TAGS = (qn("w:smartTag"), qn("w:customXml"))
+
 # -- run-level wrappers whose children are part of the text as the document now reads:
 # -- a field's cached result, and an insertion --
-_LOOK_THROUGH_TAGS = (qn("w:fldSimple"), qn("w:ins"), qn("w:moveTo"))
+_LOOK_THROUGH_TAGS = (
+    qn("w:fldSimple"),
+    qn("w:ins"),
+    qn("w:moveTo"),
+) + TRANSPARENT_WRAPPER_TAGS
 
 # -- and one whose children are not: deleted text --
 _SKIP_TAGS = (qn("w:del"), qn("w:moveFrom"))
@@ -58,10 +70,16 @@ def iter_block_content(element: BaseOxmlElement) -> Iterator[CT_P | CT_Tbl]:
     A `w:sdt` child is looked through rather than skipped: the block-level content of
     its `w:sdtContent` is generated in its place, recursively, so a content control
     nested in another content control is seen as well.
+
+    So is a `w:customXml`, which the schema defines in a block-level flavour
+    (`CT_CustomXmlBlock`) as well as the run-level one — it wraps whole paragraphs and
+    tables, and skipping it drops them from the document entirely.
     """
     for child in element.iterchildren():
         if child.tag in (qn("w:p"), qn("w:tbl")):
             yield cast("CT_P | CT_Tbl", child)
+        elif child.tag in TRANSPARENT_WRAPPER_TAGS:
+            yield from iter_block_content(cast("BaseOxmlElement", child))
         elif child.tag == qn("w:sdt"):
             sdtContent = child.find(qn("w:sdtContent"))
             if sdtContent is not None:

@@ -188,6 +188,21 @@ class DescribeParagraph:
         assert len(runs) == 4
         assert [run._r for run in runs] == paragraph._p.xpath(".//w:r")
 
+    def it_sees_the_runs_inside_a_smart_tag(self):
+        """`w:smartTag` wraps a recognised entity; its runs are ordinary runs."""
+        paragraph = Paragraph(
+            element('w:p/(w:r/w:t"A ",w:smartTag/w:r/w:t"TAGGED",w:r/w:t" B")'), None
+        )
+
+        assert paragraph.text == "A TAGGED B"
+        assert [run._r for run in paragraph.runs] == paragraph._p.xpath(".//w:r")
+
+    def and_it_sees_the_runs_inside_a_custom_xml_wrapper(self):
+        paragraph = Paragraph(element('w:p/w:customXml/w:r/w:t"CUSTOM"'), None)
+
+        assert paragraph.text == "CUSTOM"
+        assert len(paragraph.runs) == 1
+
     def it_can_add_a_run_to_itself(self, add_run_fixture):
         paragraph, text, style, style_prop_, expected_xml = add_run_fixture
         run = paragraph.add_run(text, style)

@@ -83,6 +83,19 @@ class DescribeRevisionTextModel:
 
         assert paragraph.text == paragraph.original_text == "plain"
 
+    def it_reads_both_sides_of_a_revision_inside_a_smart_tag(self):
+        """A `w:smartTag` is transparent under either reading, not just the current one."""
+        document = _document(
+            '<w:p><w:smartTag w:element="date">'
+            '<w:ins w:id="1" w:author="Ada"><w:r><w:t>new</w:t></w:r></w:ins>'
+            '<w:del w:id="2" w:author="Ada"><w:r><w:delText>old</w:delText></w:r></w:del>'
+            "</w:smartTag></w:p>"
+        )
+        paragraph = document.paragraphs[0]
+
+        assert paragraph.text == "new"
+        assert paragraph.original_text == "old"
+
     def it_includes_inserted_runs_in_the_run_collection(self):
         document = _document(_REVISED_PARAGRAPH)
 
