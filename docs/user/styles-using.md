@@ -112,6 +112,37 @@ A style can be removed from the document simply by calling its [delete][docx.sty
 
     The `Style.delete` method removes the style's definition from the document. It does not affect content in the document to which that style is applied. Content having a style not defined in the document is rendered using the default style for that content object, e.g. 'Normal' in the case of a paragraph.
 
+## Document defaults
+
+Below every style in the inheritance chain sits `w:docDefaults`, the formatting that
+applies to content no style has spoken for. For many documents in the wild it is the only
+place the base font is set, so a style walk that stops at `Normal` reads the wrong answer:
+
+```python
+document.styles.default_font.name         # -> the document-wide default typeface
+document.styles.default_font.size
+
+document.styles.default_paragraph_format.space_after
+document.styles.default_paragraph_format.line_spacing
+```
+
+[`Styles.default_font`][docx.styles.styles.Styles.default_font] is a
+[`Font`][docx.text.font.Font] and
+[`Styles.default_paragraph_format`][docx.styles.styles.Styles.default_paragraph_format] a
+[`ParagraphFormat`][docx.text.parfmt.ParagraphFormat], so everything documented for those
+works here. Both are writable, and setting a document default is the broadest change you
+can make to a document's appearance in one statement:
+
+```python
+from docx.shared import Pt
+
+document.styles.default_font.name = "Calibri"
+document.styles.default_font.size = Pt(11)
+```
+
+The inheritance order, most specific first: direct formatting on a run, then its
+character style, then the paragraph style, then `w:docDefaults`.
+
 ## Define character formatting
 
 Character, paragraph, and table styles can all specify character formatting to be applied to content with that style. All the character formatting that can be applied directly to text can be specified in a style. Examples include font typeface and size, bold, italic, and underline.
@@ -311,3 +342,37 @@ A latent style definition can be deleted by calling its `delete` method:
 >>> latent_styles['Light Grid']
 KeyError: no latent style with name 'Light Grid'
 ```
+
+## Which styles are in use
+
+```python
+document.styles.usage()          # -> a full StyleUsage report
+document.styles.unused           # -> the styles nothing reaches
+document.styles["Quote"].in_use  # -> True or False
+```
+
+"Used" is a reachability closure over every story part in the document, not a scan of the
+body — a style that is only ever the `basedOn` of another one is used. See
+[Style usage and cleanup](cleanup.md), which also covers
+[`Styles.remove_unused()`][docx.styles.styles.Styles.remove_unused] and
+[`Document.cleanup()`][docx.document.Document.cleanup].
+
+## Moving styles between documents
+
+[`Styles.copy_style_from()`][docx.styles.styles.Styles.copy_style_from] copies one style
+with its dependency closure. Three operations build on it, for whole sets of styles at a
+time:
+
+```python
+# -- pull a house template's styles into a generated document --
+report = document.styles.import_from("house-style.dotx")
+
+# -- push a document's styles out into a template of their own --
+document.styles.extract("house.dotx", as_template=True)
+
+# -- or just the styles.xml bytes --
+xml = document.styles.extract_xml(["Heading 1", "Heading 2"])
+```
+
+See [Templates and embedded files](templates.md#importing-a-templates-styles) for what
+each of them does with a name collision and what `report` contains.

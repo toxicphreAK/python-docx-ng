@@ -94,9 +94,68 @@ body.add_field(fields.page_reference("intro"))
 [`page_reference()`][docx.fields.page_reference] the *page number* it falls on. See
 [Bookmarks](bookmarks.md) for the ways to create one.
 
-## Captions that renumber
+## Captions
 
-`SEQ` is the counter behind Word's captions. Each name is its own sequence:
+[`Document.add_caption()`][docx.document.Document.add_caption] writes the whole thing —
+the label, the self-renumbering `SEQ` field, and the bookmark a cross-reference needs:
+
+```python
+document.add_picture("architecture.png")
+caption = document.add_caption("Figure", "the architecture")
+```
+
+That gives a paragraph in the "Caption" style that Word renders as "Figure 1 the
+architecture", where the number is a field it recomputes whenever figures are inserted or
+removed. Read back before Word has computed it, the number is simply missing:
+`caption.text` is `"Figure  the architecture"`.
+
+```python
+caption.paragraph        # -> the Paragraph, for any further formatting
+caption.label            # -> "Figure"
+caption.text             # -> the text as the document currently reads it
+caption.number           # -> the number Word last computed, or None
+caption.bookmark_name    # -> "_Ref000000001"
+```
+
+`number` is `None` for a caption this library has just written: a `SEQ` field's result is
+cached in the document, so it reads back only after a round trip through Word.
+
+Referring to it later is one call:
+
+```python
+document.add_paragraph("See ").add_field(
+    fields.cross_reference(caption.bookmark_name)
+)
+```
+
+**The bookmark name is the part that matters.** Word's cross-reference dialogue offers
+only targets whose bookmark name follows its own `_Ref` convention, so a caption
+bookmarked with an arbitrary name works but is invisible in the UI — the user cannot
+reference it. `add_caption()` generates names in that shape. (Word derives its own from a
+timestamp; a counter is used here instead, because a timestamp would make the same
+document generate different bytes on each run.) That shape also means the bookmark does
+not appear in [`Document.bookmarks`][docx.document.Document.bookmarks], which leaves out
+the ones Word maintains for itself; `Bookmarks.iter_all()` reaches it.
+
+Four keyword arguments adjust the result:
+
+```python
+document.add_caption("Table", "Revenue by region", separator=": ")
+document.add_caption("Figure", "A cat", restart_at_heading_level=1)  # -> "Figure 3-2"
+document.add_caption("Figure", "A cat", before=document.paragraphs[0])
+document.add_caption("Figure", "A cat", style=None)   # -> no style applied
+```
+
+`separator` is what goes between the number and the text. `restart_at_heading_level`
+starts the numbering over at each chapter, which is the "Figure 3-2" convention.
+[`_Cell.add_caption()`][docx.table._Cell.add_caption] does the same inside a table cell.
+
+Each label is its own sequence, so figures, tables and equations number independently.
+
+### Assembling one by hand
+
+`SEQ` is the counter underneath, and it is still there if you want to build a caption
+yourself:
 
 ```python
 caption = document.add_paragraph("Figure ", style="Caption")
@@ -104,12 +163,11 @@ caption.add_field(fields.sequence("Figure"))
 caption.add_run(": the architecture")
 ```
 
-Pass `restart_at_heading_level` to start the numbering over at each chapter, which gives
-the "Figure 3-2" style:
-
 ```python
 caption.add_field(fields.sequence("Figure", restart_at_heading_level=1))
 ```
+
+This is what `add_caption()` does, minus the bookmark.
 
 ## Reading the fields in a document
 

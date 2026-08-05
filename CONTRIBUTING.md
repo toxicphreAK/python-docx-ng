@@ -15,16 +15,15 @@ open an issue here too if you want it tracked.
 
 **Anything upstream has declined, or has not adopted, belongs here.** That is the whole
 reason this fork exists — tracked changes, fields, watermarks, floating images and the
-rest. See the [2.0.0 milestone](https://github.com/toxicphreAK/python-docx-ng/milestone/1)
-for what is planned and what is deliberately not started yet.
+rest. See the [open issues](https://github.com/toxicphreAK/python-docx-ng/issues) for what
+is planned and what is deliberately not started yet.
 
 If you are unsure, open an issue and ask before writing code.
 
 ## Branches
 
-- **`main`** is the 2.0.0 line and the only branch that takes work. It was restarted
-  from upstream v1.2.0 in August 2026; the fork's own features are being re-applied on
-  top one at a time.
+- **`main`** is the 2.x line and the only branch that takes work. It was restarted from
+  upstream v1.2.0 in August 2026; the fork's own features have been re-applied on top.
 - **`master`** is the 0.9.x record, kept for historical reference. Never target it, and
   never port work back onto it.
 - The **`upstream`** remote is read-only.

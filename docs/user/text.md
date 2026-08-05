@@ -80,6 +80,28 @@ None
 >>> paragraph_format.first_line_indent.inches
 -0.25
 ```
+### Indentation in character units
+
+Word can express an indent as a number of characters rather than an absolute distance,
+which is what East Asian typesetting conventions expect and what Word's own dialogue
+offers when the document language calls for it. Those values are a separate set of
+properties, because they are a different unit and the two cannot both apply:
+
+```pycon
+>>> paragraph_format.first_line_indent_chars = 200   # -> two characters
+>>> paragraph_format.left_indent_chars = 100         # -> one character
+>>> paragraph_format.right_indent_chars
+None
+```
+
+Values are in **hundredths of a character**, matching the XML — `200` is two characters.
+Setting a character-unit property clears its twips counterpart and vice versa, so the two
+can never disagree about the same edge.
+
+The absolute properties also read the `w:start` and `w:end` spellings Word writes in
+recent files, not only the older `w:left` and `w:right`, so a document produced by a
+current version of Word reports the indents it actually has.
+
 ### Tab stops
 
 A tab stop determines the rendering of a tab character in the text of a paragraph. In particular, it specifies the position where the text following the tab character will start, how it will be aligned to that position, and an optional leader character that will fill the horizontal space spanned by the tab.
@@ -161,6 +183,65 @@ EXACTLY (4)
 >>> paragraph_format.line_spacing_rule
 MULTIPLE (5)
 ```
+### Spacing in line units
+
+As with indentation, Word can express paragraph spacing as a number of lines rather than
+an absolute distance:
+
+```pycon
+>>> paragraph_format.space_before_lines = 100   # -> one line
+>>> paragraph_format.space_after_lines = 50     # -> half a line
+```
+
+Values are in **hundredths of a line**. These are `w:spacing/@w:beforeLines` and
+`@w:afterLines`, and Word applies them in preference to the absolute values when both are
+present — so as with the character units, setting one clears the other.
+
+### Paragraph borders
+
+A paragraph's borders are spelled the same way as a table's or a cell's — a mapping keyed
+by edge name:
+
+```python
+from docx.enum.table import WD_LINE_STYLE
+from docx.shared import Pt, RGBColor
+
+paragraph_format.borders["bottom"].line = WD_LINE_STYLE.SINGLE
+paragraph_format.borders["bottom"].size = Pt(1)
+paragraph_format.borders["bottom"].color = RGBColor(0x99, 0x99, 0x99)
+```
+
+A paragraph with only a bottom border is how Word draws a horizontal rule, which is the
+common reason to want this.
+
+The edges are `top`, `bottom`, `left`, `right`, plus two a table does not have:
+
+- `between` — drawn between *consecutive* paragraphs that carry the same border setting,
+  not around each one.
+- `bar` — a vertical line at the outer edge, used to mark changed text.
+
+Each edge exposes `line`, `size`, `color` and `space`, and setting `line` to
+`WD_LINE_STYLE.NONE` removes the border. For borders around a whole page, see
+[Page borders](sections.md#page-borders).
+
+### The paragraph mark
+
+A paragraph ends with a mark — the ¶ Word shows with formatting marks turned on — and that
+mark has run properties of its own, stored in `w:pPr/w:rPr`. They are what an *empty*
+paragraph is formatted with, because there is no run in it to carry formatting:
+
+```python
+paragraph = document.add_paragraph()          # -- empty
+paragraph.paragraph_format.mark_font.size = Pt(4)
+```
+
+That is the way to make a blank spacer paragraph small, and it is the only place the
+formatting of an empty paragraph lives.
+[`mark_font`][docx.text.parfmt.ParagraphFormat.mark_font] is a full
+[`Font`][docx.text.font.Font], so everything in
+[Apply character formatting](#apply-character-formatting) applies to it. It also affects
+the mark of a *non*-empty paragraph, which is what decides how tall the last line is.
+
 ### Pagination properties
 
 Four paragraph properties, [keep_together][docx.text.parfmt.ParagraphFormat.keep_together], [keep_with_next][docx.text.parfmt.ParagraphFormat.keep_with_next], [page_break_before][docx.text.parfmt.ParagraphFormat.page_break_before], and [widow_control][docx.text.parfmt.ParagraphFormat.widow_control] control aspects of how the paragraph behaves near page boundaries.
@@ -350,3 +431,131 @@ Setting `shading_pattern` to `None` removes the shading entirely, as does settin
     reading `w:shd`. It no longer does: it is strictly a
     [`WD_COLOR_INDEX`][docx.enum.text.WD_COLOR_INDEX] member — Word's highlighter pen,
     which has a fixed palette — and `shading_fill` is the arbitrary-colour fill.
+
+## Theme fonts
+
+A run's typeface can be set to a *theme token* rather than a font name — `minorHAnsi` for
+body text, `majorHAnsi` for headings — in which case the concrete font comes from the
+document's theme. [`Font.name`][docx.text.font.Font.name] reports `None` for such a run,
+because there is no font name in the run to report:
+
+```python
+run.font.theme = "minorHAnsi"
+
+run.font.name             # -> None
+run.font.theme            # -> "minorHAnsi"
+run.font.theme_typeface   # -> "Cambria"
+```
+
+[`Font.theme_typeface`][docx.text.font.Font.theme_typeface] resolves the token through
+the theme part, and for a document whose fonts come only from its theme this is the only
+way to find out what the text is actually rendered in. It is `None` when the run carries
+no token, when the theme leaves that slot empty, or when the `Font` was built over a bare
+element with no part behind it.
+
+The theme itself is [`Document.theme`][docx.document.Document.theme]:
+
+```python
+theme = document.theme
+
+theme.name                       # -> "Office Theme"
+theme.minor_font.latin           # -> "Cambria"
+theme.major_font.latin           # -> "Calibri"
+theme.minor_font.east_asian      # -> None, the default theme leaves it empty
+theme.minor_font.complex_script  # -> None
+
+theme.typeface("minorHAnsi")     # -> "Cambria"
+```
+
+The twelve theme colours are there too, keyed by the slot names as they appear in the XML
+— `dk1`, `lt1`, `dk2`, `lt2`, `accent1` through `accent6`, `hlink` and `folHlink`:
+
+```python
+theme.color("accent1")   # -> RGBColor(0x4F, 0x81, 0xBD)
+theme.colors             # -> the twelve, as a dict, in schema order
+```
+
+A slot name that does not exist raises `ValueError`; a slot the theme omits gives `None`.
+A system colour such as `dk1` reports the value the producing application last resolved it
+to, which is the only concrete value available off that operating system.
+
+!!! note
+
+    [`Document.theme`][docx.document.Document.theme] is `None` for a document with no
+    theme part, and — unlike the styles and settings parts — one is never created on
+    demand. A theme is a design the document was authored against; an empty one
+    synthesised on the spot would answer the typeface question with a fiction.
+
+## Right-to-left and vertical text
+
+Two separate things, often confused:
+
+**Base direction** is whether a paragraph reads right-to-left. It decides where the first
+character goes, which way punctuation faces, and which edge `start` and `end` mean:
+
+```python
+paragraph.paragraph_format.bidi = True
+```
+
+**Flow direction** is which way the lines themselves run, and it rotates the text:
+
+```python
+from docx.enum.text import WD_TEXT_DIRECTION
+
+paragraph.paragraph_format.text_direction = WD_TEXT_DIRECTION.TB_RL
+```
+
+| [`WD_TEXT_DIRECTION`][docx.enum.text.WD_TEXT_DIRECTION] | Flow |
+| --- | --- |
+| `LR_TB` | left to right, then top to bottom — the default |
+| `TB_RL` | top to bottom, then right to left — rotates the text 90° clockwise |
+| `BT_LR` | bottom to top, then left to right — rotates it 90° anticlockwise |
+| `LR_TB_V` | left to right, then top to bottom, rotating each East Asian character |
+| `TB_RL_V` | top to bottom, then right to left, with each character upright |
+| `TB_LR_V` | top to bottom, then left to right, Mongolian vertical layout |
+
+Both exist at three levels, and the more specific wins:
+
+```python
+document.sections[0].bidi = True                            # -- the section default
+document.sections[0].text_direction = WD_TEXT_DIRECTION.TB_RL
+paragraph.paragraph_format.text_direction = ...             # -- one paragraph
+table.cell(0, 0).text_direction = ...                       # -- one cell
+```
+
+All of them are `None` when the value is inherited.
+
+## Equations
+
+An equation is OMML — `m:oMath` — a markup language of its own that shares nothing with
+WordprocessingML but the file it lives in. Reading is supported; there is no builder.
+
+```python
+for equation in document.math:
+    print(equation.text, equation.is_display)
+```
+
+[`Document.math`][docx.document.Document.math],
+[`BlockItemContainer.math`][docx.blkcntnr.BlockItemContainer.math] and
+[`Paragraph.math`][docx.text.paragraph.Paragraph.math] each return the
+[`Math`][docx.math.Math] objects in document order:
+
+- `.text` — the characters of the equation, in reading order, with the structure flattened
+  away. A fraction reads as its numerator then its denominator; there is no LaTeX here.
+- `.xml` — the OMML itself, which is what to use if you need the structure.
+- `.is_display` — `True` for a display equation in a `m:oMathPara` of its own, `False` for
+  one inline in a sentence.
+
+!!! note
+
+    **Equation text is deliberately not part of
+    [`Paragraph.text`][docx.text.paragraph.Paragraph.text].**
+
+    Including it would describe the document more truthfully. But
+    [`replace_text()`][docx.document.Document.replace_text] and the run-isolating
+    machinery under it measure offsets against `Paragraph.text` and can only cut at run
+    boundaries. Text they cannot reach would silently mis-target every replacement after
+    the first equation in a paragraph, and a wrong edit is worse than a missing character.
+
+    Read `paragraph.math` when you want the equations, and `paragraph.text` when you want
+    what is safely editable.

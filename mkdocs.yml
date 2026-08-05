@@ -127,15 +127,18 @@ nav:
       - Working with styles: user/styles-using.md
   - How-to:
       - Finding and replacing text: user/search-replace.md
+      - Copying content: user/copying.md
       - Numbered and bulleted lists: user/numbering.md
-      - Fields and tables of contents: user/fields.md
+      - Fields, captions and tables of contents: user/fields.md
       - Bookmarks: user/bookmarks.md
       - Tracked changes: user/revisions.md
       - Images: user/images.md
       - Watermarks: user/watermarks.md
-      - Footnotes: user/footnotes.md
+      - Footnotes and endnotes: user/footnotes.md
       - Form fields and content controls: user/form-fields.md
       - Document properties: user/document-properties.md
-      - Templates and embedded files: user/templates.md
+      - Templates, embedded files and macros: user/templates.md
+      - Style usage and cleanup: user/cleanup.md
+      - Command line: user/cli.md
   - Migrating from 0.9.x: user/migrating-from-0-9.md
   - API reference: api/

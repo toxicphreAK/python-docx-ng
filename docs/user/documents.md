@@ -27,7 +27,7 @@ If you want more control over the final document, or if you want to change an ex
 Things to note:
 
 - You can open any Word 2007 or later file this way (`.doc` files from Word 2003 and earlier won't work). Macro-enabled `.docm` files and `.dotx` / `.dotm` templates open too.
-- Not every part of a document has an API yet — embedded OLE objects and charts, for instance. Anything without one is left untouched and written back out unchanged on save, so opening and re-saving a document never silently discards content it does not understand.
+- Not every part of a document has an API yet — charts and SmartArt diagrams, for instance. Anything without one is left untouched and written back out unchanged on save, so opening and re-saving a document never silently discards content it does not understand.
 - If you use the same filename to open and save the file, `python-docx` will obediently overwrite the original file without a peep. You'll want to make sure that's what you intend.
 
 ## Files that cannot be opened
@@ -63,3 +63,55 @@ that says which:
 The `'rb'` file open mode parameter isn't required on all operating systems. It defaults to `'r'` which is enough sometimes, but the 'b' (selecting binary mode) is required on Windows and at least some versions of Linux to allow Zipfile to open the file.
 
 Okay, so you've got a document open and are pretty sure you can save it somewhere later. Next step is to get some content in there ...
+
+## Reproducible output
+
+The same document data serialises to the same bytes, every time, on any machine. Three
+things make that true:
+
+- Every zip member is stamped with a fixed timestamp — the zip epoch, 1980-01-01 — rather
+  than the time of the save.
+- Parts are written in partname order.
+- Relationships are written in numeric `rId` order.
+
+So a build that generates a document twice produces two identical files, and a checksum is
+a meaningful thing to compare. `tests/test_reproducible.py` pins this.
+
+The one exception is [`add_custom_xml_part()`][docx.document.Document.add_custom_xml_part],
+which generates a random GUID unless you supply one — see
+[The custom XML data store](document-properties.md#the-custom-xml-data-store).
+
+Anything you put in a document yourself is of course yours to keep deterministic. A
+timestamp in [core properties](document-properties.md), or text built from
+`datetime.now()`, changes the input and therefore the output.
+
+## Reducing the size of what you produce
+
+A document generated from the bundled template is around 20 KB on disk, and most of that
+is the 168 style definitions Word's own template carries. `Document.cleanup()` removes
+what nothing points at and takes it to about 9 KB:
+
+```python
+document.cleanup()
+```
+
+See [Style usage and cleanup](cleanup.md), and [`python -m docx cleanup`](cli.md) for
+doing it to a file you already have.
+
+## Parts beyond the body
+
+A `.docx` is a package of parts, and several of them have an API of their own. The ones
+not covered by another page:
+
+| | |
+| --- | --- |
+| [`Document.theme`][docx.document.Document.theme] | the theme fonts and colours — see [Theme fonts](text.md#theme-fonts) |
+| [`Document.custom_xml_parts`][docx.document.Document.custom_xml_parts] | the custom XML data store — see [Document properties](document-properties.md#the-custom-xml-data-store) |
+| [`Document.vba_project`][docx.document.Document.vba_project] | the macro project — see [Macros](templates.md#macros) |
+| [`Document.embedded_objects`][docx.document.Document.embedded_objects] | embedded OLE objects — see [Embedded OLE objects](templates.md#embedded-ole-objects) |
+| [`Document.images`][docx.document.Document.images] | the images the body embeds — see [Images](images.md#reading-the-images-already-in-a-document) |
+| [`Document.math`][docx.document.Document.math] | the equations — see [Equations](text.md#equations) |
+| [`Document.endnotes`][docx.document.Document.endnotes] | the endnotes — see [Footnotes](footnotes.md#endnotes) |
+
+`Document.part.package.iter_parts()` reaches everything, typed where a part class exists
+and as a plain `Part` where one does not.

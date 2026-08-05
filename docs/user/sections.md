@@ -115,3 +115,55 @@ from docx.enum.section import WD_SECTION
 two_up = document.add_section(WD_SECTION.CONTINUOUS)
 two_up.column_count = 2
 ```
+
+## Page borders
+
+A page border is a section property, spelled the same way as the table, cell and
+paragraph borders:
+
+```python
+from docx.enum.table import WD_LINE_STYLE
+from docx.shared import Pt, RGBColor
+
+borders = document.sections[0].page_borders
+
+for edge in ("top", "bottom", "left", "right"):
+    borders[edge].line = WD_LINE_STYLE.SINGLE
+    borders[edge].size = Pt(1)
+    borders[edge].color = RGBColor(0x33, 0x33, 0x33)
+```
+
+Each edge exposes `line`, `size`, `color` and `space`, and `borders.clear()` removes the
+lot. Three settings apply to the frame as a whole rather than to one edge:
+
+```python
+borders.display = "firstPage"    # -- which pages get one
+borders.offset_from = "text"     # -- measured from the text, not the page edge
+borders.z_order = "back"         # -- drawn behind the page content
+```
+
+| Property | Values | Word's default when absent |
+| --- | --- | --- |
+| `display` | `"allPages"`, `"firstPage"`, `"notFirstPage"` | all pages |
+| `offset_from` | `"page"`, `"text"` | page |
+| `z_order` | `"front"`, `"back"` | front |
+
+These three take the attribute value itself rather than an enumeration member, because
+each is a two- or three-value set with no `WdEnumeration` counterpart to mirror. A value
+outside the set raises `ValueError` rather than writing a document Word will reject.
+
+`offset_from` is the one that catches people out. Measured from the page edge — the
+default — the `space` on each edge is the distance in from the paper; measured from the
+text it is the distance out from the text block, which is what Word's "Measure from: Text"
+setting does and what a border that has to clear a header needs.
+
+## Right-to-left and vertical text
+
+[`Section.bidi`][docx.section.Section.bidi] sets the default base direction for the
+section, and [`Section.text_direction`][docx.section.Section.text_direction] the default
+flow direction. Both are defaults a paragraph or a cell can override — see
+[Right-to-left and vertical text](text.md#right-to-left-and-vertical-text).
+
+```python
+section.bidi = True
+```
