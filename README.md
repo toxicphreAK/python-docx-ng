@@ -65,27 +65,56 @@ uvx --from mcpdoc mcpdoc --urls python-docx-ng:https://toxicphreak.github.io/pyt
 
 ## What this adds over python-docx
 
-*Being ported onto the v1.2.0 base — see
-[HISTORY.rst](https://github.com/toxicphreAK/python-docx-ng/blob/main/HISTORY.rst) for
-current status
-and the [2.0.0 milestone](https://github.com/toxicphreAK/python-docx-ng/milestone/1) for
-what is still to come.*
+Everything upstream v1.2.0 does, plus:
 
-+ Footnotes — `Document.footnotes` and `Run.add_footnote_reference()`
+**Editing and review**
+
++ Tracked changes — read revisions, and accept or reject them individually or in bulk
++ Comments, footnotes, and cross-run search and replace that survives Word's run splitting
++ A deletion API — `.delete()` on paragraphs, runs, tables, rows and columns
+
+**Content people ask for**
+
++ Fields and a table of contents — `Paragraph.add_field()`, with builders for PAGE, TOC, REF, SEQ and the rest
++ List numbering — read a paragraph's number, apply a list, restart it
++ Bookmarks, `Paragraph.add_hyperlink()`, and captions via SEQ
++ Watermarks, text and image, written into the header where Word expects them
++ Floating (anchored) images with text wrapping, alongside inline ones
 + Legacy form fields — read and fill text inputs, check boxes and drop-downs
-+ Table and cell borders — `Table.borders["top"].line = WD_LINE_STYLE.SINGLE`
 + AltChunk — embed HTML, RTF or another `.docx` for Word to import on open
-+ Custom and extended document properties (`docProps/custom.xml`, `docProps/app.xml`)
-+ Bookmarks, `Paragraph.add_hyperlink()`, and a deletion API
-+ `.docm` (macro-enabled) and `.dotx`/`.dotm` (template) support
-+ SVG, EMF, WMF and WebP image support
+
+**Formatting**
+
++ Table and cell borders — `Table.borders["top"].line = WD_LINE_STYLE.SINGLE`
++ Paragraph and run shading, including the pattern and its colour
++ Multi-column section layout, and row `dont_split`
 + Outline level — drives the outline shown in navigation panes and PDF bookmarks
 + Font scaling, theme typefaces, East Asian and complex-script typefaces
-+ Paragraph and run shading
-+ Multi-column section layout, and row `dont_split`
++ Copying a style between documents, with its `basedOn`/`next`/`link` closure and numbering
+
+**Files and formats**
+
++ `.docm` (macro-enabled) and `.dotx`/`.dotm` (template) support
++ SVG, EMF, WMF and WebP image support
++ Custom and extended document properties (`docProps/custom.xml`, `docProps/app.xml`)
 + Reproducible documents — the same input produces byte-identical output
-+ Custom namespaces in `xpath()` calls
++ Accepts `pathlib.Path` anywhere a path is taken
+
+**Accessibility**
+
++ Alt text on pictures, inline shapes and tables
+
+**Robustness**
+
 + Tolerates oversized attribute values the default `lxml` parser rejects
++ Corrupt, truncated and password-protected files raise something that says which
++ Custom namespaces in `xpath()` calls
+
+Some things are deliberately not here yet — reading ISO Strict documents, endnotes,
+equations, embedded OLE objects and charts among them. See the
+[issue tracker](https://github.com/toxicphreAK/python-docx-ng/issues) for what is
+planned, and [HISTORY.rst](https://github.com/toxicphreAK/python-docx-ng/blob/main/HISTORY.rst)
+for the full changelog.
 
 ## Upgrading from 0.9.x
 
