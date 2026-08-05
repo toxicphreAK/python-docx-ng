@@ -71,6 +71,28 @@ class BaseStyle(ElementProxy):
         self._element = None
 
     @property
+    def in_use(self) -> bool:
+        """|True| when this style is reachable from the document's content.
+
+        "Reachable" is the closure :meth:`.Styles.usage` computes, so a style used only
+        as the `w:basedOn` of a used style counts, as does a `w:default="1"` style that
+        nothing names outright::
+
+            >>> [s.name for s in document.styles if s.in_use]
+            ['Normal', 'Heading 1', 'Hyperlink']
+
+        Reading this on every style of a document recomputes the closure each time; use
+        :meth:`.Styles.usage` for more than a handful.
+
+        Always |False| for a style whose document part is unknown — one constructed
+        directly from an element rather than reached through :attr:`.Document.styles` —
+        because there is no content to be reachable from.
+        """
+        if self._doc_part is None:
+            return False
+        return self.style_id in set(self._doc_part.styles.usage().used)
+
+    @property
     def hidden(self):
         """|True| if display of this style in the style gallery and list of recommended
         styles is suppressed.

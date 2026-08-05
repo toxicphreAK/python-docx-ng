@@ -22,6 +22,7 @@ from docx.text.run import Run
 
 if TYPE_CHECKING:
     import docx.types as t
+    from docx.cleanup import CleanupResult
     from docx.comments import Comment, Comments
     from docx.fields import Field
     from docx.footnotes import Endnotes, Footnotes
@@ -260,6 +261,48 @@ class Document(ElementProxy):
         `/docProps/custom.xml`.
         """
         return self._part.package.custom_properties
+
+    def cleanup(
+        self,
+        *,
+        styles: bool = True,
+        numbering: bool = True,
+        media: bool = True,
+        latent_styles: bool = False,
+        keep: Tuple[str, ...] = (),
+    ) -> CleanupResult:
+        """Remove what this document carries that nothing points at; report what went.
+
+        A document created by this library defines 164 styles and references one, and
+        carries numbering definitions for lists it does not have::
+
+            >>> print(document.cleanup())
+            removed 152 styles, 3 numbering definitions, ...
+
+        Three separate kinds of dead weight, each with its own flag: unused style
+        definitions, numbering definitions no content or style references, and image
+        parts nothing in the document part refers to — the last of which the `.delete()`
+        methods leave behind as a matter of course.
+
+        **This is destructive.** For styles, the reachability closure in
+        :meth:`.Styles.usage` is the only thing standing between it and a document whose
+        formatting has quietly changed; `keep` names styles to preserve along with their
+        dependencies, for ones you plan to apply but have not yet.
+
+        `latent_styles` is off by default and separate from `styles` on purpose:
+        dropping a `w:lsdException` changes what a user sees in Word's style gallery
+        rather than how the document renders.
+        """
+        from docx.cleanup import cleanup
+
+        return cleanup(
+            self._part,
+            styles=styles,
+            numbering=numbering,
+            media=media,
+            latent_styles=latent_styles,
+            keep=keep,
+        )
 
     @property
     def core_properties(self):

@@ -38,6 +38,19 @@ New features
 - ``ParagraphFormat.borders`` and ``Section.page_borders``, spelled the same as the
   table and cell borders API. A paragraph with only a bottom border is how Word draws a
   horizontal rule.
+- Style usage analysis: ``Styles.usage()``, ``Styles.unused`` and ``Style.in_use``.
+  "Used" is a reachability closure over every story part — body, headers, footers,
+  footnotes, endnotes and comments — following ``w:basedOn``, ``w:next``, ``w:link``
+  and the numbering and table-style references, not a scan of ``w:pStyle`` in the body.
+- Cleanup, built on that closure: ``Styles.remove_unused()``,
+  ``LatentStyles.trim()`` and ``Document.cleanup()``, which also drops numbering
+  definitions and image parts nothing references. Destructive, so the closure and its
+  tests come first; ``Normal`` and the ``w:default="1"`` styles are never removed by
+  default.
+- Bulk style transfer: ``Styles.import_from()``, ``Styles.extract()`` and
+  ``Styles.extract_xml()``, on top of ``copy_style_from()``. ``import_from()`` accepts
+  a path, a stream or an open ``Document`` — a ``.dotx`` house template is the common
+  case — and reports what it did with each name.
 - ``Document.custom_xml_parts`` and ``Document.add_custom_xml_part()``, exposing the
   custom XML data store (``customXml/item1.xml`` and its ``itemProps`` sidecar). This
   is where a document-generation pipeline keeps the data its content controls are bound
