@@ -8,7 +8,7 @@ specialized ones like structured document tags.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Iterator, List
 
 from typing_extensions import TypeAlias
 
@@ -19,6 +19,7 @@ from docx.text.paragraph import Paragraph
 
 if TYPE_CHECKING:
     import docx.types as t
+    from docx.math import Math
     from docx.oxml.comments import CT_Comment
     from docx.oxml.document import CT_Body
     from docx.oxml.section import CT_HdrFtr
@@ -97,6 +98,17 @@ class BlockItemContainer(StoryChild):
 
         for element in self._element.inner_content_elements:
             yield (Paragraph(element, self) if isinstance(element, CT_P) else Table(element, self))
+
+    @property
+    def math(self) -> List[Math]:
+        """The equations in this container, in document order.
+
+        Includes equations inside tables in this container. See :attr:`.Paragraph.math`
+        for why equation text is not part of :attr:`.Paragraph.text`.
+        """
+        from docx.math import math_list
+
+        return math_list(self._element, self)
 
     @property
     def content_controls(self) -> list[ContentControl]:

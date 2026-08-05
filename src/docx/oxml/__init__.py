@@ -140,7 +140,7 @@ from .extendedprops import CT_ExtendedProperties
 
 register_element_cls("ep:Properties", CT_ExtendedProperties)
 
-from .footnotes import CT_Footnotes, CT_FtnEdn, CT_FtnEdnRef
+from .footnotes import CT_Endnotes, CT_Footnotes, CT_FtnEdn, CT_FtnEdnRef
 
 # -- `w:footnote` is also the tag of the `CT_FtnEdnSepRef` children of `w:footnotePr` in
 # -- a section or in the settings part. Those carry only a `w:id` attribute, which
@@ -148,6 +148,10 @@ from .footnotes import CT_Footnotes, CT_FtnEdn, CT_FtnEdnRef
 register_element_cls("w:footnote", CT_FtnEdn)
 register_element_cls("w:footnoteReference", CT_FtnEdnRef)
 register_element_cls("w:footnotes", CT_Footnotes)
+# -- `w:endnote` likewise doubles as the `CT_FtnEdnSepRef` child of `w:endnotePr` --
+register_element_cls("w:endnote", CT_FtnEdn)
+register_element_cls("w:endnoteReference", CT_FtnEdnRef)
+register_element_cls("w:endnotes", CT_Endnotes)
 
 from .document import CT_AltChunk, CT_Body, CT_Document
 
@@ -445,3 +449,8 @@ register_element_cls("a:srgbClr", CT_SRgbColor)
 register_element_cls("a:sysClr", CT_SystemColor)
 register_element_cls("a:theme", CT_OfficeStyleSheet)
 register_element_cls("a:themeElements", CT_BaseStyles)
+
+from .math import CT_OMath, CT_OMathPara
+
+register_element_cls("m:oMath", CT_OMath)
+register_element_cls("m:oMathPara", CT_OMathPara)

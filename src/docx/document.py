@@ -24,8 +24,9 @@ if TYPE_CHECKING:
     import docx.types as t
     from docx.comments import Comment, Comments
     from docx.fields import Field
-    from docx.footnotes import Footnotes
+    from docx.footnotes import Endnotes, Footnotes
     from docx.image.image import Image
+    from docx.math import Math
     from docx.numbering import Numbering
     from docx.opc.customprops import CustomProperties
     from docx.oxml.document import CT_Body, CT_Document
@@ -280,6 +281,15 @@ class Document(ElementProxy):
         return self._part.footnotes
 
     @property
+    def endnotes(self) -> Endnotes:
+        """An |Endnotes| object providing access to the endnotes of this document.
+
+        The endnotes part is created the first time this is used, so a document that
+        never touches it gains no `/word/endnotes.xml`.
+        """
+        return self._part.endnotes
+
+    @property
     def fields(self) -> List[Field]:
         """A |Field| for each field in the document body, in document order.
 
@@ -373,6 +383,17 @@ class Document(ElementProxy):
     def iter_inner_content(self) -> Iterator[Paragraph | Table]:
         """Generate each `Paragraph` or `Table` in this document in document order."""
         return self._body.iter_inner_content()
+
+    @property
+    def math(self) -> List[Math]:
+        """The equations in the document body, in document order.
+
+        Equations in a header, a footer, a footnote or a comment are in those parts
+        rather than the body and are not included; reach them through the container
+        concerned. See :attr:`.Paragraph.math` for why equation text is not part of
+        :attr:`.Paragraph.text`.
+        """
+        return self._body.math
 
     @property
     def numbering(self) -> Numbering:
@@ -476,6 +497,8 @@ class Document(ElementProxy):
                 )
         if footnotes and self._part.has_footnotes_part:
             containers.extend(self.footnotes)
+        if footnotes and self._part.has_endnotes_part:
+            containers.extend(self.endnotes)
 
         replaced = 0
         for container in containers:

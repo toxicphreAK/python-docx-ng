@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     import docx.types as t
     from docx.bookmark import Bookmark
     from docx.enum.text import WD_UNDERLINE
-    from docx.footnotes import Footnote
+    from docx.footnotes import Endnote, Footnote
     from docx.oxml.text.run import CT_R, CT_Text
     from docx.shared import Length
 
@@ -310,6 +310,24 @@ class Run(StoryChild):
         if self._r.style is None:
             self._r.style = "FootnoteReference"
         self._r.add_footnoteReference().id = footnote.footnote_id
+
+    def add_endnote_reference(self, endnote: Endnote) -> None:
+        """Add a reference to `endnote` at the end of this run.
+
+        The endnote counterpart of :meth:`add_footnote_reference`, and identical to it
+        except that Word places the note at the end of the document or section rather
+        than at the foot of the page::
+
+            endnote = document.endnotes.add_endnote("See Smith (2019).")
+            paragraph.add_run().add_endnote_reference(endnote)
+
+        The "EndnoteReference" character style is applied to this run when it has no
+        character style of its own, since that style is what raises the mark to a
+        superscript.
+        """
+        if self._r.style is None:
+            self._r.style = "EndnoteReference"
+        self._r.add_endnoteReference().id = endnote.endnote_id
 
     def mark_comment_range(self, last_run: Run, comment_id: int) -> None:
         """Mark the range of runs from this run to `last_run` (inclusive) as belonging to a comment.

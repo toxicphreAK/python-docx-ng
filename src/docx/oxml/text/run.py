@@ -27,6 +27,7 @@ class CT_R(BaseOxmlElement):
     """`<w:r>` element, containing the properties and text for a run."""
 
     add_br: Callable[[], CT_Br]
+    add_endnoteReference: Callable[[], CT_FtnEdnRef]
     add_footnoteReference: Callable[[], CT_FtnEdnRef]
     add_tab: Callable[[], CT_TabStop]
     get_or_add_rPr: Callable[[], CT_RPr]
@@ -37,6 +38,7 @@ class CT_R(BaseOxmlElement):
     br = ZeroOrMore("w:br")
     cr = ZeroOrMore("w:cr")
     drawing = ZeroOrMore("w:drawing")
+    endnoteReference = ZeroOrMore("w:endnoteReference")
     footnoteReference = ZeroOrMore("w:footnoteReference")
     t = ZeroOrMore("w:t")
     tab = ZeroOrMore("w:tab")

@@ -38,6 +38,21 @@ New features
 - ``ParagraphFormat.borders`` and ``Section.page_borders``, spelled the same as the
   table and cell borders API. A paragraph with only a bottom border is how Word draws a
   horizontal rule.
+- Endnotes: ``Document.endnotes``, ``Endnotes.add_endnote()``, ``Endnote.text``,
+  ``Endnote.endnote_id`` and ``Run.add_endnote_reference()``, mirroring the footnote
+  API. ``word/endnotes.xml`` is created on demand, as the footnotes part is, and
+  ``Document.replace_text(footnotes=True)`` now reaches endnotes as its docstring
+  already said it would.
+- ``Paragraph.math``, ``BlockItemContainer.math`` and ``Document.math``, exposing the
+  OMML equations (``m:oMath``) that were previously unreachable. Each ``Math`` object
+  offers ``.text``, ``.xml`` and ``.is_display``.
+
+  **Equation text is deliberately not included in ``Paragraph.text``.** Including it
+  would describe the document more truthfully, but ``replace_text()`` and the
+  run-isolating machinery under it measure offsets against ``Paragraph.text`` and can
+  only cut at run boundaries; text they cannot reach would silently mis-target every
+  replacement after the first equation in a paragraph. A wrong edit is worse than a
+  missing character.
 - ``Document.theme``, exposing ``word/theme/theme1.xml`` — the major and minor
   typefaces and the twelve theme colours — and ``Font.theme_typeface``, which resolves
   a ``minorHAnsi``-style token to the font name it stands for. For a document whose

@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from docx.bookmark import Bookmark
     from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
     from docx.fields import Field
+    from docx.math import Math
     from docx.numbering import ParagraphNumbering
     from docx.oxml.text.form import CT_FldChar, CT_SimpleField
     from docx.oxml.text.paragraph import CT_P
@@ -507,6 +508,30 @@ class Paragraph(StoryChild):
             if p is self._p:
                 return number
         return None
+
+    @property
+    def math(self) -> List[Math]:
+        """The equations in this paragraph, in document order.
+
+        Word stores an equation as OMML (`m:oMath`), a notation of its own with no
+        overlap with the wordprocessing run content, so an equation appears in neither
+        :attr:`runs` nor :attr:`text`::
+
+            >>> paragraph.text
+            'The result is  for all n'
+            >>> [m.text for m in paragraph.math]
+            ['x2+y2']
+
+        **Equation text is deliberately not part of** :attr:`text`. Including it would
+        be more truthful about what the document says, but :meth:`replace_text` and the
+        run-isolating machinery underneath it measure offsets against :attr:`text` and
+        can only cut at run boundaries — text they cannot reach would silently
+        mis-target every replacement after the first equation in a paragraph. A wrong
+        edit is worse than a missing character.
+        """
+        from docx.math import math_list
+
+        return math_list(self._p, self)
 
     @property
     def paragraph_format(self):
