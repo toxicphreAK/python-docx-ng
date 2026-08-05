@@ -7,7 +7,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable
 
 from docx.enum.dml import MSO_THEME_COLOR
-from docx.enum.text import WD_COLOR_INDEX, WD_FONT_HINT, WD_UNDERLINE
+from docx.enum.text import (
+    WD_COLOR_INDEX,
+    WD_FONT_HINT,
+    WD_SHADING_PATTERN,
+    WD_UNDERLINE,
+)
 from docx.oxml.ns import nsdecls
 from docx.oxml.parser import parse_xml
 from docx.oxml.simpletypes import (
@@ -65,9 +70,52 @@ class CT_Highlight(BaseOxmlElement):
 
 
 class CT_Shd(BaseOxmlElement):
-    """`w:shd` element, specifying the shading (background fill) behind content."""
+    """`w:shd` element, specifying the shading (background fill) behind content.
 
-    fill: RGBColor | str = RequiredAttribute("w:fill", ST_HexColor)
+    One class serves `w:rPr`, `w:pPr`, `w:tcPr` and `w:tblPr`; the element is identical
+    in all four.
+
+    `w:val` is the required attribute in the schema, naming the pattern drawn over the
+    background. It is modelled as optional so a `w:shd` written without it — which this
+    library itself did before 2.0.0 — reads as |None| rather than raising. Everything
+    written from here carries an explicit `w:val`.
+
+    It is deliberately not given a descriptor `default`; |OptionalAttribute| *removes*
+    an attribute assigned its default value, which would drop the `w:val` this class
+    exists to start writing.
+    """
+
+    val: WD_SHADING_PATTERN | None = OptionalAttribute("w:val", WD_SHADING_PATTERN)
+    color: RGBColor | str | None = OptionalAttribute("w:color", ST_HexColor)
+    fill: RGBColor | str | None = OptionalAttribute("w:fill", ST_HexColor)
+    themeColor: MSO_THEME_COLOR | None = OptionalAttribute("w:themeColor", MSO_THEME_COLOR)
+    themeTint: str | None = OptionalAttribute("w:themeTint", ST_String)
+    themeShade: str | None = OptionalAttribute("w:themeShade", ST_String)
+    themeFill: MSO_THEME_COLOR | None = OptionalAttribute("w:themeFill", MSO_THEME_COLOR)
+    themeFillTint: str | None = OptionalAttribute("w:themeFillTint", ST_String)
+    themeFillShade: str | None = OptionalAttribute("w:themeFillShade", ST_String)
+
+
+def _shd_val(shd: CT_Shd | None) -> WD_SHADING_PATTERN | None:
+    """The shading pattern `shd` specifies, or |None| when `shd` is |None|.
+
+    A `w:shd` carrying no `w:val` is out of schema but renders as a plain background,
+    so it is reported as |CLEAR| rather than |None| — |None| is reserved for "no
+    shading applied".
+    """
+    if shd is None:
+        return None
+    return WD_SHADING_PATTERN.CLEAR if shd.val is None else shd.val
+
+
+def _ensure_shd_val(shd: CT_Shd) -> None:
+    """Give `shd` an explicit `w:val`, which the schema requires, if it has none.
+
+    An existing value is left alone; setting a fill must not silently discard a pattern
+    the caller or Word put there.
+    """
+    if shd.val is None:
+        shd.val = WD_SHADING_PATTERN.CLEAR
 
 
 class CT_TextScale(BaseOxmlElement):
@@ -322,7 +370,11 @@ class CT_RPr(BaseOxmlElement):
 
     @property
     def shd_fill(self) -> RGBColor | str | None:
-        """Value of `./w:shd/@w:fill`, or |None| when no shading is applied."""
+        """Value of `./w:shd/@w:fill`, or |None| when there is none.
+
+        |None| both when there is no `w:shd` at all and when it carries a pattern but no
+        fill, which is valid — `<w:shd w:val="pct25" w:color="FF0000"/>` for instance.
+        """
         shd = self.shd
         if shd is None:
             return None
@@ -336,7 +388,40 @@ class CT_RPr(BaseOxmlElement):
         if isinstance(value, str) and value != "auto":
             value = RGBColor.from_string(value)
         shd = self.get_or_add_shd()
+        _ensure_shd_val(shd)
         shd.fill = value
+
+    @property
+    def shd_val(self) -> WD_SHADING_PATTERN | None:
+        """The `w:shd/@w:val` shading pattern, or |None| when no shading is applied."""
+        return _shd_val(self.shd)
+
+    @shd_val.setter
+    def shd_val(self, value: WD_SHADING_PATTERN | None) -> None:
+        if value is None:
+            self._remove_shd()
+            return
+        self.get_or_add_shd().val = value
+
+    @property
+    def shd_color(self) -> RGBColor | str | None:
+        """Value of `./w:shd/@w:color`, the pattern foreground, or |None|."""
+        shd = self.shd
+        if shd is None:
+            return None
+        return shd.color
+
+    @shd_color.setter
+    def shd_color(self, value: RGBColor | str | None) -> None:
+        if value is None:
+            if self.shd is not None:
+                self.shd.color = None
+            return
+        if isinstance(value, str) and value != "auto":
+            value = RGBColor.from_string(value)
+        shd = self.get_or_add_shd()
+        _ensure_shd_val(shd)
+        shd.color = value
 
     @property
     def w_val(self) -> int | None:

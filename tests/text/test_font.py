@@ -10,7 +10,13 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 
 from docx.dml.color import ColorFormat
-from docx.enum.text import WD_COLOR, WD_COLOR_INDEX, WD_FONT_HINT, WD_UNDERLINE
+from docx.enum.text import (
+    WD_COLOR,
+    WD_COLOR_INDEX,
+    WD_FONT_HINT,
+    WD_SHADING_PATTERN,
+    WD_UNDERLINE,
+)
 from docx.oxml.text.run import CT_R
 from docx.shared import Emu, Length, Pt, RGBColor
 from docx.text.font import Font
@@ -159,8 +165,12 @@ class DescribeFont:
         [
             ("w:r", None),
             ("w:r/w:rPr", None),
+            ("w:r/w:rPr/w:shd{w:val=clear,w:fill=FF0000}", RGBColor(0xFF, 0x00, 0x00)),
+            ("w:r/w:rPr/w:shd{w:val=clear,w:fill=auto}", "auto"),
+            # -- a `w:shd` written before 2.0.0, with no `w:val`, still reads --
             ("w:r/w:rPr/w:shd{w:fill=FF0000}", RGBColor(0xFF, 0x00, 0x00)),
-            ("w:r/w:rPr/w:shd{w:fill=auto}", "auto"),
+            # -- a pattern with no fill is valid and reports no fill rather than raising --
+            ("w:r/w:rPr/w:shd{w:val=pct25,w:color=FF0000}", None),
         ],
     )
     def it_knows_its_shading_fill(self, r_cxml: str, expected_value: object):
@@ -168,12 +178,83 @@ class DescribeFont:
         assert font.shading_fill == expected_value
 
     @pytest.mark.parametrize(
+        ("r_cxml", "expected_value"),
+        [
+            ("w:r", None),
+            ("w:r/w:rPr", None),
+            ("w:r/w:rPr/w:shd{w:val=clear,w:fill=FF0000}", WD_SHADING_PATTERN.CLEAR),
+            ("w:r/w:rPr/w:shd{w:val=pct25}", WD_SHADING_PATTERN.PCT_25),
+            ("w:r/w:rPr/w:shd{w:val=thinDiagCross}", WD_SHADING_PATTERN.THIN_DIAG_CROSS),
+            # -- `w:shd` with no `w:val` is out of schema but renders as a plain
+            # -- background, so it reads as CLEAR rather than None --
+            ("w:r/w:rPr/w:shd{w:fill=FF0000}", WD_SHADING_PATTERN.CLEAR),
+        ],
+    )
+    def it_knows_its_shading_pattern(self, r_cxml: str, expected_value: object):
+        font = Font(cast(CT_R, element(r_cxml)))
+        assert font.shading_pattern == expected_value
+
+    @pytest.mark.parametrize(
         ("r_cxml", "value", "expected_r_cxml"),
         [
-            ("w:r", RGBColor(0xFF, 0x00, 0x00), "w:r/w:rPr/w:shd{w:fill=FF0000}"),
-            ("w:r", "00FF00", "w:r/w:rPr/w:shd{w:fill=00FF00}"),
-            ("w:r", "#0000FF", "w:r/w:rPr/w:shd{w:fill=0000FF}"),
-            ("w:r/w:rPr/w:shd{w:fill=FF0000}", None, "w:r/w:rPr"),
+            ("w:r", WD_SHADING_PATTERN.PCT_25, "w:r/w:rPr/w:shd{w:val=pct25}"),
+            # -- CLEAR must be written, not dropped as an OptionalAttribute default --
+            ("w:r", WD_SHADING_PATTERN.CLEAR, "w:r/w:rPr/w:shd{w:val=clear}"),
+            (
+                "w:r/w:rPr/w:shd{w:val=clear,w:fill=FF0000}",
+                WD_SHADING_PATTERN.DIAG_STRIPE,
+                "w:r/w:rPr/w:shd{w:val=diagStripe,w:fill=FF0000}",
+            ),
+            ("w:r/w:rPr/w:shd{w:val=pct25}", None, "w:r/w:rPr"),
+        ],
+    )
+    def it_can_change_its_shading_pattern(
+        self, r_cxml: str, value: object, expected_r_cxml: str
+    ):
+        font = Font(cast(CT_R, element(r_cxml)))
+        expected_xml = xml(expected_r_cxml)
+
+        font.shading_pattern = value  # pyright: ignore[reportAttributeAccessIssue]
+
+        assert font._element.xml == expected_xml
+
+    @pytest.mark.parametrize(
+        ("r_cxml", "value", "expected_r_cxml"),
+        [
+            ("w:r", "FF0000", "w:r/w:rPr/w:shd{w:val=clear,w:color=FF0000}"),
+            (
+                "w:r/w:rPr/w:shd{w:val=pct25}",
+                RGBColor(0x00, 0xFF, 0x00),
+                "w:r/w:rPr/w:shd{w:val=pct25,w:color=00FF00}",
+            ),
+            ("w:r/w:rPr/w:shd{w:val=pct25,w:color=FF0000}", None, "w:r/w:rPr/w:shd{w:val=pct25}"),
+        ],
+    )
+    def it_can_change_its_shading_color(self, r_cxml: str, value: object, expected_r_cxml: str):
+        font = Font(cast(CT_R, element(r_cxml)))
+        expected_xml = xml(expected_r_cxml)
+
+        font.shading_color = value  # pyright: ignore[reportAttributeAccessIssue]
+
+        assert font._element.xml == expected_xml
+
+    @pytest.mark.parametrize(
+        ("r_cxml", "value", "expected_r_cxml"),
+        [
+            # -- `w:val` is required by the schema; a fill alone is not a valid `w:shd` --
+            ("w:r", RGBColor(0xFF, 0x00, 0x00), "w:r/w:rPr/w:shd{w:val=clear,w:fill=FF0000}"),
+            ("w:r", "00FF00", "w:r/w:rPr/w:shd{w:val=clear,w:fill=00FF00}"),
+            ("w:r", "#0000FF", "w:r/w:rPr/w:shd{w:val=clear,w:fill=0000FF}"),
+            ("w:r/w:rPr/w:shd{w:val=clear,w:fill=FF0000}", None, "w:r/w:rPr"),
+            # -- "auto" is half of the ST_HexColor union and must survive a round trip;
+            # -- it was readable but not assignable --
+            ("w:r", "auto", "w:r/w:rPr/w:shd{w:val=clear,w:fill=auto}"),
+            # -- an existing pattern is preserved, not overwritten with "clear" --
+            (
+                "w:r/w:rPr/w:shd{w:val=pct25}",
+                "00FF00",
+                "w:r/w:rPr/w:shd{w:val=pct25,w:fill=00FF00}",
+            ),
         ],
     )
     def it_can_change_its_shading_fill(self, r_cxml: str, value: object, expected_r_cxml: str):

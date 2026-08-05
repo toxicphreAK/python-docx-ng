@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from docx.enum.text import WD_LINE_SPACING
+from docx.enum.text import WD_LINE_SPACING, WD_SHADING_PATTERN
 from docx.shared import ElementProxy, Emu, Length, Pt, Twips, lazyproperty
 from docx.text.tabstops import TabStops
 
@@ -200,6 +200,44 @@ class ParagraphFormat(ElementProxy):
     @shading_fill.setter
     def shading_fill(self, value) -> None:
         self._element.get_or_add_pPr().shd_fill = value
+
+    @property
+    def shading_pattern(self) -> WD_SHADING_PATTERN | None:
+        """The pattern drawn over the shading behind the whole paragraph.
+
+        A |WD_SHADING_PATTERN| member, or |None| when no shading is applied. Word writes
+        |WD_SHADING_PATTERN.CLEAR| for an ordinary background color, which is what
+        `.shading_fill` produces on its own.
+
+        Assigning |None| removes the shading entirely, the same as assigning |None| to
+        `.shading_fill`.
+        """
+        pPr = self._element.pPr
+        if pPr is None:
+            return None
+        return pPr.shd_val
+
+    @shading_pattern.setter
+    def shading_pattern(self, value: WD_SHADING_PATTERN | None) -> None:
+        self._element.get_or_add_pPr().shd_val = value
+
+    @property
+    def shading_color(self):
+        """The foreground color of the shading pattern behind this paragraph.
+
+        An |RGBColor| value, the string "auto", or |None|. This is the color the
+        `.shading_pattern` is drawn *in*; `.shading_fill` is the color behind it. For
+        the usual |WD_SHADING_PATTERN.CLEAR| pattern nothing is drawn and this has no
+        visible effect.
+        """
+        pPr = self._element.pPr
+        if pPr is None:
+            return None
+        return pPr.shd_color
+
+    @shading_color.setter
+    def shading_color(self, value) -> None:
+        self._element.get_or_add_pPr().shd_color = value
 
     @property
     def page_break_before(self):
