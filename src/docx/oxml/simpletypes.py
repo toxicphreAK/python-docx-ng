@@ -457,6 +457,75 @@ class ST_SignedTwipsMeasure(XsdInt):
         return str(twips)
 
 
+class ST_PageBorderDisplay(XsdStringEnumeration):
+    """Valid values for `w:pgBorders/@w:display`."""
+
+    ALL_PAGES = "allPages"
+    FIRST_PAGE = "firstPage"
+    NOT_FIRST_PAGE = "notFirstPage"
+
+    _members = (ALL_PAGES, FIRST_PAGE, NOT_FIRST_PAGE)
+
+
+class ST_PageBorderOffset(XsdStringEnumeration):
+    """Valid values for `w:pgBorders/@w:offsetFrom`."""
+
+    PAGE = "page"
+    TEXT = "text"
+
+    _members = (PAGE, TEXT)
+
+
+class ST_PageBorderZOrder(XsdStringEnumeration):
+    """Valid values for `w:pgBorders/@w:zOrder`."""
+
+    BACK = "back"
+    FRONT = "front"
+
+    _members = (BACK, FRONT)
+
+
+class ST_MeasurementOrPercent(XsdInt):
+    """The `w:w` attribute of `w:tblW`, `w:tcW`, `w:tblInd` and the rest of `CT_TblWidth`.
+
+    What the number means depends on the sibling `w:type` attribute, which an attribute
+    converter cannot see, so this type stays deliberately literal and hands back a plain
+    `int`: twips for `w:type="dxa"`, fiftieths of a percent for `"pct"`. `CT_TblWidth`
+    is where the two are told apart.
+
+    The schema also admits `"50%"` and universal measures such as `"1.5in"`. Word writes
+    neither, but documents from other producers do, so both are converted to the plain
+    form on the way in.
+    """
+
+    @classmethod
+    def convert_from_xml(cls, str_value: str) -> int:
+        if str_value.endswith("%"):
+            return int(round(float(str_value[:-1]) * 50))
+        if "i" in str_value or "m" in str_value or "p" in str_value:
+            return Emu(ST_UniversalMeasure.convert_from_xml(str_value)).twips
+        return int(round(float(str_value)))
+
+
+class ST_ShortHexNumber(BaseSimpleType):
+    """A two-byte value written as four hexadecimal digits, e.g. `"04A0"`.
+
+    Used for the legacy bitmask on `w:tblLook/@w:val`. Exchanged as an `int`.
+    """
+
+    @classmethod
+    def convert_from_xml(cls, str_value: str) -> int:
+        return int(str_value, 16)
+
+    @classmethod
+    def convert_to_xml(cls, value: int) -> str:
+        return "%04X" % value
+
+    @classmethod
+    def validate(cls, value: Any) -> None:
+        cls.validate_int_in_range(value, 0, 0xFFFF)
+
+
 class ST_String(XsdString):
     pass
 

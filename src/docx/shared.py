@@ -121,6 +121,35 @@ class Twips(Length):
         return Length.__new__(cls, emu)
 
 
+class Pct(float):
+    """A percentage, e.g. ``Pct(100)`` is one hundred percent.
+
+    A percentage is deliberately *not* a |Length|. Every unit on |Length| is absolute
+    and reducible to EMU; a percentage is relative to something else and has no size of
+    its own, so the two do not belong to the same family and mixing them silently
+    produces nonsense.
+
+    Word stores these in fiftieths of a percent, which is what ``.fiftieths`` returns
+    and what ``from_fiftieths()`` reads.
+    """
+
+    def __new__(cls, percent: float):
+        return super().__new__(cls, percent)
+
+    @classmethod
+    def from_fiftieths(cls, value: int) -> Pct:
+        """A |Pct| from `value` fiftieths of a percent, the form Word writes."""
+        return cls(value / 50.0)
+
+    @property
+    def fiftieths(self) -> int:
+        """This percentage in fiftieths of a percent, e.g. ``Pct(100).fiftieths`` is 5000."""
+        return int(round(float(self) * 50))
+
+    def __repr__(self) -> str:
+        return "Pct(%s)" % float(self)
+
+
 class RGBColor(Tuple[int, int, int]):
     """Immutable value object defining a particular RGB color."""
 

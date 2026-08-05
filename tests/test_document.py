@@ -229,7 +229,7 @@ class DescribeDocument:
 
         table = document.add_table(rows, cols, style)
 
-        body_.add_table.assert_called_once_with(rows, cols, width)
+        body_.add_table.assert_called_once_with(rows, cols, width, title=None, description=None)
         assert table == table_
         assert table.style == style
 

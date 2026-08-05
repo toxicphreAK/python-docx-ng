@@ -176,6 +176,7 @@ from .section import (
     CT_Columns,
     CT_HdrFtr,
     CT_HdrFtrRef,
+    CT_PageBorders,
     CT_PageMar,
     CT_PageSz,
     CT_SectPr,
@@ -184,6 +185,7 @@ from .section import (
 
 register_element_cls("w:col", CT_Column)
 register_element_cls("w:cols", CT_Columns)
+register_element_cls("w:pgBorders", CT_PageBorders)
 
 register_element_cls("w:footerReference", CT_HdrFtrRef)
 register_element_cls("w:ftr", CT_HdrFtr)
@@ -219,10 +221,21 @@ register_element_cls("w:tblPrChange", CT_TrackChange)
 register_element_cls("w:tcPrChange", CT_TrackChange)
 register_element_cls("w:trPrChange", CT_TrackChange)
 
-from .styles import CT_LatentStyles, CT_LsdException, CT_Style, CT_Styles
+from .styles import (
+    CT_DocDefaults,
+    CT_LatentStyles,
+    CT_LsdException,
+    CT_PPrDefault,
+    CT_RPrDefault,
+    CT_Style,
+    CT_Styles,
+)
 
 register_element_cls("w:basedOn", CT_String)
+register_element_cls("w:docDefaults", CT_DocDefaults)
 register_element_cls("w:latentStyles", CT_LatentStyles)
+register_element_cls("w:pPrDefault", CT_PPrDefault)
+register_element_cls("w:rPrDefault", CT_RPrDefault)
 # -- `w:link` appears only in `CT_Style` in the schema, so claiming the tag globally is
 # -- safe here in a way it is not for `w:name` or `w:start` --
 register_element_cls("w:link", CT_String)
@@ -251,9 +264,11 @@ from .table import (
     CT_Row,
     CT_Tbl,
     CT_TblBorders,
+    CT_TblCellMar,
     CT_TblGrid,
     CT_TblGridCol,
     CT_TblLayoutType,
+    CT_TblLook,
     CT_TblPr,
     CT_TblPrEx,
     CT_TblWidth,
@@ -289,18 +304,27 @@ register_element_cls("w:gridAfter", CT_DecimalNumber)
 register_element_cls("w:gridBefore", CT_DecimalNumber)
 register_element_cls("w:gridCol", CT_TblGridCol)
 register_element_cls("w:gridSpan", CT_DecimalNumber)
+register_element_cls("w:hidden", CT_OnOff)
 register_element_cls("w:tbl", CT_Tbl)
 register_element_cls("w:tblCaption", CT_String)
+register_element_cls("w:tblCellMar", CT_TblCellMar)
+register_element_cls("w:tblCellSpacing", CT_TblWidth)
 register_element_cls("w:tblDescription", CT_String)
 register_element_cls("w:tblGrid", CT_TblGrid)
+register_element_cls("w:tblHeader", CT_OnOff)
+register_element_cls("w:tblInd", CT_TblWidth)
 register_element_cls("w:tblLayout", CT_TblLayoutType)
+register_element_cls("w:tblLook", CT_TblLook)
 register_element_cls("w:tblPr", CT_TblPr)
 register_element_cls("w:tblPrEx", CT_TblPrEx)
 register_element_cls("w:tblStyle", CT_String)
+register_element_cls("w:tblW", CT_TblWidth)
 register_element_cls("w:tc", CT_Tc)
 register_element_cls("w:tcPr", CT_TcPr)
 register_element_cls("w:tcW", CT_TblWidth)
 register_element_cls("w:tr", CT_Row)
+register_element_cls("w:wAfter", CT_TblWidth)
+register_element_cls("w:wBefore", CT_TblWidth)
 register_element_cls("w:trHeight", CT_Height)
 register_element_cls("w:trPr", CT_TrPr)
 register_element_cls("w:vAlign", CT_VerticalJc)
@@ -357,19 +381,26 @@ register_element_cls("w:p", CT_P)
 from .text.parfmt import (
     CT_Ind,
     CT_Jc,
+    CT_PBdr,
     CT_PPr,
     CT_Spacing,
     CT_TabStop,
     CT_TabStops,
+    CT_TextDirection,
 )
 
+register_element_cls("w:bar", CT_Border)
+register_element_cls("w:between", CT_Border)
+register_element_cls("w:bidi", CT_OnOff)
 register_element_cls("w:ind", CT_Ind)
 register_element_cls("w:jc", CT_Jc)
 register_element_cls("w:keepLines", CT_OnOff)
 register_element_cls("w:keepNext", CT_OnOff)
 register_element_cls("w:outlineLvl", CT_DecimalNumber)
 register_element_cls("w:pageBreakBefore", CT_OnOff)
+register_element_cls("w:pBdr", CT_PBdr)
 register_element_cls("w:pPr", CT_PPr)
+register_element_cls("w:textDirection", CT_TextDirection)
 register_element_cls("w:pStyle", CT_String)
 register_element_cls("w:spacing", CT_Spacing)
 register_element_cls("w:tab", CT_TabStop)

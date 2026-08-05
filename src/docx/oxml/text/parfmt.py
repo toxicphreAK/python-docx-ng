@@ -10,9 +10,15 @@ from docx.enum.text import (
     WD_SHADING_PATTERN,
     WD_TAB_ALIGNMENT,
     WD_TAB_LEADER,
+    WD_TEXT_DIRECTION,
 )
 from docx.oxml.shared import CT_DecimalNumber
-from docx.oxml.simpletypes import ST_SignedTwipsMeasure, ST_TwipsMeasure
+from docx.oxml.simpletypes import (
+    ST_DecimalNumber,
+    ST_SignedTwipsMeasure,
+    ST_TwipsMeasure,
+)
+from docx.oxml.table import _CT_BordersBase  # pyright: ignore[reportPrivateUsage]
 from docx.oxml.text.font import _ensure_shd_val, _shd_val
 from docx.oxml.xmlchemy import (
     BaseOxmlElement,
@@ -25,12 +31,24 @@ from docx.shared import Length, RGBColor
 
 if TYPE_CHECKING:
     from docx.oxml.section import CT_SectPr
-    from docx.oxml.shared import CT_String
-    from docx.oxml.text.font import CT_Shd
+    from docx.oxml.shared import CT_OnOff, CT_String
+    from docx.oxml.table import CT_Border
+    from docx.oxml.text.font import CT_RPr, CT_Shd
 
 
 class CT_Ind(BaseOxmlElement):
-    """``<w:ind>`` element, specifying paragraph indentation."""
+    """``<w:ind>`` element, specifying paragraph indentation.
+
+    Two unit systems live side by side here. The `w:left`, `w:right`, `w:firstLine` and
+    `w:hanging` attributes are absolute twips measures. The `*Chars` attributes beside
+    them are in hundredths of a character — the unit Word's paragraph dialogue offers
+    for a CJK document — and are *not* |Length| values: a character has no fixed size,
+    so there is nothing to convert them to.
+
+    `w:start` and `w:end` are the newer writing-direction synonyms of `w:left` and
+    `w:right`. Word writes them in files saved by recent versions; a document using them
+    reads as unindented if only `w:left` is consulted.
+    """
 
     left: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
         "w:left", ST_SignedTwipsMeasure
@@ -38,11 +56,35 @@ class CT_Ind(BaseOxmlElement):
     right: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
         "w:right", ST_SignedTwipsMeasure
     )
+    start: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:start", ST_SignedTwipsMeasure
+    )
+    end: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:end", ST_SignedTwipsMeasure
+    )
     firstLine: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
         "w:firstLine", ST_TwipsMeasure
     )
     hanging: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
         "w:hanging", ST_TwipsMeasure
+    )
+    leftChars: int | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:leftChars", ST_DecimalNumber
+    )
+    rightChars: int | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:rightChars", ST_DecimalNumber
+    )
+    startChars: int | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:startChars", ST_DecimalNumber
+    )
+    endChars: int | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:endChars", ST_DecimalNumber
+    )
+    firstLineChars: int | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:firstLineChars", ST_DecimalNumber
+    )
+    hangingChars: int | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:hangingChars", ST_DecimalNumber
     )
 
 
@@ -54,19 +96,83 @@ class CT_Jc(BaseOxmlElement):
     )
 
 
+class CT_TextDirection(BaseOxmlElement):
+    """`w:textDirection` element, specifying the flow direction of text.
+
+    One class serves the `w:pPr`, `w:sectPr` and `w:tcPr` occurrences; the element is
+    identical in all three.
+    """
+
+    val: WD_TEXT_DIRECTION = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:val", WD_TEXT_DIRECTION
+    )
+
+
+class CT_PBdr(_CT_BordersBase):
+    """`w:pBdr` element, the set of border edges of a paragraph.
+
+    Two of the six edges have no table counterpart. `w:between` is the border drawn
+    between consecutive paragraphs that share identical border settings, rather than an
+    edge of any one paragraph; `w:bar` is the vertical bar drawn beside the paragraph.
+    """
+
+    get_or_add_top: Callable[[], CT_Border]
+    get_or_add_left: Callable[[], CT_Border]
+    get_or_add_bottom: Callable[[], CT_Border]
+    get_or_add_right: Callable[[], CT_Border]
+    get_or_add_between: Callable[[], CT_Border]
+    get_or_add_bar: Callable[[], CT_Border]
+    _remove_top: Callable[[], None]
+    _remove_left: Callable[[], None]
+    _remove_bottom: Callable[[], None]
+    _remove_right: Callable[[], None]
+    _remove_between: Callable[[], None]
+    _remove_bar: Callable[[], None]
+
+    _tag_seq = ("w:top", "w:left", "w:bottom", "w:right", "w:between", "w:bar")
+    top: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:top", successors=_tag_seq[1:]
+    )
+    left: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:left", successors=_tag_seq[2:]
+    )
+    bottom: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:bottom", successors=_tag_seq[3:]
+    )
+    right: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:right", successors=_tag_seq[4:]
+    )
+    between: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:between", successors=_tag_seq[5:]
+    )
+    bar: CT_Border | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:bar", successors=_tag_seq[6:]
+    )
+
+    edges = tuple(tag[2:] for tag in _tag_seq)
+    del _tag_seq
+
+
 class CT_PPr(BaseOxmlElement):
     """``<w:pPr>`` element, containing the properties for a paragraph."""
 
+    get_or_add_bidi: Callable[[], CT_OnOff]
     get_or_add_ind: Callable[[], CT_Ind]
     get_or_add_outlineLvl: Callable[[], CT_DecimalNumber]
+    get_or_add_pBdr: Callable[[], CT_PBdr]
     get_or_add_pStyle: Callable[[], CT_String]
+    get_or_add_rPr: Callable[[], CT_RPr]
     get_or_add_sectPr: Callable[[], CT_SectPr]
     get_or_add_shd: Callable[[], CT_Shd]
+    get_or_add_textDirection: Callable[[], CT_TextDirection]
     _insert_sectPr: Callable[[CT_SectPr], None]
+    _remove_bidi: Callable[[], None]
     _remove_outlineLvl: Callable[[], None]
+    _remove_pBdr: Callable[[], None]
     _remove_pStyle: Callable[[], None]
     _remove_sectPr: Callable[[], None]
     _remove_shd: Callable[[], None]
+    _remove_textDirection: Callable[[], None]
 
     _tag_seq = (
         "w:pStyle",
@@ -114,17 +220,35 @@ class CT_PPr(BaseOxmlElement):
     pageBreakBefore = ZeroOrOne("w:pageBreakBefore", successors=_tag_seq[4:])
     widowControl = ZeroOrOne("w:widowControl", successors=_tag_seq[6:])
     numPr = ZeroOrOne("w:numPr", successors=_tag_seq[7:])
+    pBdr: CT_PBdr | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:pBdr", successors=_tag_seq[9:]
+    )
     shd: CT_Shd | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:shd", successors=_tag_seq[10:]
     )
     tabs = ZeroOrOne("w:tabs", successors=_tag_seq[11:])
+    bidi: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:bidi", successors=_tag_seq[19:]
+    )
     spacing = ZeroOrOne("w:spacing", successors=_tag_seq[22:])
     ind: CT_Ind | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:ind", successors=_tag_seq[23:]
     )
     jc = ZeroOrOne("w:jc", successors=_tag_seq[27:])
+    textDirection: CT_TextDirection | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:textDirection", successors=_tag_seq[28:]
+    )
     outlineLvl: CT_DecimalNumber = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
         "w:outlineLvl", successors=_tag_seq[31:]
+    )
+    # -- `w:pPr/w:rPr` is `CT_ParaRPr`, not `CT_RPr`: it admits `w:ins`, `w:del`,
+    # -- `w:moveFrom` and `w:moveTo` ahead of the run properties. lxml resolves an
+    # -- element class by tag name alone, so this arrives typed as `CT_RPr` and no
+    # -- separate class is reachable. That is sound for reading and writing the run
+    # -- properties themselves, which is all the API exposes; nothing here adds the four
+    # -- revision children, which `CT_RPr._tag_seq` does not know how to place.
+    rPr: CT_RPr | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+        "w:rPr", successors=_tag_seq[34:]
     )
     sectPr = ZeroOrOne("w:sectPr", successors=_tag_seq[35:])
     del _tag_seq
@@ -223,6 +347,9 @@ class CT_PPr(BaseOxmlElement):
             return
         ind = self.get_or_add_ind()
         ind.firstLine = ind.hanging = None
+        # -- Word prefers the character-unit value where both are present, so a stale
+        # -- `w:firstLineChars` would silently win over what was just assigned. --
+        ind.firstLineChars = ind.hangingChars = None
         if value is None:
             return
         elif value < 0:
@@ -231,12 +358,48 @@ class CT_PPr(BaseOxmlElement):
             ind.firstLine = value
 
     @property
-    def ind_left(self) -> Length | None:
-        """The value of `w:ind/@w:left` or |None| if not present."""
+    def first_line_indent_chars(self) -> int | None:
+        """The first-line indent in hundredths of a character, or |None| if not present.
+
+        Derived from `w:ind/@w:firstLineChars` and `@w:hangingChars` the way
+        `.first_line_indent` is derived from their twips counterparts: a negative value
+        means a hanging indent.
+        """
         ind = self.ind
         if ind is None:
             return None
-        return ind.left
+        hangingChars = ind.hangingChars
+        if hangingChars is not None:
+            return -hangingChars
+        return ind.firstLineChars
+
+    @first_line_indent_chars.setter
+    def first_line_indent_chars(self, value: int | None) -> None:
+        if self.ind is None and value is None:
+            return
+        ind = self.get_or_add_ind()
+        # -- Word prefers the `Chars` value over its twips sibling, so leaving the two
+        # -- disagreeing silently changes the layout; clear the sibling as well.
+        ind.firstLineChars = ind.hangingChars = None
+        ind.firstLine = ind.hanging = None
+        if value is None:
+            return
+        elif value < 0:
+            ind.hangingChars = -value
+        else:
+            ind.firstLineChars = value
+
+    @property
+    def ind_left(self) -> Length | None:
+        """The value of `w:ind/@w:left` or |None| if not present.
+
+        Falls back to `@w:start`, the writing-direction synonym Word writes in files
+        saved by recent versions.
+        """
+        ind = self.ind
+        if ind is None:
+            return None
+        return ind.left if ind.left is not None else ind.start
 
     @ind_left.setter
     def ind_left(self, value: Length | None):
@@ -244,14 +407,19 @@ class CT_PPr(BaseOxmlElement):
             return
         ind = self.get_or_add_ind()
         ind.left = value
+        ind.start = None
+        ind.leftChars = ind.startChars = None
 
     @property
     def ind_right(self) -> Length | None:
-        """The value of `w:ind/@w:right` or |None| if not present."""
+        """The value of `w:ind/@w:right` or |None| if not present.
+
+        Falls back to `@w:end`, the writing-direction synonym.
+        """
         ind = self.ind
         if ind is None:
             return None
-        return ind.right
+        return ind.right if ind.right is not None else ind.end
 
     @ind_right.setter
     def ind_right(self, value: Length | None):
@@ -259,6 +427,74 @@ class CT_PPr(BaseOxmlElement):
             return
         ind = self.get_or_add_ind()
         ind.right = value
+        ind.end = None
+        ind.rightChars = ind.endChars = None
+
+    @property
+    def ind_left_chars(self) -> int | None:
+        """`w:ind/@w:leftChars` in hundredths of a character, or |None| if not present.
+
+        Falls back to `@w:startChars`, its writing-direction synonym.
+        """
+        ind = self.ind
+        if ind is None:
+            return None
+        return ind.leftChars if ind.leftChars is not None else ind.startChars
+
+    @ind_left_chars.setter
+    def ind_left_chars(self, value: int | None) -> None:
+        if value is None and self.ind is None:
+            return
+        ind = self.get_or_add_ind()
+        ind.leftChars = value
+        ind.startChars = None
+        ind.left = ind.start = None
+
+    @property
+    def ind_right_chars(self) -> int | None:
+        """`w:ind/@w:rightChars` in hundredths of a character, or |None| if not present.
+
+        Falls back to `@w:endChars`, its writing-direction synonym.
+        """
+        ind = self.ind
+        if ind is None:
+            return None
+        return ind.rightChars if ind.rightChars is not None else ind.endChars
+
+    @ind_right_chars.setter
+    def ind_right_chars(self, value: int | None) -> None:
+        if value is None and self.ind is None:
+            return
+        ind = self.get_or_add_ind()
+        ind.rightChars = value
+        ind.endChars = None
+        ind.right = ind.end = None
+
+    @property
+    def bidi_val(self) -> bool | None:
+        """Value of `./w:bidi/@w:val`, or |None| if the element is absent."""
+        bidi = self.bidi
+        return None if bidi is None else bidi.val
+
+    @bidi_val.setter
+    def bidi_val(self, value: bool | None) -> None:
+        if value is None:
+            self._remove_bidi()
+            return
+        self.get_or_add_bidi().val = value
+
+    @property
+    def textDirection_val(self) -> WD_TEXT_DIRECTION | None:
+        """Value of `./w:textDirection/@w:val`, or |None| if the element is absent."""
+        textDirection = self.textDirection
+        return None if textDirection is None else textDirection.val
+
+    @textDirection_val.setter
+    def textDirection_val(self, value: WD_TEXT_DIRECTION | None) -> None:
+        if value is None:
+            self._remove_textDirection()
+            return
+        self.get_or_add_textDirection().val = value
 
     @property
     def jc_val(self) -> WD_ALIGN_PARAGRAPH | None:
@@ -346,6 +582,30 @@ class CT_PPr(BaseOxmlElement):
         self.get_or_add_spacing().before = value
 
     @property
+    def spacing_after_lines(self) -> int | None:
+        """`w:spacing/@w:afterLines` in hundredths of a line, or |None| if not present."""
+        spacing = self.spacing
+        return None if spacing is None else spacing.afterLines
+
+    @spacing_after_lines.setter
+    def spacing_after_lines(self, value: int | None) -> None:
+        if value is None and self.spacing is None:
+            return
+        self.get_or_add_spacing().afterLines = value
+
+    @property
+    def spacing_before_lines(self) -> int | None:
+        """`w:spacing/@w:beforeLines` in hundredths of a line, or |None| if not present."""
+        spacing = self.spacing
+        return None if spacing is None else spacing.beforeLines
+
+    @spacing_before_lines.setter
+    def spacing_before_lines(self, value: int | None) -> None:
+        if value is None and self.spacing is None:
+            return
+        self.get_or_add_spacing().beforeLines = value
+
+    @property
     def spacing_line(self):
         """The value of `w:spacing/@w:line` or |None| if not present."""
         spacing = self.spacing
@@ -421,10 +681,21 @@ class CT_PPr(BaseOxmlElement):
 
 class CT_Spacing(BaseOxmlElement):
     """``<w:spacing>`` element, specifying paragraph spacing attributes such as space
-    before and line spacing."""
+    before and line spacing.
+
+    `w:beforeLines` and `w:afterLines` are the line-relative counterparts of `w:before`
+    and `w:after`, in hundredths of a line. Like the `*Chars` attributes on `w:ind` they
+    are not |Length| values — a line has no fixed height.
+    """
 
     after = OptionalAttribute("w:after", ST_TwipsMeasure)
     before = OptionalAttribute("w:before", ST_TwipsMeasure)
+    afterLines: int | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:afterLines", ST_DecimalNumber
+    )
+    beforeLines: int | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w:beforeLines", ST_DecimalNumber
+    )
     line = OptionalAttribute("w:line", ST_SignedTwipsMeasure)
     lineRule = OptionalAttribute("w:lineRule", WD_LINE_SPACING)
 

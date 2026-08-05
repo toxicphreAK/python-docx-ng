@@ -3,6 +3,42 @@
 Release History
 ---------------
 
+Unreleased
+++++++++++
+
+New features
+~~~~~~~~~~~~
+
+- ``Document.add_table()``, ``BlockItemContainer.add_table()`` and ``_Cell.add_table()``
+  accept keyword-only ``title`` and ``description``, matching ``Run.add_picture()``.
+  Both default to ``None`` and write nothing when omitted.
+- ``_Row.repeat_as_header`` ("Repeat Header Rows"), plus ``_Row.hidden``,
+  ``.alignment``, ``.cell_spacing``, ``.width_before`` and ``.width_after`` — the rest
+  of ``w:trPr``.
+- ``Table.look``, the ``w:tblLook`` flags that decide which parts of a table style
+  apply: ``first_row``, ``last_row``, ``first_column``, ``last_column``,
+  ``horizontal_banding`` and ``vertical_banding``. The legacy ``@w:val`` bitmask is
+  rewritten in step, as Word does.
+- ``Table.width``, including percentage widths through the new ``docx.shared.Pct``
+  value type, plus ``Table.indent`` and ``Table.cell_margins``.
+- ``Styles.default_font`` and ``Styles.default_paragraph_format``, exposing
+  ``w:docDefaults`` — the bottom of the formatting inheritance chain, and for many
+  documents the only place the base font is set.
+- ``ParagraphFormat.mark_font``, the run properties of the paragraph mark itself
+  (``w:pPr/w:rPr``). This is the only place the formatting of an empty paragraph lives.
+- Character-unit indents and line-unit spacing:
+  ``ParagraphFormat.first_line_indent_chars``, ``.left_indent_chars``,
+  ``.right_indent_chars``, ``.space_before_lines`` and ``.space_after_lines``. Values
+  are in hundredths, matching the XML. The existing twips properties now also read the
+  ``w:start``/``w:end`` spellings Word writes in recent files, and setting either unit
+  clears its counterpart so the two cannot disagree.
+- Right-to-left and vertical text: ``ParagraphFormat.bidi``, ``Section.bidi``, and
+  ``text_direction`` on ``ParagraphFormat``, ``Section`` and ``_Cell``, with the new
+  ``WD_TEXT_DIRECTION`` enumeration.
+- ``ParagraphFormat.borders`` and ``Section.page_borders``, spelled the same as the
+  table and cell borders API. A paragraph with only a bottom border is how Word draws a
+  horizontal rule.
+
 2.0.0 (2026-08-05)
 ++++++++++++++++++
 

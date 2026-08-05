@@ -197,13 +197,28 @@ class Document(ElementProxy):
         new_sectPr.start_type = start_type
         return Section(new_sectPr, self._part)
 
-    def add_table(self, rows: int, cols: int, style: str | _TableStyle | None = None):
+    def add_table(
+        self,
+        rows: int,
+        cols: int,
+        style: str | _TableStyle | None = None,
+        *,
+        title: str | None = None,
+        description: str | None = None,
+    ):
         """Add a table having row and column counts of `rows` and `cols` respectively.
 
         `style` may be a table style object or a table style name. If `style` is |None|,
         the table inherits the default table style of the document.
+
+        `description` is the table's alternative text, which is what a screen reader
+        announces and what an accessibility check looks for. `title` is the separate,
+        caption-like field Word writes alongside it. Both are omitted from the XML when
+        |None|.
         """
-        table = self._body.add_table(rows, cols, self._block_width)
+        table = self._body.add_table(
+            rows, cols, self._block_width, title=title, description=description
+        )
         table.style = style
         return table
 

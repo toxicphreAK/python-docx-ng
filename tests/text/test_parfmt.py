@@ -617,3 +617,228 @@ class DescribeParagraphFormat:
     @pytest.fixture
     def tab_stops_(self, request):
         return instance_mock(request, TabStops)
+
+
+class DescribeParagraphFormatCharacterUnits:
+    """Unit-test suite for the character- and line-unit measures, issue #104."""
+
+    @pytest.mark.parametrize(
+        ("p_cxml", "expected_value"),
+        [
+            ("w:p", None),
+            ("w:p/w:pPr", None),
+            ("w:p/w:pPr/w:ind", None),
+            ("w:p/w:pPr/w:ind{w:firstLineChars=200}", 200),
+            ("w:p/w:pPr/w:ind{w:hangingChars=150}", -150),
+        ],
+    )
+    def it_knows_its_first_line_indent_in_characters(self, p_cxml, expected_value):
+        paragraph_format = ParagraphFormat(element(p_cxml))
+
+        assert paragraph_format.first_line_indent_chars == expected_value
+
+    @pytest.mark.parametrize(
+        ("p_cxml", "value", "expected_cxml"),
+        [
+            ("w:p", 200, "w:p/w:pPr/w:ind{w:firstLineChars=200}"),
+            ("w:p", -150, "w:p/w:pPr/w:ind{w:hangingChars=150}"),
+            ("w:p/w:pPr/w:ind{w:firstLineChars=200}", None, "w:p/w:pPr/w:ind"),
+            ("w:p", None, "w:p"),
+        ],
+    )
+    def it_can_change_its_first_line_indent_in_characters(self, p_cxml, value, expected_cxml):
+        paragraph_format = ParagraphFormat(element(p_cxml))
+
+        paragraph_format.first_line_indent_chars = value
+
+        assert paragraph_format._element.xml == xml(expected_cxml)
+
+    def it_clears_the_twips_sibling_so_the_two_cannot_disagree(self):
+        """Word prefers the `Chars` value; leaving both changes the layout silently."""
+        paragraph_format = ParagraphFormat(element("w:p/w:pPr/w:ind{w:firstLine=720}"))
+
+        paragraph_format.first_line_indent_chars = 200
+
+        assert paragraph_format._element.xml == xml("w:p/w:pPr/w:ind{w:firstLineChars=200}")
+
+    def and_setting_the_twips_value_clears_the_character_sibling(self):
+        paragraph_format = ParagraphFormat(element("w:p/w:pPr/w:ind{w:firstLineChars=200}"))
+
+        paragraph_format.first_line_indent = Pt(36)
+
+        assert paragraph_format._element.xml == xml("w:p/w:pPr/w:ind{w:firstLine=720}")
+
+    @pytest.mark.parametrize(
+        ("p_cxml", "expected_value"),
+        [
+            ("w:p/w:pPr/w:ind{w:leftChars=100}", 100),
+            ("w:p/w:pPr/w:ind{w:startChars=100}", 100),
+            ("w:p/w:pPr/w:ind", None),
+        ],
+    )
+    def it_reads_the_left_indent_in_characters_under_either_spelling(
+        self, p_cxml, expected_value
+    ):
+        paragraph_format = ParagraphFormat(element(p_cxml))
+
+        assert paragraph_format.left_indent_chars == expected_value
+
+    @pytest.mark.parametrize(
+        ("p_cxml", "expected_value"),
+        [
+            ("w:p/w:pPr/w:ind{w:left=720}", Pt(36)),
+            ("w:p/w:pPr/w:ind{w:start=720}", Pt(36)),
+        ],
+    )
+    def it_reads_the_left_indent_under_either_spelling(self, p_cxml, expected_value):
+        """`w:start` is what Word writes in files saved by recent versions."""
+        paragraph_format = ParagraphFormat(element(p_cxml))
+
+        assert paragraph_format.left_indent == expected_value
+
+    def it_reads_the_right_indent_under_either_spelling(self):
+        paragraph_format = ParagraphFormat(element("w:p/w:pPr/w:ind{w:end=720}"))
+
+        assert paragraph_format.right_indent == Pt(36)
+
+    def it_can_get_and_set_the_line_unit_spacing(self):
+        paragraph_format = ParagraphFormat(element("w:p"))
+
+        assert paragraph_format.space_after_lines is None
+
+        paragraph_format.space_after_lines = 50
+        paragraph_format.space_before_lines = 100
+
+        assert paragraph_format.space_after_lines == 50
+        assert paragraph_format.space_before_lines == 100
+        assert paragraph_format._element.xml == xml(
+            "w:p/w:pPr/w:spacing{w:afterLines=50,w:beforeLines=100}"
+        )
+
+
+class DescribeParagraphFormatMarkFont:
+    """Unit-test suite for `ParagraphFormat.mark_font`, issue #105."""
+
+    def it_provides_access_to_the_paragraph_mark_run_properties(self):
+        paragraph_format = ParagraphFormat(element("w:p"))
+
+        paragraph_format.mark_font.size = Pt(8)
+
+        assert paragraph_format._element.xml == xml("w:p/w:pPr/w:rPr/w:sz{w:val=16}")
+
+    def it_inserts_the_rPr_in_schema_order(self):
+        """`w:pPr/w:rPr` must precede `w:sectPr`."""
+        paragraph_format = ParagraphFormat(element("w:p/w:pPr/w:sectPr"))
+
+        paragraph_format.mark_font.bold = True
+
+        assert paragraph_format._element.xml == xml("w:p/w:pPr/(w:rPr/w:b,w:sectPr)")
+
+    def it_is_distinct_from_the_run_font(self):
+        paragraph_format = ParagraphFormat(element("w:p/w:r/w:rPr/w:b"))
+
+        assert paragraph_format.mark_font.bold is None
+
+
+class DescribeParagraphFormatDirection:
+    """Unit-test suite for `bidi` and `text_direction`, issue #108."""
+
+    @pytest.mark.parametrize(
+        ("p_cxml", "expected_value"),
+        [
+            ("w:p", None),
+            ("w:p/w:pPr", None),
+            ("w:p/w:pPr/w:bidi", True),
+            ("w:p/w:pPr/w:bidi{w:val=0}", False),
+        ],
+    )
+    def it_knows_its_base_direction(self, p_cxml, expected_value):
+        paragraph_format = ParagraphFormat(element(p_cxml))
+
+        assert paragraph_format.bidi == expected_value
+
+    def it_inserts_bidi_in_schema_order(self):
+        """`w:bidi` must precede `w:spacing`."""
+        paragraph_format = ParagraphFormat(element("w:p/w:pPr/w:spacing{w:after=0}"))
+
+        paragraph_format.bidi = True
+
+        assert paragraph_format._element.xml == xml(
+            "w:p/w:pPr/(w:bidi,w:spacing{w:after=0})"
+        )
+
+    def it_can_get_and_set_its_text_direction(self):
+        from docx.enum.text import WD_TEXT_DIRECTION
+
+        paragraph_format = ParagraphFormat(element("w:p/w:pPr/w:outlineLvl{w:val=0}"))
+
+        paragraph_format.text_direction = WD_TEXT_DIRECTION.TB_RL
+
+        assert paragraph_format.text_direction == WD_TEXT_DIRECTION.TB_RL
+        # -- `w:textDirection` must precede `w:outlineLvl` --
+        assert paragraph_format._element.xml == xml(
+            "w:p/w:pPr/(w:textDirection{w:val=tbRl},w:outlineLvl{w:val=0})"
+        )
+
+    def but_it_writes_nothing_when_cleared_on_a_paragraph_without_a_pPr(self):
+        paragraph_format = ParagraphFormat(element("w:p"))
+
+        paragraph_format.bidi = None
+        paragraph_format.text_direction = None
+
+        assert paragraph_format._element.xml == xml("w:p")
+
+
+class DescribeParagraphBorders:
+    """Unit-test suite for `ParagraphFormat.borders`, issue #123."""
+
+    def it_provides_access_to_each_paragraph_border_edge(self):
+        paragraph_format = ParagraphFormat(element("w:p"))
+
+        assert list(paragraph_format.borders) == [
+            "top",
+            "left",
+            "bottom",
+            "right",
+            "between",
+            "bar",
+        ]
+
+    def it_can_draw_a_horizontal_rule(self):
+        from docx.enum.table import WD_LINE_STYLE
+
+        paragraph_format = ParagraphFormat(element("w:p"))
+
+        paragraph_format.borders["bottom"].line = WD_LINE_STYLE.SINGLE
+
+        assert paragraph_format._element.xml == xml(
+            "w:p/w:pPr/w:pBdr/w:bottom{w:val=single}"
+        )
+
+    def it_inserts_pBdr_in_schema_order(self):
+        """`w:pBdr` must sit between `w:numPr` and `w:shd`."""
+        from docx.enum.table import WD_LINE_STYLE
+
+        paragraph_format = ParagraphFormat(element("w:p/w:pPr/w:shd{w:val=clear}"))
+
+        paragraph_format.borders["top"].line = WD_LINE_STYLE.SINGLE
+
+        assert paragraph_format._element.xml == xml(
+            "w:p/w:pPr/(w:pBdr/w:top{w:val=single},w:shd{w:val=clear})"
+        )
+
+    def it_removes_the_pBdr_when_the_last_edge_goes(self):
+        from docx.enum.table import WD_LINE_STYLE
+
+        paragraph_format = ParagraphFormat(element("w:p"))
+        paragraph_format.borders["bottom"].line = WD_LINE_STYLE.SINGLE
+
+        paragraph_format.borders["bottom"].line = None
+
+        assert paragraph_format._element.xml == xml("w:p/w:pPr")
+
+    def it_rejects_an_edge_a_paragraph_does_not_admit(self):
+        paragraph_format = ParagraphFormat(element("w:p"))
+
+        with pytest.raises(KeyError, match="no border edge 'insideH'"):
+            paragraph_format.borders["insideH"]

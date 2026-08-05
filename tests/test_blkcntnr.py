@@ -54,6 +54,22 @@ class DescribeBlockItemContainer:
         assert table._element.xml == snippet_seq("new-tbl")[0]
         assert table._parent is blkcntnr
 
+    def it_can_add_a_table_with_alt_text(self, blkcntnr: BlockItemContainer):
+        table = blkcntnr.add_table(
+            1, 1, Inches(2), title="Quarterly revenue", description="By region, in kEUR."
+        )
+
+        assert table.title == "Quarterly revenue"
+        assert table.description == "By region, in kEUR."
+
+    def but_it_writes_no_alt_text_elements_when_neither_is_given(
+        self, blkcntnr: BlockItemContainer
+    ):
+        table = blkcntnr.add_table(1, 1, Inches(2))
+
+        assert table._element.xpath("./w:tblPr/w:tblCaption") == []
+        assert table._element.xpath("./w:tblPr/w:tblDescription") == []
+
     def it_can_iterate_its_inner_content(self):
         document = docx.Document(test_file("blk-inner-content.docx"))
 

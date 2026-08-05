@@ -510,6 +510,43 @@ class WD_TAB_LEADER(BaseXmlEnum):
     """A vertically-centered dot."""
 
 
+class WD_TEXT_DIRECTION(BaseXmlEnum):
+    """Specifies the flow direction of text within a paragraph, section or table cell.
+
+    This is the writing direction — which way the lines run and whether the glyphs are
+    rotated — and is a different thing from `bidi`, which is the base *reading* direction
+    of a right-to-left paragraph.
+
+    Example::
+
+        from docx.enum.text import WD_TEXT_DIRECTION
+
+        cell.text_direction = WD_TEXT_DIRECTION.BT_LR   # rotated header cell
+
+    The names spell out the two axes in the order Word writes them: `LR_TB` is
+    left-to-right within a line, top-to-bottom between lines, which is ordinary
+    horizontal Western layout.
+    """
+
+    LR_TB = (0, "lrTb", "Horizontal, left to right. Ordinary Western layout.")
+    """Horizontal, left to right. Ordinary Western layout."""
+
+    TB_RL = (1, "tbRl", "Vertical, right to left. Ordinary East Asian vertical layout.")
+    """Vertical, right to left. Ordinary East Asian vertical layout."""
+
+    BT_LR = (2, "btLr", "Rotated 90 degrees counter-clockwise. A rotated table header.")
+    """Rotated 90 degrees counter-clockwise. A rotated table header."""
+
+    LR_TB_V = (3, "lrTbV", "Horizontal, with each glyph rotated 90 degrees clockwise.")
+    """Horizontal, with each glyph rotated 90 degrees clockwise."""
+
+    TB_RL_V = (4, "tbRlV", "Vertical, with each glyph rotated 90 degrees clockwise.")
+    """Vertical, with each glyph rotated 90 degrees clockwise."""
+
+    TB_LR_V = (5, "tbLrV", "Vertical, left to right, with glyphs rotated.")
+    """Vertical, left to right, with glyphs rotated."""
+
+
 class WD_TEXT_FORM_FIELD_TYPE(BaseXmlEnum):
     """Specifies what a text form field accepts.
 

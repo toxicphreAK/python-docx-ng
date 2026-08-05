@@ -11,6 +11,8 @@ from docx.shared import ElementProxy
 from docx.styles import BabelFish
 from docx.styles.latent import LatentStyles
 from docx.styles.style import BaseStyle, StyleFactory
+from docx.text.font import Font
+from docx.text.parfmt import ParagraphFormat
 
 if TYPE_CHECKING:
     from docx.parts.document import DocumentPart
@@ -169,6 +171,33 @@ class Styles(ElementProxy):
             return self._get_style_id_from_style(style_or_name, style_type)
         else:
             return self._get_style_id_from_name(style_or_name, style_type)
+
+    @property
+    def default_font(self) -> Font:
+        """The document-wide default run formatting, `w:docDefaults/w:rPrDefault/w:rPr`.
+
+        This is the bottom of the formatting inheritance chain: it applies to every run
+        in the document that no style and no direct formatting overrides. For a document
+        whose base font is set only here — which is most documents produced from a Word
+        template — this is the only place `Font.name` is not |None|::
+
+            document.styles.default_font.name = "Calibri"
+
+        As with :attr:`.latent_styles`, the wrapping elements are created on first access
+        so the returned |Font| always has somewhere to write.
+        """
+        docDefaults = self._element.get_or_add_docDefaults()
+        return Font(docDefaults.get_or_add_rPrDefault())  # pyright: ignore[reportArgumentType]
+
+    @property
+    def default_paragraph_format(self) -> ParagraphFormat:
+        """The document-wide default paragraph formatting, `w:docDefaults/w:pPrDefault`.
+
+        The counterpart of :attr:`.default_font` for paragraph properties such as
+        `space_after` and `line_spacing`.
+        """
+        docDefaults = self._element.get_or_add_docDefaults()
+        return ParagraphFormat(docDefaults.get_or_add_pPrDefault())
 
     @property
     def latent_styles(self):

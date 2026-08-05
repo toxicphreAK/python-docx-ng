@@ -59,18 +59,37 @@ class BlockItemContainer(StoryChild):
             paragraph.style = style
         return paragraph
 
-    def add_table(self, rows: int, cols: int, width: Length) -> Table:
+    def add_table(
+        self,
+        rows: int,
+        cols: int,
+        width: Length,
+        *,
+        title: str | None = None,
+        description: str | None = None,
+    ) -> Table:
         """Return table of `width` having `rows` rows and `cols` columns.
 
         The table is appended appended at the end of the content in this container.
 
         `width` is evenly distributed between the table columns.
+
+        `description` is the table's alternative text, which is what a screen reader
+        announces and what an accessibility check looks for. `title` is the separate,
+        caption-like field Word writes alongside it. Both are omitted from the XML when
+        |None|, and are equivalent to assigning `Table.title` and `Table.description`
+        after the fact.
         """
         from docx.table import Table
 
         tbl = CT_Tbl.new_tbl(rows, cols, width)
         self._element._insert_tbl(tbl)  # pyright: ignore[reportPrivateUsage]
-        return Table(tbl, self)
+        table = Table(tbl, self)
+        if title is not None:
+            table.title = title
+        if description is not None:
+            table.description = description
+        return table
 
     def iter_inner_content(self) -> Iterator[Paragraph | Table]:
         """Generate each `Paragraph` or `Table` in this container in document order."""

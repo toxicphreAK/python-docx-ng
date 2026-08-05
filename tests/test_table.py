@@ -18,10 +18,11 @@ from docx.enum.table import (
     WD_TABLE_ALIGNMENT,
     WD_TABLE_DIRECTION,
 )
+from docx.enum.text import WD_TEXT_DIRECTION
 from docx.oxml.parser import parse_xml
 from docx.oxml.table import CT_Row, CT_Tbl, CT_TblGridCol, CT_Tc
 from docx.parts.document import DocumentPart
-from docx.shared import Emu, Inches, Length, Pt, RGBColor
+from docx.shared import Emu, Inches, Length, Pct, Pt, RGBColor
 from docx.table import Table, _Cell, _Column, _Columns, _Row, _Rows
 from docx.text.paragraph import Paragraph
 
@@ -663,6 +664,14 @@ class Describe_Cell:
         assert isinstance(table, Table)
         assert cell._element.xml == snippet_seq("new-tbl")[1]
 
+    def and_it_can_add_a_table_with_alt_text(self, parent_: Mock):
+        cell = _Cell(cast(CT_Tc, element("w:tc/w:p")), parent_)
+
+        table = cell.add_table(rows=1, cols=1, title="T", description="D")
+
+        assert table.title == "T"
+        assert table.description == "D"
+
     def it_can_merge_itself_with_other_cells(
         self, tc_: Mock, tc_2_: Mock, parent_: Mock, merged_tc_: Mock
     ):
@@ -1112,6 +1121,255 @@ class Describe_Rows:
         rows = _Rows(tbl, table)
 
         assert rows.table is table
+
+    # fixtures -------------------------------------------------------
+
+    @pytest.fixture
+    def parent_(self, request: FixtureRequest):
+        return instance_mock(request, Document)
+
+
+class Describe_RowProperties:
+    """Unit-test suite for the `w:trPr` members added for issue #106."""
+
+    @pytest.mark.parametrize(
+        ("tr_cxml", "expected_value"),
+        [
+            ("w:tr", None),
+            ("w:tr/w:trPr", None),
+            ("w:tr/w:trPr/w:tblHeader", True),
+            ("w:tr/w:trPr/w:tblHeader{w:val=0}", False),
+        ],
+    )
+    def it_knows_whether_it_repeats_as_a_header(self, tr_cxml: str, expected_value: bool | None):
+        row = _Row(cast(CT_Row, element(tr_cxml)), Mock())
+
+        assert row.repeat_as_header == expected_value
+
+    def it_inserts_tblHeader_in_schema_order(self):
+        """`w:tblHeader` must follow `w:trHeight`, or Word rejects the document."""
+        row = _Row(cast(CT_Row, element("w:tr/w:trPr/w:trHeight{w:val=240}")), Mock())
+
+        row.repeat_as_header = True
+
+        assert row._tr.xml == xml("w:tr/w:trPr/(w:trHeight{w:val=240},w:tblHeader)")
+
+    def but_it_writes_nothing_when_cleared_on_a_row_without_a_trPr(self):
+        row = _Row(cast(CT_Row, element("w:tr")), Mock())
+
+        row.repeat_as_header = None
+
+        assert row._tr.xml == xml("w:tr")
+
+    def it_can_get_and_set_whether_it_is_hidden(self):
+        row = _Row(cast(CT_Row, element("w:tr")), Mock())
+
+        assert row.hidden is None
+
+        row.hidden = True
+
+        assert row.hidden is True
+        assert row._tr.xml == xml("w:tr/w:trPr/w:hidden")
+
+    def it_can_get_and_set_its_alignment(self):
+        row = _Row(cast(CT_Row, element("w:tr")), Mock())
+
+        assert row.alignment is None
+
+        row.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+        assert row.alignment == WD_TABLE_ALIGNMENT.CENTER
+
+    def it_can_get_and_set_the_widths_of_its_unpopulated_grid_positions(self):
+        row = _Row(
+            cast(CT_Row, element("w:tr/w:trPr/w:gridBefore{w:val=1}")),
+            Mock(),
+        )
+
+        row.width_before = Inches(1)
+
+        assert row.width_before == Inches(1)
+        assert row.width_after is None
+        assert row._tr.xml == xml(
+            "w:tr/w:trPr/(w:gridBefore{w:val=1},w:wBefore{w:w=1440,w:type=dxa})"
+        )
+
+    def it_can_get_and_set_its_cell_spacing(self):
+        row = _Row(cast(CT_Row, element("w:tr")), Mock())
+
+        row.cell_spacing = Pt(1.5)
+
+        assert row.cell_spacing == Pt(1.5)
+
+
+class Describe_CellTextDirection:
+    """Unit-test suite for `_Cell.text_direction`, issue #108."""
+
+    def it_knows_its_text_direction(self, parent_: Mock):
+        cell = _Cell(
+            cast(CT_Tc, element("w:tc/(w:tcPr/w:textDirection{w:val=btLr},w:p)")), parent_
+        )
+
+        assert cell.text_direction == WD_TEXT_DIRECTION.BT_LR
+
+    def and_it_is_None_when_not_set(self, parent_: Mock):
+        cell = _Cell(cast(CT_Tc, element("w:tc/w:p")), parent_)
+
+        assert cell.text_direction is None
+
+    def it_inserts_textDirection_in_schema_order(self, parent_: Mock):
+        """`w:textDirection` must precede `w:vAlign`."""
+        cell = _Cell(
+            cast(CT_Tc, element("w:tc/(w:tcPr/w:vAlign{w:val=center},w:p)")), parent_
+        )
+
+        cell.text_direction = WD_TEXT_DIRECTION.BT_LR
+
+        assert cell._tc.xml == xml(
+            "w:tc/(w:tcPr/(w:textDirection{w:val=btLr},w:vAlign{w:val=center}),w:p)"
+        )
+
+    def but_it_writes_nothing_when_cleared_on_a_cell_without_a_tcPr(self, parent_: Mock):
+        cell = _Cell(cast(CT_Tc, element("w:tc/w:p")), parent_)
+
+        cell.text_direction = None
+
+        assert cell._tc.xml == xml("w:tc/w:p")
+
+    # fixtures -------------------------------------------------------
+
+    @pytest.fixture
+    def parent_(self, request: FixtureRequest):
+        return instance_mock(request, Document)
+
+
+class DescribeTableLookAndMetrics:
+    """Unit-test suite for `Table.look`, `.width`, `.indent` and `.cell_margins`."""
+
+    def it_provides_tri_state_access_to_each_table_look_flag(self, parent_: Mock):
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr")), parent_)
+
+        assert table.look.first_row is None
+        assert table.look.horizontal_banding is None
+
+        table.look.first_row = True
+        table.look.horizontal_banding = True
+
+        assert table.look.first_row is True
+        assert table.look.horizontal_banding is True
+
+    def it_stores_the_banding_flags_inverted(self, parent_: Mock):
+        """`horizontal_banding` is `not w:noHBand`; the oxml layer stays literal."""
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr")), parent_)
+
+        table.look.horizontal_banding = False
+        table.look.vertical_banding = True
+
+        tblLook = table._tbl.tblPr.tblLook
+        assert tblLook is not None
+        assert tblLook.noHBand is True
+        assert tblLook.noVBand is False
+
+    def it_keeps_the_legacy_val_bitmask_in_step(self, parent_: Mock):
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr")), parent_)
+
+        table.look.first_row = True
+        table.look.first_column = True
+        table.look.vertical_banding = False
+
+        tblLook = table._tbl.tblPr.tblLook
+        assert tblLook is not None
+        assert tblLook.val == 0x04A0
+
+    def it_does_not_add_a_tblLook_when_a_flag_is_cleared_on_a_table_without_one(
+        self, parent_: Mock
+    ):
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr")), parent_)
+
+        table.look.first_row = None
+
+        assert table._tbl.tblPr.tblLook is None
+
+    @pytest.mark.parametrize(
+        ("tbl_cxml", "expected_value"),
+        [
+            ("w:tbl/w:tblPr", None),
+            ("w:tbl/w:tblPr/w:tblW{w:w=0,w:type=auto}", None),
+            ("w:tbl/w:tblPr/w:tblW{w:w=2880,w:type=dxa}", Inches(2)),
+            ("w:tbl/w:tblPr/w:tblW{w:w=5000,w:type=pct}", Pct(100)),
+        ],
+    )
+    def it_knows_its_width(self, tbl_cxml: str, expected_value: object, parent_: Mock):
+        table = Table(cast(CT_Tbl, element(tbl_cxml)), parent_)
+
+        assert table.width == expected_value
+
+    @pytest.mark.parametrize(
+        ("value", "expected_cxml"),
+        [
+            (Pct(100), "w:tbl/w:tblPr/w:tblW{w:w=5000,w:type=pct}"),
+            (Inches(6), "w:tbl/w:tblPr/w:tblW{w:w=8640,w:type=dxa}"),
+        ],
+    )
+    def it_can_change_its_width(self, value: object, expected_cxml: str, parent_: Mock):
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr")), parent_)
+
+        table.width = value  # pyright: ignore[reportAttributeAccessIssue]
+
+        assert table._tbl.xml == xml(expected_cxml)
+
+    def and_assigning_None_makes_an_existing_width_auto(self, parent_: Mock):
+        table = Table(
+            cast(CT_Tbl, element("w:tbl/w:tblPr/w:tblW{w:w=2880,w:type=dxa}")), parent_
+        )
+
+        table.width = None
+
+        assert table.width is None
+        assert table._tbl.xml == xml("w:tbl/w:tblPr/w:tblW{w:w=0,w:type=auto}")
+
+    def but_assigning_None_to_a_table_with_no_tblW_writes_nothing(self, parent_: Mock):
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr")), parent_)
+
+        table.width = None
+
+        assert table._tbl.xml == xml("w:tbl/w:tblPr")
+
+    def it_can_get_and_set_its_indent(self, parent_: Mock):
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr")), parent_)
+
+        assert table.indent is None
+
+        table.indent = Inches(0.5)
+
+        assert table.indent == Inches(0.5)
+        assert table._tbl.xml == xml("w:tbl/w:tblPr/w:tblInd{w:w=720,w:type=dxa}")
+
+        table.indent = None
+
+        assert table._tbl.xml == xml("w:tbl/w:tblPr")
+
+    def it_can_get_and_set_its_default_cell_margins(self, parent_: Mock):
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr")), parent_)
+
+        assert table.cell_margins.left is None
+
+        table.cell_margins.left = Pt(6)
+        table.cell_margins.top = Pt(0)
+
+        assert table.cell_margins.left == Pt(6)
+        assert table.cell_margins.top == Pt(0)
+        assert table._tbl.xml == xml(
+            "w:tbl/w:tblPr/w:tblCellMar/(w:top{w:w=0,w:type=dxa},w:left{w:w=120,w:type=dxa})"
+        )
+
+    def it_can_clear_its_cell_margins(self, parent_: Mock):
+        table = Table(cast(CT_Tbl, element("w:tbl/w:tblPr")), parent_)
+        table.cell_margins.left = Pt(6)
+
+        table.cell_margins.clear()
+
+        assert table._tbl.xml == xml("w:tbl/w:tblPr")
 
     # fixtures -------------------------------------------------------
 
